@@ -35,12 +35,12 @@ For building, you need at least 4 GB of memory available.
     mkdir -p ~/dev/MUSE
     cd ~/dev/MUSE
     git clone https://github.com/themuseblockchain/Muse-Source.git
-    cd ~/dev/MUSE/MUSE-2.0
+    cd ~/dev/MUSE/Muse-Source
     git submodule update --init --recursive
     mkdir -p ~/dev/MUSE/MUSE-build
     cd ../MUSE-build
     #optionally specify Boost root directory in case it is not installed on standard paths with -DBOOST_ROOT=/location/
-    cmake -G "Unix Makefiles" -D CMAKE_BUILD_TYPE=Debug ~/dev/MUSE/MUSE-2.0/ 
+    cmake -G "Unix Makefiles" -D CMAKE_BUILD_TYPE=Debug ~/dev/MUSE/Muse-Source/ 
     #optionally, install the binaries
     cmake --build . --target all -- -j 3
     
