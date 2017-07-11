@@ -1,8 +1,7 @@
 Introducing MUSE (beta)
 -----------------
 
-MUSE is an experimental Proof of Work blockchain with an unproven consensus
-algorithm. 
+MUSE is a blockchain which uses Delegated Proof Of Stake (DPOS) as a consensus algorithm.
 
   - Currency Symbol MUSE 
   - Approximately 9,5% APR long term inflation rate
@@ -60,9 +59,4 @@ First, start MUSE daemon:
     
 The daemon is ready. The JSON-RPC is listening on localhost on port 8090
 
-How to Mine
------------
-
-The mining algorithm used by Muse requires the owner to have access to the private key
-used by the account. This means it does not favor mining pools.
 
