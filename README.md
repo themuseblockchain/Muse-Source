@@ -59,7 +59,7 @@ Seed Nodes
 ----------
 
     138.197.68.175:29092 (production)
-    192.34.60.157:2001  (for testnet)
+    192.34.60.157:29092  (for testnet)
 
 How to Start
 ------------
@@ -95,7 +95,7 @@ Here are the steps to setup a witness for the testnet
     5- Replace %WITNESSACCOUNT% by your account, and %PRIVWIF% by the private owner wif generated, then save file
     6- Launch node:
     cd %muse build folder%/mused/
-    ./mused -s 192.34.60.157:2001 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
+    ./mused -s 192.34.60.157:29092 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
     7- muse is running... in another session, go to %muse build folder%/cli_wallet
     8- Run cli_wallet:
     ./cli_wallet
