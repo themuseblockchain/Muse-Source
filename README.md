@@ -87,12 +87,14 @@ For witness setup
 Here are the steps to setup a witness for the testnet
 
 
-    1- Go to http://192.34.60.157:3000/ to generate your keys. Use generate keys, write stuff, as long as it is random), just to generate a pair.
+    1- Go to http://192.34.60.157:3000/ to generate your keys.
+    Use generate keys, write stuff, as long as it is random), just to generate a pair.
     2- Note private and public owner keys generated
     3- Prepare your test net build using instruction above
     4- Edit config: %muse build folder%/mused/witness_node_data_dir/config.ini
-    5- replace %WITNESSACCOUNT% by your account, and %PRIVWIF% by the private owner wif generated, then save file
-    6- launch node: cd %muse build folder%/mused/
+    5- Replace %WITNESSACCOUNT% by your account, and %PRIVWIF% by the private owner wif generated, then save file
+    6- Launch node:
+    cd %muse build folder%/mused/
     ./mused -s 192.34.60.157:2001 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
     7- muse is running... in another session, go to %muse build folder%/cli_wallet
     8- Run cli_wallet:
@@ -100,10 +102,12 @@ Here are the steps to setup a witness for the testnet
     9- set_password $your_wallet_pass...%
     10- unlock "pass..."
     11- import_key %owner priv key%
+    Use http://192.34.60.157:3000/ to reobtain keys using your password if you don't have them
     12- import key %active priv key%
+    Use http://192.34.60.157:3000/ to reobtain keys using your password if you don't have them
     13- use list_my_accounts, see if you see your account
     14- get some vesting to transact...
-    15- announce yourself as a witness: update_witness "test-account-2" "http://%your site or???%" %witness_pub_key% {} true
+    15- announce yourself as a witness: update_witness "test-account-2" "http://%???%" %witness_pub_key% {} true
     16- get votes... use wallet to vote, ask someone to vote
-    17- at this point, we you have votes, your node may be selected as an active witness and start producing blocks
+    17- at this point, you have votes, your node may be selected as an active witness and start produce blocks
 
