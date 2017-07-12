@@ -72,7 +72,7 @@ First, start MUSE daemon:
     #--replay-blockchain may be ommited the next time you start the block chain
    
     #For testnet
-    ./programs/mused/mused -s 192.34.60.157:2001 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
+    ./programs/mused/mused -s 192.34.60.157:29092 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
     
 The daemon is ready. The JSON-RPC is listening on localhost on port 8090
 
