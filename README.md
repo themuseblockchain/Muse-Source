@@ -45,7 +45,7 @@ We are testing using Fedora 25, x64
     #For production build
     cmake -G "Unix Makefiles" -D CMAKE_BUILD_TYPE=Debug ~/dev/MUSE/Muse-Source/ 
     #For test net build
-    cmake -G "Unix Makefiles" -DBUILD_MUSE_TESTNET=ON -DCMAKE_BUILD_TYPE=Debug ~/dev/MUSE/Muse-Source/
+    cmake -G "Unix Makefiles" -DBUILD_MUSE_TEST=ON -DCMAKE_BUILD_TYPE=Debug ~/dev/MUSE/Muse-Source/
     
     #optionally, install the binaries
     cmake --build . --target all -- -j 3
