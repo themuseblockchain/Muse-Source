@@ -82,30 +82,32 @@ You can reconnect to the screen later using screen -r
 For witness setup
 ------------
 Here are the steps to setup a witness for the testnet
-
+Ensure you have opened ports in your firewall.
 
     1- Go to http://192.34.60.157:3000/ to generate your keys.
     Use generate keys, write stuff, as long as it is random), just to generate a pair.
     2- Note private and public owner keys generated
     3- Prepare your test net build using instruction above
-    4- Edit config: %muse build folder%/mused/witness_node_data_dir/config.ini
-    5- Set value of witness your account, and private-key to the private owner wif generated, then save file
-    You may also want to set enable-stale-production to true
-    6- Launch node:
+    4- Launch node again:
     cd %muse build folder%/mused/
+    ./mused
+    5- Edit config: from current dir, witness_node_data_dir/config.ini
+    6- Set value of witness your account, and private-key to the private owner wif generated, then save file
+    You may also want to set enable-stale-production to true
+    7- Launch node again:
     ./mused -s 192.34.60.157:29092 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
-    7- muse is running... in another session, go to %muse build folder%/cli_wallet
-    8- Run cli_wallet:
+    8- muse is running... in another session, go to %muse build folder%/cli_wallet
+    9- Run cli_wallet:
     ./cli_wallet
-    9- set_password $your_wallet_pass...%
-    10- unlock "pass..."
-    11- import_key %owner priv key%
+    10- set_password $your_wallet_pass...%
+    11- unlock "pass..."
+    12- import_key %owner priv key%
     Use http://192.34.60.157:3000/ to reobtain keys using your password if you don't have them
-    12- import key %active priv key%
+    13- import key %active priv key%
     Use http://192.34.60.157:3000/ to reobtain keys using your password if you don't have them
-    13- use list_my_accounts, see if you see your account
-    14- get some vesting to transact...
-    15- announce yourself as a witness: update_witness "test-account-2" "http://%???%" %witness_pub_key% {} true
-    16- get votes... use wallet to vote, ask someone to vote
-    17- at this point, you have votes, your node may be selected as an active witness and start produce blocks
+    14- use list_my_accounts, see if you see your account
+    15- get some vesting to transact...
+    16- announce yourself as a witness, change placeholders: update_witness "WitnessAccountName" "http://%???%" %witness_pub_key% {} true
+    17- get votes... use wallet to vote, ask someone to vote
+    18- at this point, you have votes, your node may be selected as an active witness and start produce blocks
 
