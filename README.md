@@ -50,9 +50,6 @@ We are testing using Fedora 25, x64
     #optionally, install the binaries
     cmake --build . --target all -- -j 3
     
-    # For test net build, some targets may have build errors
-    # Go to mused and cli_wallet folders in ~/dev/MUSE/MUSE-build/programs/ and use "make" to build them if needed.
-    
 Now the binaries shall be in directory ~/dev/MUSE/MUSE-build/programs/
 
 Seed Nodes
