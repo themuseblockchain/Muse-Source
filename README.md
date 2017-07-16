@@ -92,7 +92,8 @@ Here are the steps to setup a witness for the testnet
     2- Note private and public owner keys generated
     3- Prepare your test net build using instruction above
     4- Edit config: %muse build folder%/mused/witness_node_data_dir/config.ini
-    5- Replace %WITNESSACCOUNT% by your account, and %PRIVWIF% by the private owner wif generated, then save file
+    5- Set value of witness your account, and private-key to the private owner wif generated, then save file
+    You may also want to set enable-stale-production to true
     6- Launch node:
     cd %muse build folder%/mused/
     ./mused -s 192.34.60.157:29092 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
