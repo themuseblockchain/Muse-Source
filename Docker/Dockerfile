@@ -1,15 +1,47 @@
 FROM phusion/baseimage:0.9.19
 MAINTAINER educatedwarrior 
 
-ENV LANG=en_US.UTF-8
-
 # Configuration variables
-#test or prod
+#test or prod for NODE_TYPE
 ENV NODE_TYPE=test
+ENV LANG=en_US.UTF-8
 ENV MUSE_WORKDIR /opt/muse/bin
 ENV MUSE_DATADIR /opt/muse/bin/witness_node_data_dir
 ENV TEST_SEED = 192.34.60.157:29092
 ENV PROD_SEED = 138.197.68.175:29092
+
+LABEL org.freenas.interactive="false"       \
+      org.freenas.version="1.0.0.0000"      \
+      org.freenas.upgradeable="true"        \
+      org.freenas.expose-ports-at-host="true"   \
+      org.freenas.autostart="true"      \
+      org.freenas.web-ui-protocol="http"    \
+      org.freenas.web-ui-port=8090     \
+      org.freenas.web-ui-path=""     \
+      org.freenas.port-mappings="8090:80900/tcp"         \
+      org.freenas.volumes="[                    \
+          {                         \
+              \"name\": \"${MUSE_DATADIR}\",              \
+              \"descr\": \"Data directory\"           \
+          }                         \
+      ]"                            \
+      org.freenas.settings="[                   \
+          {                         \
+              \"env\": \"NODE_TYPE\",                  \
+              \"descr\": \"test or prod\",       \
+              \"optional\": false                \
+          },                            \
+          {                         \
+              \"env\": \"TEST_SEED\",                \
+              \"descr\": \"<testseedIPAddress>:29092\",          \
+              \"optional\": true                \
+          },                            \
+          {                         \
+              \"env\": \"PROD_SEED\",                \
+              \"descr\": \"<prodseedIPAddress>:29092\",         \
+              \"optional\": true                \
+          }                            \
+      ]"
 
 RUN \
     apt-get update && \
@@ -50,7 +82,7 @@ RUN \
 #Manually add source code until docker code ready
 #ADD . /usr/local/src/muse
 RUN \
-	cd /tmp && git clone --recursive -j8 https://github.com/themuseblockchain/Muse-Source.git && \
+	cd /tmp && git clone --recursive https://github.com/themuseblockchain/Muse-Source.git && \
 	cd Muse-Source && \
 	#git submodule update --init --recursive && \
 	cmake -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=ON -DCMAKE_BUILD_TYPE=Debug . && \
