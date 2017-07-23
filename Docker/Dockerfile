@@ -91,8 +91,8 @@ RUN \
 
 # Make binary builds available for general-system wide use 
 RUN \
-	cp ./programs/mused/mused /usr/bin/mused && \
-	cp ./programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
+	cp /tmp/Muse-Source/programs/mused/mused /usr/bin/mused && \
+	cp /tmp/Muse-Source/programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
 
 RUN mkdir -p "$MUSE_DATADIR"
 COPY config.ini genesis-test.json genesis.json /
