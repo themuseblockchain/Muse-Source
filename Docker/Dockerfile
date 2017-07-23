@@ -95,7 +95,7 @@ RUN \
 	cp /tmp/Muse-Source/programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
 
 RUN mkdir -p "$MUSE_DATADIR"
-COPY config.ini genesis-test.json genesis.json /
+COPY config.ini ../genesis-test.json ../genesis.json /
 COPY entrypoint.sh /sbin
 RUN cd "$MUSE_WORKDIR" && chmod +x /sbin/entrypoint.sh
 VOLUME "$MUSE_DATADIR"
