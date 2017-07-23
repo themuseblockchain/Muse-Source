@@ -1,4 +1,4 @@
-FROM phusion/baseimage:0.9.19
+FROM educatedwarrior/invictus_image:1.59
 MAINTAINER educatedwarrior 
 
 # Configuration variables
@@ -43,41 +43,41 @@ LABEL org.freenas.interactive="false"       \
           }                            \
       ]"
 
-RUN \
-    apt-get update && \
-    apt-get install -y \
-        autoconf \
-        automake \
-        autotools-dev \
-        build-essential \
-        cmake \
-        doxygen \
-        libboost-all-dev \
-        libreadline-dev \
-        libssl-dev \
-        libtool \
-        ncurses-dev \
-        gcc-4.9 g++-4.9 \
-        libbz2-dev libdb++-dev libdb-dev \
-        python3 \
-        python3-dev \
-        python3-jinja2 \
-        python3-pip \
-        wget \
-        screen \
-        git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* 
+#RUN \
+#    apt-get update && \
+#    apt-get install -y \
+#        autoconf \
+#        automake \
+#        autotools-dev \
+#        build-essential \
+#        cmake \
+#        doxygen \
+#        libboost-all-dev \
+#        libreadline-dev \
+#        libssl-dev \
+#        libtool \
+#        ncurses-dev \
+#        gcc-4.9 g++-4.9 \
+#        libbz2-dev libdb++-dev libdb-dev \
+#        python3 \
+#        python3-dev \
+#        python3-jinja2 \
+#        python3-pip \
+#        wget \
+#        screen \
+#        git && \
+#    apt-get clean && \
+#    rm -rf /var/lib/apt/lists/* #
+#
 
-
-#Install required version of boost
-RUN \
-	cd /tmp && wget https://cytranet.dl.sourceforge.net/project/boost/boost/1.59.0/boost_1_59_0.tar.bz2 && \
-	tar xvf boost_1_59_0.tar.bz2 && \
-	cd boost_1_59_0 && \
-	./bootstrap.sh --prefix=/usr/local --with-libraries=all --libdir=/usr/local/lib --includedir=/usr/local/include && \
-	./b2 install && \
-	rm -rf /tmp/boost_1_59_0*
+##Install required version of boost
+#RUN \
+#	cd /tmp && wget https://cytranet.dl.sourceforge.net/project/boost/boost/1.59.0/boost_1_59_0.tar.bz2 && \
+#	tar xvf boost_1_59_0.tar.bz2 && \
+#	cd boost_1_59_0 && \
+#	./bootstrap.sh --prefix=/usr/local --with-libraries=all --libdir=/usr/local/lib --includedir=/usr/local/include && \
+#	./b2 install && \
+#	rm -rf /tmp/boost_1_59_0*
 
 
 #Manually add source code until docker code ready
@@ -94,11 +94,11 @@ RUN \
 	cp ./programs/mused/mused /usr/bin/mused && \
 	cp ./programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
 
-RUN mkdir -p ${MUSE_DATADIR}
+RUN mkdir -p "$MUSE_DATADIR"
 COPY config.ini genesis-test.json genesis.json /
 COPY entrypoint.sh /sbin
-RUN cd ${MUSE_WORKDIR} && chmod +x /sbin/entrypoint.sh
-VOLUME ${MUSE_DATADIR}
+RUN cd "$MUSE_WORKDIR" && chmod +x /sbin/entrypoint.sh
+VOLUME "$MUSE_DATADIR"
 EXPOSE 8090
 ENTRYPOINT ["/sbin/entrypoint.sh"]
 #Clean up
