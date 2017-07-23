@@ -64,6 +64,7 @@ RUN \
         python3-jinja2 \
         python3-pip \
         wget \
+        screen \
         git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* 
@@ -82,9 +83,9 @@ RUN \
 #Manually add source code until docker code ready
 #ADD . /usr/local/src/muse
 RUN \
-	cd /tmp && git clone --recursive https://github.com/themuseblockchain/Muse-Source.git && \
+	cd /tmp && git clone https://github.com/themuseblockchain/Muse-Source.git && \
 	cd Muse-Source && \
-	#git submodule update --init --recursive && \
+	git submodule update --init --recursive && \
 	cmake -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=ON -DCMAKE_BUILD_TYPE=Debug . && \
 	make mused cli_wallet
 
