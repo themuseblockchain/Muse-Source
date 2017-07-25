@@ -11,7 +11,7 @@ ENV TEST_SEED 192.34.60.157:29092
 ENV PROD_SEED 138.197.68.175:29092
 
 LABEL org.freenas.interactive="false"       \
-      org.freenas.version="1.59.0.0000"      \
+      org.freenas.version="1.59.1.0000"      \
       org.freenas.upgradeable="true"        \
       org.freenas.expose-ports-at-host="true"   \
       org.freenas.autostart="true"      \
@@ -58,7 +58,7 @@ RUN \
 	cp /tmp/Muse-Source/programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
 
 RUN mkdir -p "$MUSE_DATADIR"
-COPY config.ini genesis-test.json genesis.json /
+COPY /Docker/config.ini genesis-test.json genesis.json /
 COPY entrypoint.sh /sbin
 RUN cd "$MUSE_WORKDIR" && chmod +x /sbin/entrypoint.sh
 VOLUME "$MUSE_DATADIR"
