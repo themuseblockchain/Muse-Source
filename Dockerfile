@@ -59,7 +59,7 @@ RUN \
 
 RUN mkdir -p "$MUSE_DATADIR"
 COPY /Docker/config.ini genesis-test.json genesis.json /
-COPY entrypoint.sh /sbin
+COPY /Docker/entrypoint.sh /sbin
 RUN cd "$MUSE_WORKDIR" && chmod +x /sbin/entrypoint.sh
 VOLUME "$MUSE_DATADIR"
 EXPOSE 8090
