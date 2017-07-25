@@ -43,8 +43,7 @@ LABEL org.freenas.interactive="false"       \
           }                            \
       ]"
 
-#Manually add source code until docker code ready
-#ADD . /usr/local/src/muse
+#Build blockchain source
 RUN \
 	cd /tmp && git clone https://github.com/themuseblockchain/Muse-Source.git && \
 	cd Muse-Source && \
