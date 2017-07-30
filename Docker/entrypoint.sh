@@ -1,49 +1,49 @@
 #!/bin/sh
-cd ${MUSE_WORKDIR}
+cd ${WORKDIR}
 
 
-if [ -f "${MUSE_DATADIR}/config.ini" ]
+if [ -f "${DATADIR}/config.ini" ]
   then
     echo
   else
-    cp /config.ini ${MUSE_DATADIR}
+    cp /config.ini ${DATADIR}
 fi
 
 
 if [ "${NODE_TYPE}" = "test" ]; then
-	if [ -f "${MUSE_DATADIR}/genesis-test.json" ]
+	if [ -f "${DATADIR}/genesis-test.json" ]
 	  then
 	    echo "Starting muse daemon in TEST"
 	  	exec mused -s ${TEST_SEED} \
 		--rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${MUSE_DATADIR}/genesis-test.json \
-		-d ${MUSE_DATADIR}/
+		--genesis-json ${DATADIR}/genesis-test.json \
+		-d ${DATADIR}/
 	  else
 	  	echo "Starting muse daemon in TEST.  Replaying blockchain"
-	    cp /genesis-test.json ${MUSE_DATADIR}
+	    cp /genesis-test.json ${DATADIR}
 	    exec mused -s ${TEST_SEED} \
 		--replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${MUSE_DATADIR}/genesis-test.json \
-		-d ${MUSE_DATADIR}/
+		--genesis-json ${DATADIR}/genesis-test.json \
+		-d ${DATADIR}/
 	fi
 
 fi
 
 if [ "${NODE_TYPE}" = "prod" ]; then
-	if [ -f "${MUSE_DATADIR}/genesis.json" ]
+	if [ -f "${DATADIR}/genesis.json" ]
 	  then
-	    echo "Starting muse daemon in PROD"
+	    echo "Starting daemon in PROD"
 	    exec mused -s ${PROD_SEED} \
 		--rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${MUSE_DATADIR}/genesis.json \
-		-d ${MUSE_DATADIR}/
+		--genesis-json ${DATADIR}/genesis.json \
+		-d ${DATADIR}/
 	  else
-	  	echo "Starting muse daemon in PROD.  Replaying blockchain"
-	    cp /genesis.json ${MUSE_DATADIR}
+	  	echo "Starting daemon in PROD.  Replaying blockchain"
+	    cp /genesis.json ${DATADIR}
 		exec mused -s ${PROD_SEED} \
 		--replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${MUSE_DATADIR}/genesis.json \
-		-d ${MUSE_DATADIR}/
+		--genesis-json ${DATADIR}/genesis.json \
+		-d ${DATADIR}/
 	fi
 
 fi
