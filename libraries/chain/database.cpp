@@ -1622,9 +1622,9 @@ asset database::process_content_cashout()
 
    const auto& ridx = get_index_type<report_index>().indices().get<by_created>();
    auto itr = ridx.begin();
-   int customers = 0;
-   while ( itr != ridx.end() && itr->created <= cashing_time ){
-      customers++;
+   std::set<account_id_type> customers;
+   while ( itr != ridx.end() && itr->created <= now ){
+      customers.insert(itr->consumer);
       ++itr;
    }
    itr = ridx.begin();
@@ -1634,7 +1634,7 @@ asset database::process_content_cashout()
       elog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       edump((consumer));
       FC_ASSERT( consumer.total_listening_time > 0 );
-      asset pay_reserve = total_payout * itr->play_time / customers / consumer.total_listening_time;
+      asset pay_reserve = total_payout * itr->play_time / customers.size() / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
       modify<account_object>(consumer, [&](account_object & a){
          a.total_listening_time -= itr->play_time;
@@ -1789,8 +1789,9 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    }
    if(pay_curators){
       auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
+	  
       while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-         asset cp = curation_reserve / 2;
+         asset cp = curation_reserve / 10;
          curation_reserve = curation_reserve - cp;
          pay_to_curator(co, vitr->voter, cp );
          paid += cp;

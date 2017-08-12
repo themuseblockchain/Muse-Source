@@ -178,10 +178,10 @@ class wallet_api
        */
       vector<account_object>              list_my_accounts();
 
-      /**
-       * Get list of proposed transactions
-       */
-      vector<proposal_object> get_proposed_transactions( string account_or_content )const;
+     /**
+      * Get list of proposed transactions
+      */
+     vector<proposal_object> get_proposed_transactions( string account_or_content )const;
 
       /** Lists all accounts registered in the blockchain.
        * This returns a list of all account names and their account ids, sorted by account name.
