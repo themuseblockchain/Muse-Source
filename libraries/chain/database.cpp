@@ -1631,7 +1631,7 @@ asset database::process_content_cashout()
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
       const account_object & consumer = get<account_object>( itr->consumer );
-      elog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
+      ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       edump((consumer));
       FC_ASSERT( consumer.total_listening_time > 0 );
       asset pay_reserve = total_payout * itr->play_time / customers.size() / consumer.total_listening_time;
@@ -1885,7 +1885,9 @@ asset database::get_producer_reward()
 
    /// pay witness in vesting shares
    if( props.head_block_number >= MUSE_START_MINER_VOTING_BLOCK || (witness_account.vesting_shares.amount.value == 0) )
+   {
       create_vesting( witness_account, pay );
+   }
    else
    {
       modify( get_account( witness_account.name), [&]( account_object& a )

@@ -1062,6 +1062,13 @@ class wallet_api
       fc::signal<void(bool)> lock_changed;
       std::shared_ptr<detail::wallet_api_impl> my;
       void encrypt_keys();
+      /**
+       * Import balance into user account using wif key
+       * @param name_or_id Name or ID of the user importing the balance
+       * @param wif_keys Private key
+       * @param broadcast true if you wish to broadcast the transaction
+       * @return the signed version of the transaction
+       */
       annotated_signed_transaction  import_balance( string name_or_id, const vector<string>& wif_keys, bool broadcast );
       vector<balance_object> get_balance_objects( const string& pub_key );
 };
