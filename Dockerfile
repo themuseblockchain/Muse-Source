@@ -48,7 +48,7 @@ RUN \
 	cd /tmp && git clone https://github.com/themuseblockchain/Muse-Source.git && \
 	cd Muse-Source && \
 	git submodule update --init --recursive && \
-	cmake -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=ON -DCMAKE_BUILD_TYPE=Debug . && \
+	cmake -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
 	make mused cli_wallet
 
 # Make binary builds available for general-system wide use 
