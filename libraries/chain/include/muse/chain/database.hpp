@@ -344,11 +344,11 @@ namespace muse { namespace chain {
          const witness_schedule_object&         get_witness_schedule_object()const;
 
          /**
-          * Helper method to return the current sbd value of a given amount of
+          * Helper method to return the current mbd value of a given amount of
           * MUSE.  Return 0 SBD if there isn't a current_median_history
           */
-         asset to_sbd( const asset& muse )const;
-         asset to_muse(const asset &sbd)const;
+         asset to_mbd( const asset& muse )const;
+         asset to_muse(const asset &mbd)const;
 
          time_point_sec   head_block_time()const;
          uint32_t         head_block_num()const;

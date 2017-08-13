@@ -103,8 +103,8 @@
 #define MUSE_BLOCK_INTERVAL                  3
 #define MUSE_BLOCKS_PER_YEAR                 (365*24*60*60/MUSE_BLOCK_INTERVAL)
 #define MUSE_BLOCKS_PER_DAY                  (24*60*60/MUSE_BLOCK_INTERVAL)
-#define MUSE_START_VESTING_BLOCK             (MUSE_BLOCKS_PER_DAY * 7)
-#define MUSE_START_MINER_VOTING_BLOCK        (MUSE_BLOCKS_PER_DAY * 30)
+#define MUSE_START_VESTING_BLOCK             (MUSE_BLOCKS_PER_DAY * 1)
+#define MUSE_START_MINER_VOTING_BLOCK        (MUSE_BLOCKS_PER_DAY * 1)
  
 #define MUSE_INIT_MINER_NAME                 "initminer"
 #define MUSE_NUM_INIT_MINERS                 1

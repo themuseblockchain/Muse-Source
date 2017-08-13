@@ -33,8 +33,8 @@ namespace muse { namespace chain {
          asset       virtual_supply             = asset( 0, MUSE_SYMBOL );
          asset       current_supply             = asset( 0, MUSE_SYMBOL );
          asset       confidential_supply        = asset( 0, MUSE_SYMBOL ); ///< total asset held in confidential balances
-         asset       current_sbd_supply         = asset( 0, MBD_SYMBOL );
-         asset       confidential_sbd_supply    = asset( 0, MBD_SYMBOL ); ///< total asset held in confidential balances
+         asset       current_mbd_supply         = asset( 0, MBD_SYMBOL );
+         asset       confidential_mbd_supply    = asset( 0, MBD_SYMBOL ); ///< total asset held in confidential balances
          asset       total_vesting_fund_muse   = asset( 0, MUSE_SYMBOL );
          asset       total_vesting_shares       = asset( 0, VESTS_SYMBOL );
          asset       total_reward_fund_muse    = asset( 0, MUSE_SYMBOL );
@@ -52,7 +52,7 @@ namespace muse { namespace chain {
          /**
           *  This property defines the interest rate that SBD deposits receive.
           */
-         uint16_t sbd_interest_rate = 0;
+         uint16_t mbd_interest_rate = 0;
 
          /**
           *  Average block size is updated every block to be:
@@ -120,12 +120,12 @@ FC_REFLECT_DERIVED( muse::chain::dynamic_global_property_object, (graphene::db::
                     (virtual_supply)
                     (current_supply)
                     (confidential_supply)
-                    (current_sbd_supply)
-                    (confidential_sbd_supply)
+                    (current_mbd_supply)
+                    (confidential_mbd_supply)
                     (total_vesting_fund_muse)
                     (total_vesting_shares)
                     (total_reward_fund_muse)
-                    (sbd_interest_rate)
+                    (mbd_interest_rate)
                     (average_block_size)
                     (maximum_block_size)
                     (current_aslot)

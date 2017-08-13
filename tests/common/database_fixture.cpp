@@ -302,9 +302,9 @@ void database_fixture::convert(
       if ( amount.asset_id == MUSE_SYMBOL )
       {
          db.adjust_balance( account, -amount );
-         db.adjust_balance( account, db.to_sbd( amount ) );
+         db.adjust_balance( account, db.to_mbd( amount ) );
          db.adjust_supply( -amount );
-         db.adjust_supply( db.to_sbd( amount ) );
+         db.adjust_supply( db.to_mbd( amount ) );
       }
       else if ( amount.asset_id == MBD_SYMBOL )
       {
@@ -417,14 +417,14 @@ void database_fixture::validate_database( void )
    {
       const auto& account_idx = db.get_index_type< account_index >().indices().get< by_id >();
       asset total_supply = asset( 0, MUSE_SYMBOL );
-      asset total_sbd = asset( 0, MBD_SYMBOL );
+      asset total_mbd = asset( 0, MBD_SYMBOL );
       asset total_vesting = asset( 0, VESTS_SYMBOL );
       share_type total_vsf_votes = share_type( 0 );
 
       for( auto itr = account_idx.begin(); itr != account_idx.end(); itr++ )
       {
          total_supply += itr->balance;
-         total_sbd += itr->sbd_balance;
+         total_mbd += itr->mbd_balance;
          total_vesting += itr->vesting_shares;
          total_vsf_votes += ( itr->proxy == MUSE_PROXY_TO_SELF_ACCOUNT ?
                                  itr->witness_vote_weight() :
@@ -440,7 +440,7 @@ void database_fixture::validate_database( void )
          if( itr->amount.asset_id == MUSE_SYMBOL )
             total_supply += itr->amount;
          else if( itr->amount.asset_id == MBD_SYMBOL )
-            total_sbd += itr->amount;
+            total_mbd += itr->amount;
          else
             BOOST_CHECK( !"Encountered illegal symbol in convert_request_object" );
       }
@@ -455,7 +455,7 @@ void database_fixture::validate_database( void )
          }
          else if ( itr->sell_price.base.asset_id == MBD_SYMBOL )
          {
-            total_sbd += asset( itr->for_sale, MBD_SYMBOL );
+            total_mbd += asset( itr->for_sale, MBD_SYMBOL );
          }
       }
 
@@ -467,11 +467,11 @@ void database_fixture::validate_database( void )
       total_supply += gpo.total_vesting_fund_muse + gpo.total_reward_fund_muse;
 
       FC_ASSERT( gpo.current_supply == total_supply, "", ("gpo.current_supply",gpo.current_supply)("total_supply",total_supply) );
-      FC_ASSERT( gpo.current_sbd_supply == total_sbd, "", ("gpo.current_sbd_supply",gpo.current_sbd_supply)("total_sbd",total_sbd) );
+      FC_ASSERT( gpo.current_mbd_supply == total_mbd, "", ("gpo.current_mbd_supply",gpo.current_mbd_supply)("total_mbd",total_mbd) );
       FC_ASSERT( gpo.total_vesting_shares == total_vesting, "", ("gpo.total_vesting_shares",gpo.total_vesting_shares)("total_vesting",total_vesting) );
       FC_ASSERT( gpo.total_vesting_shares.amount == total_vsf_votes, "", ("total_vesting_shares",gpo.total_vesting_shares)("total_vsf_votes",total_vsf_votes) );
       if ( !db.get_feed_history().current_median_history.is_null() )
-         BOOST_REQUIRE( gpo.current_sbd_supply * db.get_feed_history().current_median_history + gpo.current_supply
+         BOOST_REQUIRE( gpo.current_mbd_supply * db.get_feed_history().current_median_history + gpo.current_supply
             == gpo.virtual_supply );
    }
    FC_LOG_AND_RETHROW();

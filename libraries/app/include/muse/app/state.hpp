@@ -66,7 +66,7 @@ namespace muse { namespace app {
    struct order_history_item {
       time_point_sec time;
       string         type; // buy or sell
-      asset          sbd_quantity;
+      asset          mbd_quantity;
       asset          muse_quantity;
       double         real_price = 0;
    };
@@ -120,6 +120,6 @@ FC_REFLECT( muse::app::account_vote, (authorperm)(weight)(rshares)(percent)(time
 FC_REFLECT( muse::app::state, (current_route)(props)(accounts)(pow_queue)(witnesses)(witness_schedule)(feed_price)(error)(market_data) )
 
 FC_REFLECT_DERIVED( muse::app::extended_limit_order, (muse::chain::limit_order_object), (real_price)(rewarded) )
-FC_REFLECT( muse::app::order_history_item, (time)(type)(sbd_quantity)(muse_quantity)(real_price) );
+FC_REFLECT( muse::app::order_history_item, (time)(type)(mbd_quantity)(muse_quantity)(real_price) );
 FC_REFLECT( muse::app::market, (bids)(asks)(history)(price_history)(available_candlesticks)(available_zoom)(current_candlestick)(current_zoom) )
 FC_REFLECT( muse::app::candle_stick, (open_time)(period)(high)(low)(open)(close)(muse_volume)(dollar_volume) );

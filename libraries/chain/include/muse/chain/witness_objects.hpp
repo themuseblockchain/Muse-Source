@@ -38,8 +38,8 @@ namespace muse { namespace chain {
          public_key_type signing_key;
 
          chain_properties props;
-         price            sbd_exchange_rate;
-         time_point_sec   last_sbd_exchange_update;
+         price            mbd_exchange_rate;
+         time_point_sec   last_mbd_exchange_update;
 
 
          /**
@@ -178,7 +178,7 @@ FC_REFLECT_DERIVED( muse::chain::witness_object, (graphene::db::object),
                     (url)(votes)(virtual_last_update)(virtual_position)(virtual_scheduled_time)(total_missed)
                     (last_aslot)(last_confirmed_block_num)(signing_key)
                     (props)
-                    (sbd_exchange_rate)(last_sbd_exchange_update)
+                    (mbd_exchange_rate)(last_mbd_exchange_update)
                     (last_work)
                     (running_version)
                     (hardfork_version_vote)(hardfork_time_vote)

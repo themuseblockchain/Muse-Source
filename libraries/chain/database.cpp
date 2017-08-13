@@ -952,8 +952,8 @@ uint32_t database::get_slot_at_time(fc::time_point_sec when)const
 }
 
 /**
- *  Converts MUSE into sbd and adds it to to_account while reducing the MUSE supply
- *  by MUSE and increasing the sbd supply by the specified amount.
+ *  Converts MUSE into mbd and adds it to to_account while reducing the MUSE supply
+ *  by MUSE and increasing the mbd supply by the specified amount.
  */
 asset database::create_mbd(const account_object &to_account, asset muse)
 {
@@ -965,12 +965,12 @@ asset database::create_mbd(const account_object &to_account, asset muse)
       const auto& median_price = get_feed_history().current_median_history;
       if( !median_price.is_null() )
       {
-         auto sbd = muse * median_price;
+         auto mbd = muse * median_price;
 
-         adjust_balance( to_account, sbd );
+         adjust_balance( to_account, mbd );
          adjust_supply( -muse );
-         adjust_supply( sbd );
-         return sbd;
+         adjust_supply( mbd );
+         return mbd;
       }
       else
       {
@@ -1285,15 +1285,15 @@ void database::update_median_witness_props()
    } );
 
 
-   /// sort them by sbd_interest_rate
+   /// sort them by mbd_interest_rate
    std::sort( active.begin(), active.end(), [&]( const witness_object* a, const witness_object* b )
    {
-      return a->props.sbd_interest_rate < b->props.sbd_interest_rate;
+      return a->props.mbd_interest_rate < b->props.mbd_interest_rate;
    } );
 
    modify( get_dynamic_global_properties(), [&]( dynamic_global_property_object& p )
    {
-         p.sbd_interest_rate = active[active.size()/2]->props.sbd_interest_rate;
+         p.mbd_interest_rate = active[active.size()/2]->props.mbd_interest_rate;
    } );
 }
 
@@ -1622,19 +1622,19 @@ asset database::process_content_cashout()
 
    const auto& ridx = get_index_type<report_index>().indices().get<by_created>();
    auto itr = ridx.begin();
-   int customers = 0;
-   while ( itr != ridx.end() && itr->created <= cashing_time ){
-      customers++;
+   std::set<account_id_type> customers;
+   while ( itr != ridx.end() && itr->created <= now ){
+      customers.insert(itr->consumer);
       ++itr;
    }
    itr = ridx.begin();
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
       const account_object & consumer = get<account_object>( itr->consumer );
-      elog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
+      ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       edump((consumer));
       FC_ASSERT( consumer.total_listening_time > 0 );
-      asset pay_reserve = total_payout * itr->play_time / customers / consumer.total_listening_time;
+      asset pay_reserve = total_payout * itr->play_time / customers.size() / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
       modify<account_object>(consumer, [&](account_object & a){
          a.total_listening_time -= itr->play_time;
@@ -1789,8 +1789,9 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    }
    if(pay_curators){
       auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
+	  
       while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-         asset cp = curation_reserve / 2;
+         asset cp = curation_reserve / 10;
          curation_reserve = curation_reserve - cp;
          pay_to_curator(co, vitr->voter, cp );
          paid += cp;
@@ -1884,7 +1885,9 @@ asset database::get_producer_reward()
 
    /// pay witness in vesting shares
    if( props.head_block_number >= MUSE_START_MINER_VOTING_BLOCK || (witness_account.vesting_shares.amount.value == 0) )
+   {
       create_vesting( witness_account, pay );
+   }
    else
    {
       modify( get_account( witness_account.name), [&]( account_object& a )
@@ -1919,7 +1922,7 @@ void database::pay_liquidity_reward()
          modify( *itr, [&]( liquidity_reward_balance_object& obj )
          {
             obj.muse_volume = 0;
-            obj.sbd_volume   = 0;
+            obj.mbd_volume   = 0;
             obj.last_update  = head_block_time();
             obj.weight = 0;
          } );
@@ -1957,7 +1960,7 @@ uint128_t database::calculate_vshares( uint128_t rshares ) const
 
 /**
  *  Iterates over all conversion requests with a conversion date before
- *  the head block time and then converts them to/from muse/sbd at the
+ *  the head block time and then converts them to/from muse/mbd at the
  *  current median price feed history price times the premium
  */
 void database::process_conversions()
@@ -1970,7 +1973,7 @@ void database::process_conversions()
    if( fhistory.current_median_history.is_null() )
       return;
 
-   asset net_sbd( 0, MBD_SYMBOL );
+   asset net_mbd( 0, MBD_SYMBOL );
    asset net_muse( 0, MUSE_SYMBOL );
 
    while( itr != request_by_date.end() && itr->conversion_date <= now )
@@ -1980,7 +1983,7 @@ void database::process_conversions()
 
       adjust_balance( user, amount_to_issue );
 
-      net_sbd   += itr->amount;
+      net_mbd   += itr->amount;
       net_muse += amount_to_issue;
 
       push_applied_operation( fill_convert_request_operation ( user.name, itr->requestid, itr->amount, amount_to_issue ) );
@@ -1993,13 +1996,13 @@ void database::process_conversions()
    modify( props, [&]( dynamic_global_property_object& p )
    {
        p.current_supply += net_muse;
-       p.current_sbd_supply -= net_sbd;
+       p.current_mbd_supply -= net_mbd;
        p.virtual_supply += net_muse;
-       p.virtual_supply -= net_sbd * get_feed_history().current_median_history;
+       p.virtual_supply -= net_mbd * get_feed_history().current_median_history;
    } );
 }
 
-asset database::to_sbd( const asset& muse )const
+asset database::to_mbd( const asset& muse )const
 {
    FC_ASSERT( muse.asset_id == MUSE_SYMBOL );
    const auto& feed_history = get_feed_history();
@@ -2009,14 +2012,14 @@ asset database::to_sbd( const asset& muse )const
    return muse * feed_history.current_median_history;
 }
 
-asset database::to_muse(const asset &sbd)const
+asset database::to_muse(const asset &mbd)const
 {
-   FC_ASSERT( sbd.asset_id == MBD_SYMBOL );
+   FC_ASSERT( mbd.asset_id == MBD_SYMBOL );
    const auto& feed_history = get_feed_history();
    if( feed_history.current_median_history.is_null() )
       return asset( 0, MUSE_SYMBOL );
 
-   return sbd * feed_history.current_median_history;
+   return mbd * feed_history.current_median_history;
 }
 
 void database::account_recovery_processing()
@@ -2605,10 +2608,10 @@ try {
    vector<price> feeds; feeds.reserve( wso.current_shuffled_witnesses.size() );
    for( const auto& w : wso.current_shuffled_witnesses ) {
       const auto& wit = get_witness(w);
-      if( wit.last_sbd_exchange_update < now + MUSE_MAX_FEED_AGE &&
-          !wit.sbd_exchange_rate.is_null() )
+      if( wit.last_mbd_exchange_update < now + MUSE_MAX_FEED_AGE &&
+          !wit.mbd_exchange_rate.is_null() )
       {
-         feeds.push_back( wit.sbd_exchange_rate );
+         feeds.push_back( wit.mbd_exchange_rate );
       }
    }
 
@@ -2862,7 +2865,7 @@ void database::update_virtual_supply()
    modify( get_dynamic_global_properties(), [&]( dynamic_global_property_object& dgp )
    {
       dgp.virtual_supply = dgp.current_supply
-         + ( get_feed_history().current_median_history.is_null() ? asset( 0, MUSE_SYMBOL ) : dgp.current_sbd_supply * get_feed_history().current_median_history );
+         + ( get_feed_history().current_median_history.is_null() ? asset( 0, MUSE_SYMBOL ) : dgp.current_mbd_supply * get_feed_history().current_median_history );
    });
 }
 
@@ -3030,13 +3033,13 @@ void database::adjust_liquidity_reward( const account_object& owner, const asset
       {
          if( head_block_time() - r.last_update >= MUSE_LIQUIDITY_TIMEOUT_SEC )
          {
-            r.sbd_volume = 0;
+            r.mbd_volume = 0;
             r.muse_volume = 0;
             r.weight = 0;
          }
 
          if( is_sdb )
-            r.sbd_volume += volume.amount.value;
+            r.mbd_volume += volume.amount.value;
          else
             r.muse_volume += volume.amount.value;
 
@@ -3132,28 +3135,28 @@ void database::adjust_balance( const account_object& a, const asset& delta )
          }
          if(delta.asset_id==MBD_SYMBOL)
          {
-            if( a.sbd_seconds_last_update != head_block_time() )
+            if( a.mbd_seconds_last_update != head_block_time() )
             {
-               acnt.sbd_seconds += fc::uint128_t(a.sbd_balance.amount.value) * (head_block_time() - a.sbd_seconds_last_update).to_seconds();
-               acnt.sbd_seconds_last_update = head_block_time();
-               if( acnt.sbd_seconds > 0 && (acnt.sbd_seconds_last_update - acnt.sbd_last_interest_payment).to_seconds() > MUSE_SBD_INTEREST_COMPOUND_INTERVAL_SEC )
+               acnt.mbd_seconds += fc::uint128_t(a.mbd_balance.amount.value) * (head_block_time() - a.mbd_seconds_last_update).to_seconds();
+               acnt.mbd_seconds_last_update = head_block_time();
+               if( acnt.mbd_seconds > 0 && (acnt.mbd_seconds_last_update - acnt.mbd_last_interest_payment).to_seconds() > MUSE_SBD_INTEREST_COMPOUND_INTERVAL_SEC )
                {
-                  auto interest = acnt.sbd_seconds / MUSE_SECONDS_PER_YEAR;
-                  interest *= get_dynamic_global_properties().sbd_interest_rate;
+                  auto interest = acnt.mbd_seconds / MUSE_SECONDS_PER_YEAR;
+                  interest *= get_dynamic_global_properties().mbd_interest_rate;
                   interest /= MUSE_100_PERCENT;
                   asset interest_paid(interest.to_uint64(), MBD_SYMBOL);
-                  acnt.sbd_balance += interest_paid;
-                  acnt.sbd_seconds = 0;
-                  acnt.sbd_last_interest_payment = head_block_time();
+                  acnt.mbd_balance += interest_paid;
+                  acnt.mbd_seconds = 0;
+                  acnt.mbd_last_interest_payment = head_block_time();
                   push_applied_operation( interest_operation( a.name, interest_paid ) );
                   modify( get_dynamic_global_properties(), [&]( dynamic_global_property_object& props)
                   {
-                     props.current_sbd_supply += interest_paid;
+                     props.current_mbd_supply += interest_paid;
                      props.virtual_supply += interest_paid * get_feed_history().current_median_history;
                   } );
                }
             }
-            acnt.sbd_balance += delta;
+            acnt.mbd_balance += delta;
          }
       });
    else try {
@@ -3199,9 +3202,9 @@ void database::adjust_supply( const asset& delta, bool adjust_vesting )
          props.total_vesting_fund_muse += new_vesting;
          assert( props.current_supply.amount.value >= 0 );
       }else if (delta.asset_id == MBD_SYMBOL){
-         props.current_sbd_supply += delta;
-         props.virtual_supply = props.current_sbd_supply * get_feed_history().current_median_history + props.current_supply;
-         assert( props.current_sbd_supply.amount.value >= 0 );
+         props.current_mbd_supply += delta;
+         props.virtual_supply = props.current_mbd_supply * get_feed_history().current_median_history + props.current_supply;
+         assert( props.current_mbd_supply.amount.value >= 0 );
       }else
          FC_ASSERT( !"invalid symbol" );
    } );
@@ -3213,7 +3216,7 @@ asset database::get_balance( const account_object& a, asset_id_type symbol )cons
    if(symbol == MUSE_SYMBOL)
       return a.balance;
    if(symbol == MBD_SYMBOL)
-      return a.sbd_balance;
+      return a.mbd_balance;
    auto& index = get_index_type<account_balance_index>().indices().get<by_account_asset>();
    auto itr = index.find(boost::make_tuple(a.get_id(), symbol));
    if( itr == index.end() )
@@ -3330,7 +3333,7 @@ void database::validate_invariants()const
    {
       const auto& account_idx = get_index_type<account_index>().indices().get<by_name>();
       asset total_supply = asset( 0, MUSE_SYMBOL );
-      asset total_sbd = asset( 0, MBD_SYMBOL );
+      asset total_mbd = asset( 0, MBD_SYMBOL );
       asset total_vesting = asset( 0, VESTS_SYMBOL );
       share_type total_vsf_votes = share_type( 0 );
 
@@ -3344,7 +3347,7 @@ void database::validate_invariants()const
       for( auto itr = account_idx.begin(); itr != account_idx.end(); ++itr )
       {
          total_supply += itr->balance;
-         total_sbd += itr->sbd_balance;
+         total_mbd += itr->mbd_balance;
          total_vesting += itr->vesting_shares;
          total_vsf_votes += ( itr->proxy == MUSE_PROXY_TO_SELF_ACCOUNT ?
                                  itr->witness_vote_weight() :
@@ -3360,7 +3363,7 @@ void database::validate_invariants()const
          if( itr->amount.asset_id == MUSE_SYMBOL )
             total_supply += itr->amount;
          else if( itr->amount.asset_id == MBD_SYMBOL )
-            total_sbd += itr->amount;
+            total_mbd += itr->amount;
          else
             FC_ASSERT( !"Encountered illegal symbol in convert_request_object" );
       }
@@ -3375,22 +3378,22 @@ void database::validate_invariants()const
          }
          else if ( itr->sell_price.base.asset_id == MBD_SYMBOL )
          {
-            total_sbd += asset( itr->for_sale, MBD_SYMBOL );
+            total_mbd += asset( itr->for_sale, MBD_SYMBOL );
          }
       }
 
       total_supply += gpo.total_vesting_fund_muse + gpo.total_reward_fund_muse;
 
       FC_ASSERT( gpo.current_supply == total_supply, "", ("gpo.current_supply",gpo.current_supply)("total_supply",total_supply) );
-      FC_ASSERT( gpo.current_sbd_supply == total_sbd, "", ("gpo.current_sbd_supply",gpo.current_sbd_supply)("total_sbd",total_sbd) );
+      FC_ASSERT( gpo.current_mbd_supply == total_mbd, "", ("gpo.current_mbd_supply",gpo.current_mbd_supply)("total_mbd",total_mbd) );
       FC_ASSERT( gpo.total_vesting_shares == total_vesting, "", ("gpo.total_vesting_shares",gpo.total_vesting_shares)("total_vesting",total_vesting) );
       FC_ASSERT( gpo.total_vesting_shares.amount == total_vsf_votes, "", ("total_vesting_shares",gpo.total_vesting_shares)("total_vsf_votes",total_vsf_votes) );
 
       FC_ASSERT( gpo.virtual_supply >= gpo.current_supply );
       if ( !get_feed_history().current_median_history.is_null() )
       {
-         FC_ASSERT( gpo.current_sbd_supply * get_feed_history().current_median_history + gpo.current_supply
-            == gpo.virtual_supply, "", ("gpo.current_sbd_supply",gpo.current_sbd_supply)("get_feed_history().current_median_history",get_feed_history().current_median_history)("gpo.current_supply",gpo.current_supply)("gpo.virtual_supply",gpo.virtual_supply) );
+         FC_ASSERT( gpo.current_mbd_supply * get_feed_history().current_median_history + gpo.current_supply
+            == gpo.virtual_supply, "", ("gpo.current_mbd_supply",gpo.current_mbd_supply)("get_feed_history().current_median_history",get_feed_history().current_median_history)("gpo.current_supply",gpo.current_supply)("gpo.virtual_supply",gpo.virtual_supply) );
       }
    }
    FC_CAPTURE_LOG_AND_RETHROW( (head_block_num()) );

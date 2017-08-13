@@ -59,21 +59,21 @@ struct bucket_object : public abstract_object< bucket_object >
    static const uint8_t space_id = MARKET_HISTORY_SPACE_ID;
    static const uint8_t type_id = 1;
 
-   price high()const { return asset( high_sbd, MBD_SYMBOL ) / asset( high_muse, MUSE_SYMBOL ); }
-   price low()const { return asset( low_sbd, MBD_SYMBOL ) / asset( low_muse, MUSE_SYMBOL ); }
+   price high()const { return asset( high_mbd, MBD_SYMBOL ) / asset( high_muse, MUSE_SYMBOL ); }
+   price low()const { return asset( low_mbd, MBD_SYMBOL ) / asset( low_muse, MUSE_SYMBOL ); }
 
    fc::time_point_sec   open;
    uint32_t             seconds = 0;
    share_type           high_muse;
-   share_type           high_sbd;
+   share_type           high_mbd;
    share_type           low_muse;
-   share_type           low_sbd;
+   share_type           low_mbd;
    share_type           open_muse;
-   share_type           open_sbd;
+   share_type           open_mbd;
    share_type           close_muse;
-   share_type           close_sbd;
+   share_type           close_mbd;
    share_type           muse_volume;
-   share_type           sbd_volume;
+   share_type           mbd_volume;
 };
 
 struct order_history_object : public abstract_object< order_history_object >
@@ -114,11 +114,11 @@ typedef generic_index< order_history_object, order_history_multi_index_type > or
 
 FC_REFLECT_DERIVED( muse::market_history::bucket_object, (graphene::db::object),
                      (open)(seconds)
-                     (high_muse)(high_sbd)
-                     (low_muse)(low_sbd)
-                     (open_muse)(open_sbd)
-                     (close_muse)(close_sbd)
-                     (muse_volume)(sbd_volume) )
+                     (high_muse)(high_mbd)
+                     (low_muse)(low_mbd)
+                     (open_muse)(open_mbd)
+                     (close_muse)(close_mbd)
+                     (muse_volume)(mbd_volume) )
 
 FC_REFLECT_DERIVED( muse::market_history::order_history_object, (graphene::db::object),
                      (time)
