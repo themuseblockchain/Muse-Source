@@ -34,8 +34,8 @@ market_ticker market_history_api_impl::get_ticker() const
 
    if( itr != bucket_idx.end() )
    {
-      auto open = ( asset( itr->open_sbd, MBD_SYMBOL ) / asset( itr->open_muse, MUSE_SYMBOL ) ).to_real();
-      result.latest = ( asset( itr->close_sbd, MBD_SYMBOL ) / asset( itr->close_muse, MUSE_SYMBOL ) ).to_real();
+      auto open = ( asset( itr->open_mbd, MBD_SYMBOL ) / asset( itr->open_muse, MUSE_SYMBOL ) ).to_real();
+      result.latest = ( asset( itr->close_mbd, MBD_SYMBOL ) / asset( itr->close_muse, MUSE_SYMBOL ) ).to_real();
       result.percent_change = ( ( result.latest - open ) / open ) * 100;
    }
    else
@@ -52,7 +52,7 @@ market_ticker market_history_api_impl::get_ticker() const
 
    auto volume = get_volume();
    result.muse_volume = volume.muse_volume;
-   result.sbd_volume = volume.sbd_volume;
+   result.mbd_volume = volume.mbd_volume;
 
    return result;
 }
@@ -72,7 +72,7 @@ market_volume market_history_api_impl::get_volume() const
    while( itr != bucket_idx.end() && itr->seconds == bucket_size )
    {
       result.muse_volume.amount += itr->muse_volume;
-      result.sbd_volume.amount += itr->sbd_volume;
+      result.mbd_volume.amount += itr->mbd_volume;
 
       ++itr;
    }
@@ -94,7 +94,7 @@ order_book market_history_api_impl::get_order_book( uint32_t limit ) const
       order cur;
       cur.price = itr->sell_price.base.to_real() / itr->sell_price.quote.to_real();
       cur.muse = ( asset( itr->for_sale, MBD_SYMBOL ) * itr->sell_price ).amount;
-      cur.sbd = itr->for_sale;
+      cur.mbd = itr->for_sale;
       result.bids.push_back( cur );
       ++itr;
    }
@@ -106,7 +106,7 @@ order_book market_history_api_impl::get_order_book( uint32_t limit ) const
       order cur;
       cur.price = itr->sell_price.quote.to_real() / itr->sell_price.base.to_real();
       cur.muse = itr->for_sale;
-      cur.sbd = ( asset( itr->for_sale, MUSE_SYMBOL ) * itr->sell_price ).amount;
+      cur.mbd = ( asset( itr->for_sale, MUSE_SYMBOL ) * itr->sell_price ).amount;
       result.asks.push_back( cur );
       ++itr;
    }

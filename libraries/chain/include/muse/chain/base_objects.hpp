@@ -18,7 +18,7 @@ namespace muse { namespace chain {
    using namespace graphene::db;
 
    /**
-    *  This object is used to track pending requests to convert sbd to muse
+    *  This object is used to track pending requests to convert mbd to muse
     */
    class convert_request_object : public abstract_object<convert_request_object> {
       public:
@@ -65,21 +65,21 @@ namespace muse { namespace chain {
 
          account_id_type owner;
          int64_t         muse_volume = 0;
-         int64_t         sbd_volume = 0;
+         int64_t         mbd_volume = 0;
          uint128_t       weight = 0;
 
          /// this is the sort index
          uint128_t volume_weight()const { 
-            return muse_volume * sbd_volume * is_positive(); 
+            return muse_volume * mbd_volume * is_positive(); 
         }
          uint128_t min_volume_weight()const { 
-            return std::min(muse_volume,sbd_volume) * is_positive(); 
+            return std::min(muse_volume,mbd_volume) * is_positive(); 
         }
          void update_weight( bool hf9 ) {
              weight = hf9 ? min_volume_weight() : volume_weight();
          }
 
-         inline int is_positive()const { return ( muse_volume > 0 && sbd_volume > 0 ) ? 1 : 0; }
+         inline int is_positive()const { return ( muse_volume > 0 && mbd_volume > 0 ) ? 1 : 0; }
 
          time_point_sec last_update = fc::time_point_sec::min(); /// used to decay negative liquidity balances. block num
    };
@@ -274,7 +274,7 @@ FC_REFLECT_DERIVED( muse::chain::convert_request_object, (graphene::db::object),
                     (owner)(requestid)(amount)(conversion_date) )
 
 FC_REFLECT_DERIVED( muse::chain::liquidity_reward_balance_object, (graphene::db::object),
-                    (owner)(muse_volume)(sbd_volume)(weight)(last_update) )
+                    (owner)(muse_volume)(mbd_volume)(weight)(last_update) )
 
 FC_REFLECT_DERIVED( muse::chain::withdraw_vesting_route_object, (graphene::db::object),
                     (from_account)(to_account)(percent)(auto_vest) )

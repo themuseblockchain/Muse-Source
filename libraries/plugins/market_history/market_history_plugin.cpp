@@ -63,28 +63,28 @@ void market_history_plugin_impl::update_market_histories( const operation_object
                if( op.open_pays.asset_id == MUSE_SYMBOL )
                {
                   b.high_muse = op.open_pays.amount;
-                  b.high_sbd = op.current_pays.amount;
+                  b.high_mbd = op.current_pays.amount;
                   b.low_muse = op.open_pays.amount;
-                  b.low_sbd = op.current_pays.amount;
+                  b.low_mbd = op.current_pays.amount;
                   b.open_muse = op.open_pays.amount;
-                  b.open_sbd = op.current_pays.amount;
+                  b.open_mbd = op.current_pays.amount;
                   b.close_muse = op.open_pays.amount;
-                  b.close_sbd = op.current_pays.amount;
+                  b.close_mbd = op.current_pays.amount;
                   b.muse_volume = op.open_pays.amount;
-                  b.sbd_volume = op.current_pays.amount;
+                  b.mbd_volume = op.current_pays.amount;
                }
                else
                {
                   b.high_muse = op.current_pays.amount;
-                  b.high_sbd = op.open_pays.amount;
+                  b.high_mbd = op.open_pays.amount;
                   b.low_muse = op.current_pays.amount;
-                  b.low_sbd = op.open_pays.amount;
+                  b.low_mbd = op.open_pays.amount;
                   b.open_muse = op.current_pays.amount;
-                  b.open_sbd = op.open_pays.amount;
+                  b.open_mbd = op.open_pays.amount;
                   b.close_muse = op.current_pays.amount;
-                  b.close_sbd = op.open_pays.amount;
+                  b.close_mbd = op.open_pays.amount;
                   b.muse_volume = op.current_pays.amount;
-                  b.sbd_volume = op.open_pays.amount;
+                  b.mbd_volume = op.open_pays.amount;
                }
             });
          }
@@ -95,39 +95,39 @@ void market_history_plugin_impl::update_market_histories( const operation_object
                if( op.open_pays.asset_id == MUSE_SYMBOL )
                {
                   b.muse_volume += op.open_pays.amount;
-                  b.sbd_volume += op.current_pays.amount;
+                  b.mbd_volume += op.current_pays.amount;
                   b.close_muse = op.open_pays.amount;
-                  b.close_sbd = op.current_pays.amount;
+                  b.close_mbd = op.current_pays.amount;
 
                   if( b.high() < price( op.current_pays, op.open_pays ) )
                   {
                      b.high_muse = op.open_pays.amount;
-                     b.high_sbd = op.current_pays.amount;
+                     b.high_mbd = op.current_pays.amount;
                   }
 
                   if( b.low() > price( op.current_pays, op.open_pays ) )
                   {
                      b.low_muse = op.open_pays.amount;
-                     b.low_sbd = op.current_pays.amount;
+                     b.low_mbd = op.current_pays.amount;
                   }
                }
                else
                {
                   b.muse_volume += op.current_pays.amount;
-                  b.sbd_volume += op.open_pays.amount;
+                  b.mbd_volume += op.open_pays.amount;
                   b.close_muse = op.current_pays.amount;
-                  b.close_sbd = op.open_pays.amount;
+                  b.close_mbd = op.open_pays.amount;
 
                   if( b.high() < price( op.open_pays, op.current_pays ) )
                   {
                      b.high_muse = op.current_pays.amount;
-                     b.high_sbd = op.open_pays.amount;
+                     b.high_mbd = op.open_pays.amount;
                   }
 
                   if( b.low() > price( op.open_pays, op.current_pays ) )
                   {
                      b.low_muse = op.current_pays.amount;
-                     b.low_sbd = op.open_pays.amount;
+                     b.low_mbd = op.open_pays.amount;
                   }
                }
             });

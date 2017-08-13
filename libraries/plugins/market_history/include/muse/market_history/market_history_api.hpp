@@ -27,20 +27,20 @@ struct market_ticker
    double      highest_bid = 0;
    double      percent_change = 0;
    asset       muse_volume = asset( 0 , MUSE_SYMBOL );
-   asset       sbd_volume = asset( 0, MBD_SYMBOL );
+   asset       mbd_volume = asset( 0, MBD_SYMBOL );
 };
 
 struct market_volume
 {
    asset       muse_volume = asset( 0, MUSE_SYMBOL );
-   asset       sbd_volume = asset( 0, MBD_SYMBOL );
+   asset       mbd_volume = asset( 0, MBD_SYMBOL );
 };
 
 struct order
 {
    double      price;
    share_type  muse;
-   share_type  sbd;
+   share_type  mbd;
 };
 
 struct order_book
@@ -116,11 +116,11 @@ class market_history_api
 } } // muse::market_history
 
 FC_REFLECT( muse::market_history::market_ticker,
-   (latest)(lowest_ask)(highest_bid)(percent_change)(muse_volume)(sbd_volume) );
+   (latest)(lowest_ask)(highest_bid)(percent_change)(muse_volume)(mbd_volume) );
 FC_REFLECT( muse::market_history::market_volume,
-   (muse_volume)(sbd_volume) );
+   (muse_volume)(mbd_volume) );
 FC_REFLECT( muse::market_history::order,
-   (price)(muse)(sbd) );
+   (price)(muse)(mbd) );
 FC_REFLECT( muse::market_history::order_book,
    (bids)(asks) );
 FC_REFLECT( muse::market_history::market_trade,

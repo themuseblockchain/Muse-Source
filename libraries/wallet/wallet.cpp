@@ -292,7 +292,7 @@ public:
                                                                           time_point_sec(time_point::now()),
                                                                           " old");
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
-      result["median_sbd_price"] = _remote_db->get_current_median_history_price();
+      result["median_mbd_price"] = _remote_db->get_current_median_history_price();
       result["account_creation_fee"] = _remote_db->get_chain_properties().account_creation_fee;
       return result;
    }
@@ -875,21 +875,21 @@ public:
          auto accounts = result.as<vector<account_object>>();
          asset total_muse;
          asset total_vest(0, VESTS_SYMBOL );
-         asset total_sbd(0, MBD_SYMBOL );
+         asset total_mbd(0, MBD_SYMBOL );
          for( const auto& a : accounts ) {
             total_muse += a.balance;
             total_vest  += a.vesting_shares;
-            total_sbd  += a.sbd_balance;
+            total_mbd  += a.mbd_balance;
             out << std::left << std::setw( 17 ) << a.name
                 << std::right << std::setw(20) << fc::variant(a.balance).as_string() <<" "
                 << std::right << std::setw(20) << fc::variant(a.vesting_shares).as_string() <<" "
-                << std::right << std::setw(20) << fc::variant(a.sbd_balance).as_string() <<"\n";
+                << std::right << std::setw(20) << fc::variant(a.mbd_balance).as_string() <<"\n";
          }
          out << "-------------------------------------------------------------------------\n";
             out << std::left << std::setw( 17 ) << "TOTAL"
                 << std::right << std::setw(20) << fc::variant(total_muse).as_string() <<" "
                 << std::right << std::setw(20) << fc::variant(total_vest).as_string() <<" "
-                << std::right << std::setw(20) << fc::variant(total_sbd).as_string() <<"\n";
+                << std::right << std::setw(20) << fc::variant(total_mbd).as_string() <<"\n";
          return out.str();
       };
       m["get_account_history"] = []( variant result, const fc::variants& a ) {
@@ -2041,7 +2041,7 @@ annotated_signed_transaction wallet_api::set_withdraw_vesting_route( string from
    return my->sign_transaction( tx, broadcast );
 }
 
-annotated_signed_transaction wallet_api::convert_sbd(string from, asset amount, bool broadcast )
+annotated_signed_transaction wallet_api::convert_mbd(string from, asset amount, bool broadcast )
 {
    FC_ASSERT( !is_locked() );
     convert_operation op;

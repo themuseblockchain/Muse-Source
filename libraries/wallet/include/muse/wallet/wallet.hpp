@@ -673,7 +673,7 @@ class wallet_api
        *  @param amount The amount of MBD to convert
        *  @param broadcast true if you wish to broadcast the transaction
        */
-      annotated_signed_transaction convert_sbd( string from, asset amount, bool broadcast = false );
+      annotated_signed_transaction convert_mbd( string from, asset amount, bool broadcast = false );
 
       /**
        * A witness can public a price feed for the MUSE:MBD market. The median price feed is used
@@ -1144,7 +1144,7 @@ FC_API( muse::wallet::wallet_api,
         (transfer_to_vesting)
         (withdraw_vesting)
         (set_withdraw_vesting_route)
-        (convert_sbd)
+        (convert_mbd)
         (publish_feed)
         (get_order_book)
         (get_open_orders)
