@@ -84,7 +84,7 @@ For witness setup
 Here are the steps to setup a witness for the testnet
 Ensure you have opened ports in your firewall.
 
-    1- Go to http://192.34.60.157:3000/ to generate your keys.
+    1- Go to http://138.197.98.184:3000/ws/accounts to generate your keys.
     Use generate keys, write stuff, as long as it is random), just to generate a pair.
     2- Note private and public owner keys generated
     3- Prepare your test net build using instruction above
@@ -95,16 +95,16 @@ Ensure you have opened ports in your firewall.
     6- Set value of witness your account, and private-key to the private owner wif generated, then save file
     You may also want to set enable-stale-production to true
     7- Launch node again:
-    ./mused -s 192.34.60.157:29092 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis-test.json
+    ./mused -s 138.197.68.175:33333 --replay-blockchain --rpc-endpoint=127.0.0.1:8090 
     8- muse is running... in another session, go to %muse build folder%/cli_wallet
     9- Run cli_wallet:
     ./cli_wallet
     10- set_password $your_wallet_pass...%
     11- unlock "pass..."
     12- import_key %owner priv key%
-    Use http://192.34.60.157:3000/ to reobtain keys using your password if you don't have them
+    Use http://138.197.98.184:3000/ws/accounts to reobtain keys using your password if you don't have them
     13- import key %active priv key%
-    Use http://192.34.60.157:3000/ to reobtain keys using your password if you don't have them
+    Use http://138.197.98.184:3000/ws/accounts to reobtain keys using your password if you don't have them
     14- use list_my_accounts, see if you see your account
     15- get some vesting to transact...
     16- announce yourself as a witness, change placeholders: update_witness "WitnessAccountName" "http://%???%" %witness_pub_key% {} true
