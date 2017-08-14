@@ -3,10 +3,11 @@ MAINTAINER educatedwarrior
 
 # Configuration variables
 #test or prod for NODE_TYPE
-ENV NODE_TYPE=prod
-ENV LANG=en_US.UTF-8
+ENV NODE_TYPE prod
+ENV LANG en_US.UTF-8
 ENV WORKDIR /opt/muse/bin
 ENV DATADIR /opt/muse/bin/witness_node_data_dir
+ENV USEGENSISJSON false 
 ENV TEST_SEED 192.34.60.157:29092
 ENV PROD_SEED 138.197.68.175:33333
 
@@ -57,7 +58,9 @@ RUN \
 	cp /tmp/Muse-Source/programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
 
 RUN mkdir -p "$DATADIR"
-COPY /Docker/config.ini genesis-test.json /
+RUN touch genesis-test.json
+RUN touch genesis.json
+COPY /Docker/config.ini genesis-test.json genesis.json /
 COPY /Docker/entrypoint.sh /sbin
 RUN cd "$WORKDIR" && chmod +x /sbin/entrypoint.sh
 VOLUME "$DATADIR"
