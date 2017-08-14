@@ -35,14 +35,12 @@ if [ "${NODE_TYPE}" = "prod" ]; then
 	    echo "Starting daemon in PROD"
 	    exec mused -s ${PROD_SEED} \
 		--rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${DATADIR}/genesis.json \
 		-d ${DATADIR}/
 	  else
 	  	echo "Starting daemon in PROD.  Replaying blockchain"
 	    cp /genesis.json ${DATADIR}
 		exec mused -s ${PROD_SEED} \
 		--replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${DATADIR}/genesis.json \
 		-d ${DATADIR}/
 	fi
 
