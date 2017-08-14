@@ -57,7 +57,7 @@ RUN \
 	cp /tmp/Muse-Source/programs/cli_wallet/cli_wallet /usr/bin/cli_wallet
 
 RUN mkdir -p "$DATADIR"
-COPY /Docker/config.ini genesis-test.json genesis.json /
+COPY /Docker/config.ini genesis-test.json /
 COPY /Docker/entrypoint.sh /sbin
 RUN cd "$WORKDIR" && chmod +x /sbin/entrypoint.sh
 VOLUME "$DATADIR"
