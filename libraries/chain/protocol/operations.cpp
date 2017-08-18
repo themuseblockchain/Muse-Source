@@ -151,4 +151,16 @@ bool is_proposal_operation( const operation& op ) {
    return op.visit( is_proposal_op_visitor() );
 }
 
+struct is_vesting_op_visitor {
+   typedef bool result_type;
+
+   template<typename T>
+   bool operator()( T&& v )const { return false; }
+   bool operator()( const transfer_to_vesting_operation& )const { return true; }
+};
+
+bool is_vesting_operation( const operation& op ) {
+   return op.visit( is_vesting_op_visitor() );
+}
+
 } } // namespace muse::chain

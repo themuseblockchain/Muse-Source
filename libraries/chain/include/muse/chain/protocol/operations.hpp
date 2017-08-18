@@ -100,6 +100,7 @@ namespace muse { namespace chain {
 
    bool is_market_operation( const operation& op );
    bool is_proposal_operation( const operation& op );
+   bool is_vesting_operation( const operation& op);
 
 } } // muse::chain
 
