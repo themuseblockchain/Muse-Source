@@ -21,10 +21,10 @@ share_type calc_percent_reward( share_type current_supply )
 
    static const uint128_t half = uint128_t(1) << (shift_constant - 1);
 
-   uint128_t reward = current_supply.value;
-   reward *= (percent * multiply_constant);      // compile-time constant, fits in 64 bits
+   uint128_t reward = current_supply.value;      //18000000000000
+   reward *= (percent * multiply_constant);      // compile-time constant, fits in 64 bits //95*18000000000000*133921203762304
    reward += half;                               // round to nearest whole integer instead of truncating
-   reward >>= shift_constant;
+   reward >>= shift_constant;                    //1480
    return reward.to_uint64();
 }
 
