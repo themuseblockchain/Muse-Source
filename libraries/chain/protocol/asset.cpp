@@ -27,7 +27,7 @@ namespace muse { namespace chain {
          return output;
       }
 
-      static asset asset::from_string(string from) {
+      asset asset::from_string(string from) {
          int64_t amount;
          string s = fc::trim( from );
          auto dot_pos = s.find( "." );
@@ -42,7 +42,7 @@ namespace muse { namespace chain {
             amount = fc::to_int64(intpart)*static_precision();
 
             std::string fractpart = s.substr( dot_pos+1, std::min<size_t>(space_pos-dot_pos-1, MUSE_ASSET_PRECISION));
-            while (fractpart < MUSE_ASSET_PRECISION)
+            while (fractpart.size() < MUSE_ASSET_PRECISION)
                fractpart+='0';
 
             uint64_t fract_amount = fc::to_int64(fractpart);
