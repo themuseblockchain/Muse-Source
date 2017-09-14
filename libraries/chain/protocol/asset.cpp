@@ -27,7 +27,7 @@ namespace muse { namespace chain {
          return output;
       }
 
-      static asset::asset from_string(string from) {
+      static asset asset::from_string(string from) {
          int64_t amount;
          string s = fc::trim( from );
          auto dot_pos = s.find( "." );
