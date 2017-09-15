@@ -1821,6 +1821,7 @@ void database::process_funds()
    auto witness_pay = get_producer_reward();
    auto vesting_reward = get_vesting_reward();
 
+
    if( props.head_block_number < MUSE_START_VESTING_BLOCK )
       vesting_reward.amount = 0;
 
@@ -1862,9 +1863,14 @@ asset database::get_liquidity_reward()const
 asset database::get_content_reward()const
 {
    const auto& props = get_dynamic_global_properties();
+
+   share_type old = calc_percent_reward_per_day< MUSE_CONTENT_APR_PERCENT >( props.virtual_supply.amount );
+   share_type n = calc_percent_reward_per_day_new< MUSE_CONTENT_APR_PERCENT_N >( props.virtual_supply.amount );
+
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
    if(has_hardfork(MUSE_HARDFORK_0_1)){
       asset percent( calc_percent_reward_per_day_new< MUSE_CONTENT_APR_PERCENT_N >( props.virtual_supply.amount ), MUSE_SYMBOL );
+      return std::max( percent, MUSE_MIN_CONTENT_REWARD );
    }
    asset percent( calc_percent_reward_per_day< MUSE_CONTENT_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL );
    return std::max( percent, MUSE_MIN_CONTENT_REWARD );
@@ -1874,8 +1880,11 @@ asset database::get_vesting_reward()const
 {
    const auto& props = get_dynamic_global_properties();
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
+   share_type old = calc_percent_reward_per_block< MUSE_VESTING_ARP_PERCENT >( props.virtual_supply.amount );
+   share_type n = calc_percent_reward_per_block_new< MUSE_VESTING_ARP_PERCENT_N >( props.virtual_supply.amount );
    if(has_hardfork(MUSE_HARDFORK_0_1)){
       asset percent( calc_percent_reward_per_block_new< MUSE_VESTING_ARP_PERCENT_N >( props.virtual_supply.amount ), MUSE_SYMBOL );
+      return percent;
    }
    asset percent( calc_percent_reward_per_block< MUSE_VESTING_ARP_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL );
    return percent;
@@ -1885,6 +1894,8 @@ asset database::get_producer_reward()
 {
    const auto& props = get_dynamic_global_properties();
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
+   share_type old = calc_percent_reward_per_block< MUSE_PRODUCER_APR_PERCENT >( props.virtual_supply.amount );
+   share_type n = calc_percent_reward_per_block_new< MUSE_PRODUCER_APR_PERCENT_N >( props.virtual_supply.amount );
    asset percent( has_hardfork(MUSE_HARDFORK_0_1)? calc_percent_reward_per_block_new< MUSE_PRODUCER_APR_PERCENT_N >( props.virtual_supply.amount ) : calc_percent_reward_per_block< MUSE_PRODUCER_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL);
    auto pay = std::max( percent, MUSE_MIN_PRODUCER_REWARD );
    const auto& witness_account = get_account( props.current_witness );

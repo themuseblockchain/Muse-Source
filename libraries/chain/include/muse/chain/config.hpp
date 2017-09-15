@@ -215,9 +215,8 @@
 
 #define MUSE_APR_PERCENT_SHIFT_PER_DAY               73
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N            ( (uint64_t( 0x1AB3 ) << 20 ) \
-                                                        | (uint64_t( 0x78B5 ) << 10 ) \
-                                                        | (uint64_t( 0x5670 )       ) )
+#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N             (uint64_t( 0x1AB378B55670 )  )
+
 
 #define MUSE_APR_PERCENT_SHIFT_PER_DAY_N               70
 
