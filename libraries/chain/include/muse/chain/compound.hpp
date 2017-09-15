@@ -28,10 +28,23 @@ share_type calc_percent_reward( share_type current_supply )
    return reward.to_uint64();
 }
 
+// (1+x)^REWARDS_PER_YEAR = 1.095
+// ln (1+x) * REWARDS_PER_YEAR = ln(1.095)
+// ln (1+x) = ln(1.095) / REWARDS_PER_YEAR
+// x = exp( ln(1.095) / REWARDS_PER_YEAR ) - 1
+// Block per year - 10512000
+
+
 template< uint16_t percent >
 inline share_type calc_percent_reward_per_hour( share_type current_supply )
 {
    return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_HOUR, MUSE_APR_PERCENT_SHIFT_PER_HOUR >( current_supply );
+}
+
+template< uint16_t percent >
+inline share_type calc_percent_reward_per_block_new( share_type current_supply )
+{
+   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_N, MUSE_APR_PERCENT_SHIFT_PER_BLOCK_N >( current_supply );
 }
 
 template< uint16_t percent >
@@ -50,6 +63,13 @@ template< uint16_t percent >
 inline share_type calc_percent_reward_per_day( share_type current_supply )
 {
    return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_DAY, MUSE_APR_PERCENT_SHIFT_PER_DAY >( current_supply );
+}
+
+
+template< uint16_t percent >
+inline share_type calc_percent_reward_per_day_new( share_type current_supply )
+{
+   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N, MUSE_APR_PERCENT_SHIFT_PER_DAY_N >( current_supply );
 }
 
 } }
