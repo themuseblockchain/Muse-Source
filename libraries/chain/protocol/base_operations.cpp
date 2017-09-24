@@ -84,7 +84,8 @@ namespace muse { namespace chain {
       FC_ASSERT( is_valid_account_name( from ), "From account name invalid" );
       FC_ASSERT( is_asset_type( amount, MUSE_SYMBOL ), "Amount must be MUSE" );
       if ( !to.empty() ) FC_ASSERT( is_valid_account_name( to ), "To account name invalid" );
-      FC_ASSERT( amount > asset( 1*MUSE_ASSET_PRECISION, MUSE_SYMBOL ), "Must transfer at least 1 MUSE" );
+      FC_ASSERT( amount > asset( 0, MUSE_SYMBOL ), "Must transfer a nonzero amount" );
+      //FC_ASSERT( amount > asset( 1*MUSE_ASSET_PRECISION, MUSE_SYMBOL ), "Must transfer at least 1 MUSE" );
    }
 
    void withdraw_vesting_operation::validate() const

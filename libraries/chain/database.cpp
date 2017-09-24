@@ -469,7 +469,7 @@ void database::update_account_bandwidth( const account_object& a, uint32_t trx_s
 
             fc::uint128 total_vshares( props.total_vesting_shares.amount.value );
 
-            fc::uint128 account_average_bandwidth( (delta_time >= MUSE_BANDWIDTH_AVERAGE_WINDOW_SECONDS) ? 0 : acnt.average_bandwidth );
+            fc::uint128 account_average_bandwidth( acnt.average_bandwidth );
             fc::uint128 max_virtual_bandwidth( props.max_virtual_bandwidth );
 
             // account_vshares / total_vshares  > account_average_bandwidth / max_virtual_bandwidth
@@ -2658,13 +2658,7 @@ void database::_apply_transaction(const signed_transaction& trx)
 
    for( const auto& auth : required ) {
       const auto& acnt = get_account(auth);
-      bool transfer_to_vesting = false;
-      for( const auto& op : trx.operations ){
-         if( is_vesting_operation(op) )
-            transfer_to_vesting = true;
-      }
-      if(!transfer_to_vesting)
-         update_account_bandwidth( acnt, trx_size );
+      update_account_bandwidth( acnt, trx_size );
       for( const auto& op : trx.operations ) {
          if( is_market_operation( op ) )
          {
