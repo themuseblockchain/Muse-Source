@@ -101,7 +101,7 @@
 #define MUSE_MAX_ASSET_SYMBOL_LENGTH            8
 
 #define MUSE_BLOCK_INTERVAL                  3
-#define MUSE_BLOCKS_PER_YEAR                 (365*24*60*60/MUSE_BLOCK_INTERVAL)
+#define MUSE_BLOCKS_PER_YEAR                 (365*24*60*60/MUSE_BLOCK_INTERVAL) //10512000
 #define MUSE_BLOCKS_PER_DAY                  (24*60*60/MUSE_BLOCK_INTERVAL)
 #define MUSE_START_VESTING_BLOCK             (MUSE_BLOCKS_PER_DAY * 1)
 #define MUSE_START_MINER_VOTING_BLOCK        (MUSE_BLOCKS_PER_DAY * 1)
@@ -183,6 +183,14 @@
 // chosen to be the maximal value such that MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK * 2**64 * 100000 < 2**128
 #define MUSE_APR_PERCENT_SHIFT_PER_BLOCK             87
 
+#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_N          ( (uint64_t( 0x1E60 ) << 0x20) \
+                                                        | (uint64_t( 0x47E3 ) << 0x10) \
+                                                        | (uint64_t( 0x17B2 )        ) \
+                                                        )
+#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_N             85
+
+
+
 #define MUSE_APR_PERCENT_MULTIPLY_PER_ROUND          ( (uint64_t( 0x79cc ) << 0x20 ) \
                                                         | (uint64_t( 0xf5c7 ) << 0x10 ) \
                                                         | (uint64_t( 0x3480 )         ) \
@@ -207,11 +215,20 @@
 
 #define MUSE_APR_PERCENT_SHIFT_PER_DAY               73
 
-#define MUSE_CURATE_APR_PERCENT_RESERVE           1
-#define MUSE_CONTENT_APR_PERCENT                712
-#define MUSE_LIQUIDITY_APR_PERCENT           0
-#define MUSE_VESTING_ARP_PERCENT                143
-#define MUSE_PRODUCER_APR_PERCENT            95
+#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N             (uint64_t( 0x1AB378B55670 )  )
+
+
+#define MUSE_APR_PERCENT_SHIFT_PER_DAY_N               70
+
+
+#define MUSE_CURATE_APR_PERCENT_RESERVE           10
+#define MUSE_CONTENT_APR_PERCENT                7120
+#define MUSE_CONTENT_APR_PERCENT_N              7500
+#define MUSE_LIQUIDITY_APR_PERCENT                0
+#define MUSE_VESTING_ARP_PERCENT                1430
+#define MUSE_VESTING_ARP_PERCENT_N              1500
+#define MUSE_PRODUCER_APR_PERCENT                950
+#define MUSE_PRODUCER_APR_PERCENT_N             1000
 
 #define MUSE_CURATION_THRESHOLD1                1000
 #define MUSE_CURATION_THRESHOLD2                2000
