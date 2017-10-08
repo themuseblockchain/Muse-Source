@@ -5,6 +5,8 @@ MAINTAINER educatedwarrior
 #test or prod for NODE_TYPE
 ENV NODE_TYPE prod
 ENV LANG en_US.UTF-8
+ENV REPOLINK https://github.com/themuseblockchain/Muse-Source.git
+ENV REPOBRANCH master
 ENV WORKDIR /opt/muse/bin
 ENV DATADIR /opt/muse/bin/witness_node_data_dir
 ENV USEGENSISJSON false 
@@ -46,7 +48,8 @@ LABEL org.freenas.interactive="false"       \
 
 #Build blockchain source
 RUN \
-	cd /tmp && git clone https://github.com/themuseblockchain/Muse-Source.git && \
+	cd /tmp && git clone "$REPOLINK" && \
+	git checkout "$REPOTAG" && \
 	cd Muse-Source && \
 	git submodule update --init --recursive && \
 	cmake -j 8 -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
