@@ -5,7 +5,7 @@ MAINTAINER educatedwarrior
 #test or prod for NODE_TYPE
 ENV NODE_TYPE prod
 ENV LANG en_US.UTF-8
-ENV REPOLINK https://github.com/themuseblockchain/Muse-Source.git
+ENV REPOLINK https://github.com/educatedwarrior/Muse-Source.git
 ENV REPOBRANCH master
 ENV WORKDIR /opt/muse/bin
 ENV DATADIR /opt/muse/bin/witness_node_data_dir
@@ -49,7 +49,6 @@ LABEL org.freenas.interactive="false"       \
 #Build blockchain source
 RUN \
 	cd /tmp && git clone "$REPOLINK" && \
-	git checkout "$REPOBRANCH" && \
 	cd Muse-Source && \
 	git submodule update --init --recursive && \
 	cmake -j 8 -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
@@ -63,10 +62,9 @@ RUN \
 RUN mkdir -p "$DATADIR"
 RUN touch genesis-test.json
 RUN touch genesis.json
-COPY /Docker/config.ini genesis-test.json genesis.json /
+COPY /Docker/config.ini genesis-test.json /
 COPY /Docker/entrypoint.sh /sbin
 RUN cd "$WORKDIR" && chmod +x /sbin/entrypoint.sh
 VOLUME "$DATADIR"
 EXPOSE 8090
 CMD ["/sbin/entrypoint.sh"]
-
