@@ -54,8 +54,7 @@ Now the binaries shall be in directory ~/dev/MUSE/MUSE-build/programs/
 
 Seed Nodes
 ----------
-
-    138.197.68.175:29092 (production)
+    138.197.68.175:33333 (production)
     192.34.60.157:29092  (for testnet)
 
 How to Start
@@ -64,8 +63,8 @@ First, start MUSE daemon:
 (Witness will need additional config)
 
     cd ~/dev/MUSE/MUSE-build
-    #For production:
-    ./programs/mused/mused -s 138.197.68.175:29092 --replay-blockchain --rpc-endpoint=0.0.0.0:8090 --genesis-json ~/dev/MUSE/Muse-Source/genesis.json
+    #For production: (genesis is embedded)
+    ./programs/mused/mused -s 138.197.68.175:33333 --replay-blockchain --rpc-endpoint=0.0.0.0:8090
     #--replay-blockchain may be ommited the next time you start the block chain
    
     #For testnet
