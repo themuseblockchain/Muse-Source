@@ -49,7 +49,7 @@ LABEL org.freenas.interactive="false"       \
 #Build blockchain source
 RUN \
 	cd /tmp && git clone "$REPOLINK" && \
-	git checkout "$REPOTAG" && \
+	git checkout "$REPOBRANCH" && \
 	cd Muse-Source && \
 	git submodule update --init --recursive && \
 	cmake -j 8 -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
