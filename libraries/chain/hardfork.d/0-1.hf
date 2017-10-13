@@ -1,6 +1,0 @@
-#ifndef MUSE_HARDFORK_0_1
-#define MUSE_HARDFORK_0_1 1
-// 10/14/2017 00:00:00 UTC
-#define MUSE_HARDFORK_0_1_TIME 1507939200
-#define MUSE_HARDFORK_0_1_VERSION hardfork_version( 0, 1 )
-#endif

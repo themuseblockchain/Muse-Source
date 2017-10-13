@@ -341,7 +341,7 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
 
       FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
       bool two_sides = itr->comp_meta.third_party_publishers;
-      FC_ASSERT( two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
+      FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
 
       for( const distribution& d : o.new_distributions )
       {
