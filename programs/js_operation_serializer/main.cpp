@@ -24,6 +24,7 @@
 #include <muse/chain/protocol/protocol.hpp>
 #include <muse/chain/protocol/types.hpp>
 #include <muse/chain/base_objects.hpp>
+#include <muse/chain/balance_object.hpp>
 #include <muse/chain/proposal_object.hpp>
 #include <fc/smart_ref_impl.hpp>
 #include <iostream>
