@@ -2195,12 +2195,12 @@ annotated_signed_transaction wallet_api::import_balance( string name_or_id, cons
    return my->import_balance( name_or_id, wif_keys, broadcast );
 }
 
-vector<balance_object> wallet_api::get_balance_objects( const string& pub_key )
+vector<balance_object> wallet_api::get_balance_objects( public_key_type pub_key )
 {
    vector< address > addrs;
    addrs.reserve( 5 );
 
-      fc::ecc::public_key pk = fc::ecc::public_key::from_base58(pub_key);
+      fc::ecc::public_key pk = pub_key;
       addrs.push_back( address(pk) );
       addrs.push_back( pts_address( pk, false, 56 ) );
       addrs.push_back( pts_address( pk, true, 56 ) );

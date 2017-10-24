@@ -1070,7 +1070,7 @@ class wallet_api
        * @return the signed version of the transaction
        */
       annotated_signed_transaction  import_balance( string name_or_id, const vector<string>& wif_keys, bool broadcast );
-      vector<balance_object> get_balance_objects( const string& pub_key );
+      vector<balance_object> get_balance_objects( public_key_type pub_key );
 };
 
 struct plain_keys {
