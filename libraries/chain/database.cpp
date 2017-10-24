@@ -1891,7 +1891,14 @@ asset database::get_producer_reward()
    const auto& props = get_dynamic_global_properties();
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
 
-   asset percent( has_hardfork(MUSE_HARDFORK_0_1)? calc_percent_reward_per_block_new< MUSE_PRODUCER_APR_PERCENT_N >( props.virtual_supply.amount ) : calc_percent_reward_per_block< MUSE_PRODUCER_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL);
+   asset percent;
+   if( has_hardfork(MUSE_HARDFORK_0_1)){
+      asset p (calc_percent_reward_per_block_new< MUSE_PRODUCER_APR_PERCENT_N >( props.virtual_supply.amount), MUSE_SYMBOL );
+      percent = p;
+   }else {
+      asset p (calc_percent_reward_per_block< MUSE_PRODUCER_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL);
+      percent = p;
+   }
    auto pay = std::max( percent, MUSE_MIN_PRODUCER_REWARD );
    const auto& witness_account = get_account( props.current_witness );
 
@@ -3259,7 +3266,8 @@ void database::process_hardforks()
 
 bool database::has_hardfork( uint32_t hardfork )const
 {
-   return hardfork_property_id_type()( *this ).processed_hardforks.size() > hardfork;
+   uint32_t processed_hardforks = hardfork_property_id_type()( *this ).processed_hardforks.size();
+   return processed_hardforks > hardfork;
 }
 
 void database::set_hardfork( uint32_t hardfork, bool apply_now )

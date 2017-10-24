@@ -222,12 +222,12 @@
 
 
 #define MUSE_CURATE_APR_PERCENT_RESERVE           10
-#define MUSE_CONTENT_APR_PERCENT                7120
+#define MUSE_CONTENT_APR_PERCENT                712
 #define MUSE_CONTENT_APR_PERCENT_N              7500
 #define MUSE_LIQUIDITY_APR_PERCENT                0
-#define MUSE_VESTING_ARP_PERCENT                1430
+#define MUSE_VESTING_ARP_PERCENT                 143
 #define MUSE_VESTING_ARP_PERCENT_N              1500
-#define MUSE_PRODUCER_APR_PERCENT                950
+#define MUSE_PRODUCER_APR_PERCENT                 95
 #define MUSE_PRODUCER_APR_PERCENT_N             1000
 
 #define MUSE_CURATION_THRESHOLD1                1000
