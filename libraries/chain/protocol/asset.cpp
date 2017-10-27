@@ -7,15 +7,7 @@ namespace muse { namespace chain {
 
       uint8_t asset::decimals()const {
          return MUSE_ASSET_PRECISION;
-        // auto a = (const char*)&symbol;
-        // return a[0];
       }
-      void asset::set_decimals(uint8_t d){
-         return;
-         //auto a = (char*)&symbol;
-         //a[0] = d;
-      }
-
 
       string asset::to_string()const {
          int64_t init_digits=amount.value/(precision());
@@ -27,7 +19,7 @@ namespace muse { namespace chain {
          return output;
       }
 
-      asset asset::from_string(string from) {
+      asset asset::from_string(const string& from) {
          int64_t amount;
          string s = fc::trim( from );
          auto dot_pos = s.find( "." );
@@ -63,44 +55,21 @@ namespace muse { namespace chain {
 
       }
 
-share_type asset::scaled_precision( uint8_t precision ){
-         FC_ASSERT(precision<19);
+      share_type asset::scaled_precision( uint8_t decimals ){
+         FC_ASSERT(decimals<19);
          share_type res=1;
-         for (int i=0; i< precision; i++)
+         for (int i=0; i< decimals; i++)
             res*=10;
          return res;
       }
-/*      std::string asset::symbol_name()const {
-         auto a = (const char*)&symbol;
-         assert( a[7] == 0 );
-         return &a[1];
-      }
-*/
+
       int64_t asset::static_precision(){
          return 1000000;
       }
 
       int64_t asset::precision()const {
          return 1000000;
-         /*static int64_t table[] = {
-                           1, 10, 100, 1000, 10000,
-                           100000, 1000000, 10000000, 100000000ll,
-                           1000000000ll, 10000000000ll,
-                           100000000000ll, 1000000000000ll,
-                           10000000000000ll, 100000000000000ll
-                         };
-         return table[ decimals() ];*/
       }
-
-      /*string asset::to_string()const {
-         string result = fc::to_string(amount.value / precision());
-         if( decimals() )
-         {
-            auto fract = amount.value % precision();
-            result += "." + fc::to_string(precision() + fract).erase(0,1);
-         }
-         return result + " "; 
-      }*/
 
       bool operator == ( const price& a, const price& b )
       {

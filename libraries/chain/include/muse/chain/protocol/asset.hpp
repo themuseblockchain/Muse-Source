@@ -9,7 +9,7 @@ namespace muse { namespace chain {
    {
       string to_string()const;
 
-      static asset from_string(string from);
+      static asset from_string(const string& from);
 
       asset( share_type a = 0, asset_id_type id = MUSE_SYMBOL )
       :amount(a),asset_id(id){}
@@ -23,13 +23,8 @@ namespace muse { namespace chain {
       static share_type scaled_precision(uint8_t precision);
 
       uint8_t     decimals()const;
-      //std::string symbol_name()const;
       int64_t     precision()const;
       static int64_t     static_precision();
-      void        set_decimals(uint8_t d);
-
-      //static asset from_string( const string& from );
-      //string       to_string()const;
 
       asset& operator += ( const asset& o )
       {
