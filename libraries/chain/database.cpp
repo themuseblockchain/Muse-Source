@@ -2259,7 +2259,7 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          p.time = MUSE_GENESIS_TIME;
          p.recent_slots_filled = fc::uint128::max_value();
          p.participation_count = 128;
-         p.current_supply = asset( 0, MUSE_SYMBOL );//asset( initial_allocation.init_supply, MUSE_SYMBOL );
+         p.current_supply = asset( initial_allocation.init_supply + 10 * (MUSE_NUM_INIT_MINERS - 1), MUSE_SYMBOL );
          p.virtual_supply = p.current_supply;
          p.maximum_block_size = MUSE_MAX_BLOCK_SIZE;
       } );
