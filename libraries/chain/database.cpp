@@ -3431,39 +3431,6 @@ void database::perform_vesting_share_split( uint32_t magnitude )
 }
 
 
-void database::retally_witness_votes()
-{
-   const auto& witness_idx = get_index_type< witness_index >().indices();
-
-   // Clear all witness votes
-   for( auto itr = witness_idx.begin(); itr != witness_idx.end(); ++itr )
-   {
-      modify( *itr, [&]( witness_object& w )
-      {
-         w.votes = 0;
-         w.virtual_position = 0;
-      } );
-   }
-
-   const auto& account_idx = get_index_type< account_index >().indices();
-
-   // Apply all existing votes by account
-   for( auto itr = account_idx.begin(); itr != account_idx.end(); ++itr )
-   {
-      if( itr->proxy != MUSE_PROXY_TO_SELF_ACCOUNT ) continue;
-
-      const auto& a = *itr;
-
-      const auto& vidx = get_index_type<witness_vote_index>().indices().get<by_account_witness>();
-      auto wit_itr = vidx.lower_bound( boost::make_tuple( a.get_id(), witness_id_type() ) );
-      while( wit_itr != vidx.end() && wit_itr->account == a.get_id() )
-      {
-         adjust_witness_vote( wit_itr->witness(*this), a.witness_vote_weight() );
-         ++wit_itr;
-      }
-   }
-}
-
 void database::retally_witness_vote_counts( bool force )
 {
    const auto& account_idx = get_index_type< account_index >().indices();
