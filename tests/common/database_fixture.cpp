@@ -60,6 +60,10 @@ clean_database_fixture::clean_database_fixture()
       db.modify( init_acct, [&]( account_object& acct ) {
           acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
       });
+      const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+      db.modify( init_witness, [&]( witness_object& witness ) {
+         witness.signing_key = init_account_pub_key;
+      });
    }
 
    db.set_hardfork( MUSE_NUM_HARDFORKS );
@@ -155,7 +159,7 @@ string database_fixture::generate_anon_acct_name()
 
 static genesis_state_type prepare_genesis() {
    genesis_state_type result;
-   result.init_supply = 10000 * MUSE_ASSET_PRECISION;
+   result.init_supply = 10000 * asset::scaled_precision( MUSE_ASSET_PRECISION );
    return result;
 }
 
