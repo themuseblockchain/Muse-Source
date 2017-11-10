@@ -77,5 +77,6 @@ namespace fc
    void from_variant( const variant& var, muse::chain::hardfork_version& hv )
    {
       from_variant( var, (muse::chain::version&) hv );
+      FC_ASSERT( !(hv.v_num & 0xFFFF), "Hardfork revision must be 0!" );
    }
 }

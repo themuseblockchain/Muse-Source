@@ -51,9 +51,23 @@ clean_database_fixture::clean_database_fixture()
    ahplugin->plugin_set_app( &app );
    ahplugin->plugin_initialize( options );
 
+   validate_database();
    generate_block();
+   validate_database();
+
+   {
+      const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
+      db.modify( init_acct, [&]( account_object& acct ) {
+          acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
+      });
+      const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+      db.modify( init_witness, [&]( witness_object& witness ) {
+         witness.signing_key = init_account_pub_key;
+      });
+   }
+
    db.set_hardfork( MUSE_NUM_HARDFORKS );
-   vest( "initminer", 10000 );
+   vest( MUSE_INIT_MINER_NAME, 10000 );
 
    // Fill up the rest of the required miners
    for( int i = MUSE_NUM_INIT_MINERS; i < MUSE_MAX_MINERS; i++ )
@@ -143,11 +157,18 @@ string database_fixture::generate_anon_acct_name()
    return "anon-acct-x" + std::to_string( anon_acct_count++ );
 }
 
+static genesis_state_type prepare_genesis() {
+   genesis_state_type result;
+   result.init_supply = 10000 * asset::scaled_precision( MUSE_ASSET_PRECISION );
+   return result;
+}
+
 void database_fixture::open_database()
 {
    if( !data_dir ) {
       data_dir = fc::temp_directory( graphene::utilities::temp_directory_path() );
-      db.open( data_dir->path() );
+      const genesis_state_type genesis = prepare_genesis();
+      db.open( data_dir->path(), genesis );
    }
 }
 

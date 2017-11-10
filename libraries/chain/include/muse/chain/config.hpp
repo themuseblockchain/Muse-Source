@@ -250,10 +250,7 @@
 #define MUSE_MAX_UNDO_HISTORY                10000
 
 #define MUSE_MIN_TRANSACTION_EXPIRATION_LIMIT (MUSE_BLOCK_INTERVAL * 5) // 5 transactions per block
-#define MUSE_BLOCKCHAIN_PRECISION            uint64_t( 1000 )
 
-#define MUSE_BLOCKCHAIN_PRECISION_DIGITS     3
-//#define MUSE_TRANSFER_FEE                    (1*MUSE_BLOCKCHAIN_PRECISION)
 #define MUSE_MAX_INSTANCE_ID                 (uint64_t(-1)>>16)
 /** NOTE: making this a power of 2 (say 2^15) would greatly accelerate fee calcs */
 #define MUSE_MAX_AUTHORITY_MEMBERSHIP        10
