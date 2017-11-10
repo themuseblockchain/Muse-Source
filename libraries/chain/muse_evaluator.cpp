@@ -30,7 +30,7 @@ void streaming_platform_update_evaluator::do_apply( const streaming_platform_upd
 
    FC_ASSERT( o.url.size() <= MUSE_MAX_STREAMING_PLATFORM_URL_LENGTH );
 
-   FC_ASSERT( sp_account.balance >= o.fee, "Isufficient balance to create account", ( "creator.balance", sp_account.balance )( "required", o.fee ) );
+   FC_ASSERT( sp_account.balance >= o.fee, "Isufficient balance to update streaming platform: have ${c}, need ${f}", ( "c", sp_account.balance )( "f", o.fee ) );
 
    const auto& by_streaming_platform_name_idx = db().get_index_type< streaming_platform_index >().indices().get< by_name >();
    auto wit_itr = by_streaming_platform_name_idx.find( o.owner );
