@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE( witness_reward_test )
     int64_t expected_witness_reward = supply * .0095;
 
     int64_t avg_supply = 1.0475 * supply;
-    int64_t avg_witness_reward = calc_percent_reward_per_block<MUSE_PRODUCER_APR_PERCENT>( avg_supply ).value;
+    int64_t avg_witness_reward = calc_percent_reward_per_block_new<MUSE_PRODUCER_APR_PERCENT_N>( avg_supply ).value;
     int64_t witness_reward_per_year = avg_witness_reward * MUSE_BLOCKS_PER_YEAR;
 
     std::cerr << "Expected witness reward: " << expected_witness_reward
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE( vesting_reward_test )
     int64_t expected_vesting_reward = supply * .01425;
 
     int64_t avg_supply = 1.0475 * supply;
-    int64_t avg_vesting_reward = calc_percent_reward_per_block<MUSE_VESTING_ARP_PERCENT>( avg_supply ).value;
+    int64_t avg_vesting_reward = calc_percent_reward_per_block_new<MUSE_VESTING_ARP_PERCENT_N>( avg_supply ).value;
     int64_t vesting_reward_per_year = avg_vesting_reward * MUSE_BLOCKS_PER_YEAR;
 
     std::cerr << "Expected vesting reward: " << expected_vesting_reward
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE( content_reward_test )
     int64_t expected_content_reward = supply * .07125;
 
     int64_t avg_supply = 1.0475 * supply;
-    int64_t avg_content_reward = calc_percent_reward_per_day<MUSE_CONTENT_APR_PERCENT>( avg_supply ).value;
+    int64_t avg_content_reward = calc_percent_reward_per_day_new<MUSE_CONTENT_APR_PERCENT_N>( avg_supply ).value;
     int64_t content_reward_per_year = avg_content_reward * 365;
 
     std::cerr << "Expected content reward: " << expected_content_reward
