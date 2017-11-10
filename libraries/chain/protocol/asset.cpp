@@ -7,53 +7,69 @@ namespace muse { namespace chain {
 
       uint8_t asset::decimals()const {
          return MUSE_ASSET_PRECISION;
-        // auto a = (const char*)&symbol;
-        // return a[0];
-      }
-      void asset::set_decimals(uint8_t d){
-         return;
-         //auto a = (char*)&symbol;
-         //a[0] = d;
       }
 
-      share_type asset::scaled_precision( uint8_t precision ){
-         FC_ASSERT(precision<19);
+      string asset::to_string()const {
+         int64_t init_digits=amount.value/(precision());
+         uint64_t fraction=amount.value%(precision());
+         string output=std::to_string(init_digits);
+         output=output+"."+std::to_string(precision() + fraction).erase(0,1);
+         object_id_type id_t(asset_id);
+         output = output +" "+ std::string(id_t);
+         return output;
+      }
+
+      asset asset::from_string(const string& from) {
+         int64_t amount;
+         string s = fc::trim( from );
+         auto dot_pos = s.find( "." );
+         auto space_pos = s.find( " " );
+         FC_ASSERT ( space_pos != std::string::npos );
+         if(space_pos < dot_pos) { //no dot in the first part
+            auto intpart = s.substr( 0, space_pos );
+            amount = fc::to_int64(intpart)*static_precision();
+         }else{
+
+            auto intpart = s.substr( 0, dot_pos );
+            amount = fc::to_int64(intpart)*static_precision();
+
+            std::string fractpart = s.substr( dot_pos+1, std::min<size_t>(space_pos-dot_pos-1, MUSE_ASSET_PRECISION));
+            while (fractpart.size() < MUSE_ASSET_PRECISION)
+               fractpart+='0';
+
+            uint64_t fract_amount = fc::to_int64(fractpart);
+
+            amount = amount + fract_amount;
+         }
+
+         auto asset_id_s = s.substr( space_pos+1 );
+         auto first_dot = asset_id_s.find('.');
+         auto second_dot = asset_id_s.find('.',first_dot+1);
+         FC_ASSERT( first_dot != second_dot );
+         FC_ASSERT( first_dot != 0 && first_dot != std::string::npos );
+         uint64_t number = fc::to_uint64(asset_id_s.substr( second_dot+1 ));
+
+         FC_ASSERT( number <= GRAPHENE_DB_MAX_INSTANCE_ID );
+
+         return asset(amount, asset_id_type(number));
+
+      }
+
+      share_type asset::scaled_precision( uint8_t decimals ){
+         FC_ASSERT(decimals<19);
          share_type res=1;
-         for (int i=0; i< precision; i++)
+         for (int i=0; i< decimals; i++)
             res*=10;
          return res;
       }
-/*      std::string asset::symbol_name()const {
-         auto a = (const char*)&symbol;
-         assert( a[7] == 0 );
-         return &a[1];
-      }
-*/
+
       int64_t asset::static_precision(){
          return 1000000;
       }
 
       int64_t asset::precision()const {
          return 1000000;
-         /*static int64_t table[] = {
-                           1, 10, 100, 1000, 10000,
-                           100000, 1000000, 10000000, 100000000ll,
-                           1000000000ll, 10000000000ll,
-                           100000000000ll, 1000000000000ll,
-                           10000000000000ll, 100000000000000ll
-                         };
-         return table[ decimals() ];*/
       }
-
-      /*string asset::to_string()const {
-         string result = fc::to_string(amount.value / precision());
-         if( decimals() )
-         {
-            auto fract = amount.value % precision();
-            result += "." + fc::to_string(precision() + fract).erase(0,1);
-         }
-         return result + " "; 
-      }*/
 
       bool operator == ( const price& a, const price& b )
       {

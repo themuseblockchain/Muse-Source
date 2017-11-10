@@ -7,50 +7,9 @@ namespace muse { namespace chain {
 
    struct asset
    {
-      string to_string()const { 
-         int64_t init_digits=amount.value/(precision());
-         uint64_t fraction=amount.value%(precision());
-         string output=std::to_string(init_digits);
-         output=output+"."+std::to_string(precision() + fraction).erase(0,1);
-         object_id_type id_t(asset_id);
-         output = output +" "+ std::string(id_t);
-         return output;
-      }
+      string to_string()const;
 
-      static asset from_string(string from) { 
-         int64_t amount;
-         string s = fc::trim( from );
-         auto dot_pos = s.find( "." );
-         auto space_pos = s.find( " " );
-         FC_ASSERT ( space_pos != std::string::npos );
-         if(space_pos < dot_pos) { //no dot in the first part
-            auto intpart = s.substr( 0, space_pos );
-            amount = fc::to_int64(intpart)*static_precision();
-         }else{
-
-            auto intpart = s.substr( 0, dot_pos );
-            amount = fc::to_int64(intpart)*static_precision();
-         
-            std::string fractpart = s.substr( dot_pos+1, std::min<size_t>(space_pos-dot_pos-1, MUSE_ASSET_PRECISION)); 
-            uint64_t fract_amount = fc::to_int64(fractpart);
-            for(int i=MUSE_ASSET_PRECISION; i< fractpart.length(); i--)
-               fract_amount*=10;
-
-            amount = amount +  fract_amount;
-         }
-
-         auto asset_id_s = s.substr( space_pos+1 );
-         auto first_dot = asset_id_s.find('.');
-         auto second_dot = asset_id_s.find('.',first_dot+1);
-         FC_ASSERT( first_dot != second_dot );
-         FC_ASSERT( first_dot != 0 && first_dot != std::string::npos );
-         uint64_t number = fc::to_uint64(asset_id_s.substr( second_dot+1 ));
-
-         FC_ASSERT( number <= GRAPHENE_DB_MAX_INSTANCE_ID );
-            
-         return asset(amount, asset_id_type(number));
-      
-      } 
+      static asset from_string(const string& from);
 
       asset( share_type a = 0, asset_id_type id = MUSE_SYMBOL )
       :amount(a),asset_id(id){}
@@ -64,13 +23,8 @@ namespace muse { namespace chain {
       static share_type scaled_precision(uint8_t precision);
 
       uint8_t     decimals()const;
-      //std::string symbol_name()const;
       int64_t     precision()const;
       static int64_t     static_precision();
-      void        set_decimals(uint8_t d);
-
-      //static asset from_string( const string& from );
-      //string       to_string()const;
 
       asset& operator += ( const asset& o )
       {
