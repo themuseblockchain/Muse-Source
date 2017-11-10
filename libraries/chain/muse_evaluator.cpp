@@ -341,7 +341,10 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
 
       FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
       bool two_sides = itr->comp_meta.third_party_publishers;
-      FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
+      if(db().has_hardfork(MUSE_HARDFORK_0_1))
+         FC_ASSERT( two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
+      else
+         FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
 
       for( const distribution& d : o.new_distributions )
       {
@@ -404,10 +407,18 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.manage_comp.weight_threshold = o.new_threshold;
               }
            }
-           if( o.new_playing_reward > 0 )
-              con.playing_reward = o.new_playing_reward;
-           if( o.new_publishers_share > 0 )
-              con.playing_reward = o.new_publishers_share;
+           if(db().has_hardfork(MUSE_HARDFORK_0_1)) {
+              if( o.new_playing_reward > 0 )
+                 con.playing_reward = o.new_playing_reward;
+              if( o.new_publishers_share > 0 )
+                 con.publishers_share = o.new_publishers_share;
+           }else
+           {
+              if( o.new_playing_reward != con.playing_reward )
+                 con.playing_reward = o.new_playing_reward;
+              if( o.new_publishers_share != con.publishers_share )
+                 con.publishers_share = o.new_publishers_share;
+           }
       });
       //TODO_MUSE - the redistribute shall affect only the respective side... delete the accumulated balance afterwards
       if( redistribute_master )

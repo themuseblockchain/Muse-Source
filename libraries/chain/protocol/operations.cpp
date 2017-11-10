@@ -98,7 +98,6 @@ struct operation_get_required_auth
    template<typename T>
    void operator()( const T& v )const
    {
-      wlog("getting authorities");
       v.get_required_active_authorities( active );
       v.get_required_owner_authorities( owner );
       v.get_required_basic_authorities( basic );
