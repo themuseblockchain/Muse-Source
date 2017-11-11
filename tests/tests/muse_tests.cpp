@@ -39,21 +39,24 @@ BOOST_FIXTURE_TEST_SUITE( muse_tests, clean_database_fixture )
    tx.operations.push_back( op ); \
    MUSE_REQUIRE_THROW( db.push_transaction( tx, database::skip_transaction_signatures ), fc::assert_exception )
 
-BOOST_AUTO_TEST_CASE( streamingplatform_test )
+BOOST_AUTO_TEST_CASE( simple_test )
 {
    try
    {
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+
       BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
 
       muse::app::database_api dbapi(db);
 
-      ACTORS( (suzy)(uhura)(paula)(martha)(colette) );
+      ACTORS( (suzy)(uhura)(paula)(penny)(martha)(muriel)(colette) );
 
       signed_transaction tx;
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
 
       // --------- Create streaming platform ------------
-
+      {
       streaming_platform_update_operation spuo;
       spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
       spuo.owner = "suzy";
@@ -85,20 +88,22 @@ BOOST_AUTO_TEST_CASE( streamingplatform_test )
       tx.operations.clear();
       tx.operations.push_back( spuo );
       db.push_transaction( tx, database::skip_transaction_signatures  );
-
+      }
       // --------- Look up streaming platforms ------------
-
+      {
       set<string> sps = dbapi.lookup_streaming_platform_accounts("x", 5);
       BOOST_CHECK( sps.empty() );
 
       sps = dbapi.lookup_streaming_platform_accounts("", 5);
       BOOST_CHECK_EQUAL( 1, sps.size() );
       BOOST_CHECK( sps.find("suzy") != sps.end() );
+      }
+      const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
 
       // --------- Create content ------------
 
       fund( "uhura", 1000000 );
-
+      {
       content_operation cop;
       cop.uploader = "uhura";
       cop.url = "ipfs://abcdef1";
@@ -179,9 +184,11 @@ BOOST_AUTO_TEST_CASE( streamingplatform_test )
       tx.operations.clear();
       tx.operations.push_back( cop );
       db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+      const content_object& song1 = db.get_content( "ipfs://abcdef1" );
 
       // --------- Publish playtime ------------
-
+      {
       streaming_platform_report_operation spro;
       spro.streaming_platform = "suzy";
       spro.consumer = "colette";
@@ -208,6 +215,267 @@ BOOST_AUTO_TEST_CASE( streamingplatform_test )
       tx.operations.clear();
       tx.operations.push_back( spro );
       db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+      // --------- Verify playtime ------------
+
+      BOOST_CHECK_EQUAL( 100, colette.total_listening_time );
+      BOOST_CHECK_EQUAL( 1, song1.times_played );
+      BOOST_CHECK_EQUAL( 1, song1.times_played_24 );
+
+      vector<report_object> reports = dbapi.get_reports_for_account( "colette" );
+      BOOST_CHECK_EQUAL( 1, reports.size() );
+      BOOST_CHECK_EQUAL( suzys.id, reports[0].streaming_platform );
+      BOOST_CHECK_EQUAL( colette.id, reports[0].consumer );
+      BOOST_CHECK_EQUAL( song1.id, reports[0].content );
+      BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), reports[0].created.sec_since_epoch() );
+      BOOST_CHECK_EQUAL( 100, reports[0].play_time );
+
+      // --------- Content update ------------
+      {
+      content_update_operation cup;
+      cup.side = content_update_operation::side_t::master;
+      cup.url = "ipfs://abcdef1";
+
+      cup.side = content_update_operation::side_t::publisher;
+      FAIL( "of publisher update for single-sided content", cup );
+
+      cup.side = content_update_operation::side_t::master;
+      cup.url = "ipfs://no";
+      FAIL( "of update for non-existant url", cup );
+
+      cup.url = "ipfs://abcdef1";
+      cup.new_playing_reward = MUSE_100_PERCENT + 1;
+      FAIL( "of update with too high playing reward", cup );
+
+      cup.new_playing_reward = 11;
+      cup.new_publishers_share = MUSE_100_PERCENT + 1;
+      FAIL( "of update with too high publishers share", cup );
+
+      cup.new_publishers_share = 1;
+      cup.album_meta = content_metadata_album_master();
+      cup.album_meta->album_title = "";
+      FAIL( "with empty album title", cup );
+      cup.album_meta->album_title = "Sixteen tons";
+      for( int i = 0; i < 16; i++ )
+          cup.album_meta->album_title += " are sixteen tons";
+      FAIL( "with long album title", cup );
+
+      cup.album_meta->album_title = "Simple test album";
+      cup.track_meta = content_metadata_track_master();
+      cup.track_meta->track_title = "";
+      FAIL( "with empty track title", cup );
+      cup.track_meta->track_title = "Sixteen tons";
+      for( int i = 0; i < 16; i++ )
+          cup.track_meta->track_title += " are sixteen tons";
+      FAIL( "with long track title", cup );
+
+      cup.track_meta->track_title = "Simple test track";
+      distribution dist;
+      dist.payee = "penny";
+      dist.bp = MUSE_100_PERCENT;
+      cup.new_distributions.push_back( dist );
+      cup.new_distributions[0].payee = "x";
+      FAIL( "with invalid payee name", cup );
+      cup.new_distributions[0].payee = "bob";
+      FAIL( "with non-existing payee", cup );
+
+      cup.new_distributions[0].payee = "penny";
+      cup.new_distributions[0].bp = MUSE_100_PERCENT + 1;
+      FAIL( "with invalid distribution", cup );
+
+      cup.new_distributions[0].bp = MUSE_100_PERCENT;
+      management_vote mgmt;
+      mgmt.voter = "muriel";
+      mgmt.percentage = 100;
+      cup.new_management.push_back( mgmt );
+      cup.new_management[0].voter = "x";
+      FAIL( "with invalid voter name", cup );
+      cup.new_management[0].voter = "bob";
+      FAIL( "with non-existant voter", cup );
+
+      cup.new_management[0].voter = "muriel";
+      cup.new_management[0].percentage = 101;
+      FAIL( "with invalid voter percentage", cup );
+
+      cup.new_management[0].percentage = 100;
+      BOOST_TEST_MESSAGE( "--- Test success" );
+      tx.operations.clear();
+      tx.operations.push_back( cup );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+      // --------- Verify update ------------
+
+      BOOST_CHECK_EQUAL( "Simple test album", song1.album_meta.album_title );
+      BOOST_CHECK_EQUAL( "Simple test track", song1.track_meta.track_title );
+      BOOST_CHECK_EQUAL( "penny", song1.distributions_master[0].payee );
+      BOOST_CHECK_EQUAL( 100, song1.manage_master.account_auths.at("muriel") );
+      BOOST_CHECK_EQUAL( 11, song1.playing_reward );
+      BOOST_CHECK_EQUAL( 1, song1.publishers_share );
+
+      validate_database();
+   }
+   FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE( multi_test )
+{
+   try
+   {
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+
+      BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
+
+      muse::app::database_api dbapi(db);
+
+      ACTORS( (suzy)(uhura)(paula)(penny)(martha)(miranda)(muriel)(colette) );
+
+      signed_transaction tx;
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+      // --------- Create streaming platform ------------
+      {
+      fund( "suzy", 10 * MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
+
+      streaming_platform_update_operation spuo;
+      spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
+      spuo.owner = "suzy";
+      spuo.url = "http://www.google.de";
+      tx.operations.clear();
+      tx.operations.push_back( spuo );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+
+      // --------- Look up streaming platforms ------------
+
+//      const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
+
+      // --------- Create content ------------
+
+      fund( "uhura", 1000000 );
+      {
+      content_operation cop;
+      cop.uploader = "uhura";
+      cop.url = "ipfs://abcdef9";
+      cop.album_meta.album_title = "Multi test song";
+      cop.track_meta.track_title = "Multi test song";
+      cop.comp_meta.third_party_publishers = true;
+      distribution dist;
+      dist.payee = "paula";
+      dist.bp = MUSE_100_PERCENT / 3;
+      cop.distributions.push_back( dist );
+      dist.payee = "penny";
+      dist.bp = MUSE_100_PERCENT - dist.bp;
+      cop.distributions.push_back( dist );
+      management_vote mgmt;
+      mgmt.voter = "martha";
+      mgmt.percentage = 34;
+      cop.management.push_back( mgmt );
+      mgmt.voter = "miranda";
+      mgmt.percentage = 33;
+      cop.management.push_back( mgmt );
+      mgmt.voter = "muriel";
+      mgmt.percentage = 33;
+      cop.management.push_back( mgmt );
+      cop.management_threshold = 50;
+      cop.playing_reward = 10;
+      cop.publishers_share = 1000;
+      cop.distributions_comp = vector<distribution>();
+      dist.bp = MUSE_100_PERCENT;
+      cop.distributions_comp->push_back(dist);
+      cop.management_comp = vector<management_vote>();
+      mgmt.percentage = 100;
+      cop.management_comp->push_back(mgmt);
+      cop.management_threshold_comp = 100;
+
+      (*cop.distributions_comp)[0].payee = "x";
+      FAIL( "with invalid payee name", cop );
+      (*cop.distributions_comp)[0].payee = "bob";
+      FAIL( "with non-existing payee", cop );
+
+      (*cop.distributions_comp)[0].payee = "penny";
+      (*cop.distributions_comp)[0].bp++;
+      FAIL( "with invalid distribution", cop );
+
+      (*cop.distributions_comp)[0].bp--;
+      (*cop.management_comp)[0].voter = "x";
+      FAIL( "with invalid voter name", cop );
+      (*cop.management_comp)[0].voter = "bob";
+      FAIL( "with non-existant voter", cop );
+
+      (*cop.management_comp)[0].voter = "martha";
+      (*cop.management_comp)[0].percentage++;
+      FAIL( "with invalid voter percentage", cop );
+
+      (*cop.management_comp)[0].percentage--;
+      BOOST_TEST_MESSAGE( "--- Test success" );
+      tx.operations.clear();
+      tx.operations.push_back( cop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+      const content_object& song1 = db.get_content( "ipfs://abcdef9" );
+      BOOST_CHECK_EQUAL( 2, song1.distributions_master.size() );
+      BOOST_CHECK_EQUAL( 1, song1.distributions_comp.size() );
+      BOOST_CHECK_EQUAL( 3, song1.manage_master.num_auths() );
+      BOOST_CHECK_EQUAL( 1, song1.manage_comp.num_auths() );
+
+      // --------- Publish playtime ------------
+      {
+      streaming_platform_report_operation spro;
+      spro.streaming_platform = "suzy";
+      spro.consumer = "colette";
+      spro.content = "ipfs://abcdef9";
+      spro.play_time = 100;
+
+      BOOST_TEST_MESSAGE( "--- Test success" );
+      tx.operations.clear();
+      tx.operations.push_back( spro );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+
+      // --------- Content update ------------
+      {
+      content_update_operation cup;
+      cup.side = content_update_operation::side_t::publisher;
+      cup.url = "ipfs://abcdef9";
+      cup.new_playing_reward = 11;
+      cup.new_publishers_share = 1;
+
+      cup.album_meta = content_metadata_album_master();
+      cup.album_meta->album_title = "Hello World";
+      FAIL( "when publisher changes album metadata", cup );
+
+      cup.album_meta.reset();
+      cup.track_meta = content_metadata_track_master();
+      cup.track_meta->track_title = "Hello World";
+      FAIL( "when publisher changes track metadata", cup );
+
+      cup.track_meta.reset();
+      distribution dist;
+      dist.payee = "penny";
+      dist.bp = MUSE_100_PERCENT;
+      cup.new_distributions.push_back( dist );
+      management_vote mgmt;
+      mgmt.voter = "muriel";
+      mgmt.percentage = 100;
+      cup.new_management.push_back( mgmt );
+
+      cup.comp_meta = content_metadata_publisher();
+      cup.comp_meta->third_party_publishers = false;
+      BOOST_TEST_MESSAGE( "--- Test success" );
+      tx.operations.clear();
+      tx.operations.push_back( cup );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+      // --------- Verify update ------------
+
+      BOOST_CHECK( song1.comp_meta.third_party_publishers );
+      BOOST_CHECK_EQUAL( "penny", song1.distributions_comp[0].payee );
+      BOOST_CHECK_EQUAL( 1, song1.distributions_comp.size() );
+      BOOST_CHECK_EQUAL( 100, song1.manage_comp.account_auths.at("muriel") );
+      BOOST_CHECK_EQUAL( 1, song1.manage_comp.num_auths() );
+      BOOST_CHECK_EQUAL( 11, song1.playing_reward );
+      BOOST_CHECK_EQUAL( 1, song1.publishers_share );
 
       validate_database();
    }
