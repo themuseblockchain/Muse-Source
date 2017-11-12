@@ -326,9 +326,14 @@ namespace muse { namespace chain {
          asset get_curation_reward()const;
          asset get_pow_reward()const;
 
-      uint16_t get_curation_rewards_percent() const;
+         uint16_t get_activity_rewards_percent() const;
+         uint16_t get_discussion_rewards_percent() const;
+         uint16_t get_curation_rewards_percent() const;
 
-      void  pay_liquidity_reward();
+         uint128_t get_content_constant_s() const;
+         uint128_t calculate_vshares( uint128_t rshares ) const;
+
+         void  pay_liquidity_reward();
 
 
          //////////////////// db_getter.cpp ////////////////////

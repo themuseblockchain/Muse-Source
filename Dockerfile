@@ -51,7 +51,7 @@ LABEL org.freenas.interactive="false"       \
 RUN \
 	cd /tmp && git clone "$REPOLINK" && \
 	cd Muse-Source && \
-        git checkout tags/"$REPOTAG" && \
+  git checkout tags/"$REPOTAG" && \
 	git submodule update --init --recursive && \
 	cmake -G "Unix Makefiles" -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
 	make -j$(nproc) mused cli_wallet

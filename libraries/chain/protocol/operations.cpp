@@ -98,6 +98,7 @@ struct operation_get_required_auth
    template<typename T>
    void operator()( const T& v )const
    {
+      wlog("getting authorities");
       v.get_required_active_authorities( active );
       v.get_required_owner_authorities( owner );
       v.get_required_basic_authorities( basic );
@@ -148,18 +149,6 @@ struct is_proposal_op_visitor {
 
 bool is_proposal_operation( const operation& op ) {
    return op.visit( is_proposal_op_visitor() );
-}
-
-struct is_vesting_op_visitor {
-   typedef bool result_type;
-
-   template<typename T>
-   bool operator()( T&& v )const { return false; }
-   bool operator()( const transfer_to_vesting_operation& )const { return true; }
-};
-
-bool is_vesting_operation( const operation& op ) {
-   return op.visit( is_vesting_op_visitor() );
 }
 
 } } // namespace muse::chain
