@@ -760,10 +760,328 @@ BOOST_AUTO_TEST_CASE( multi_test )
       BOOST_CHECK_EQUAL( 0, vici_id(db).curation_rewards.value );
       }
 
+      validate_database();
+   }
+   FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE( simple_authority_test )
+{
+   try
+   {
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+
+      BOOST_TEST_MESSAGE( "Testing: streaming platform contract authority" );
+
+      muse::app::database_api dbapi(db);
+
+      ACTORS( (suzy)(uhura)(paula)(martha)(muriel)(colette) );
+
+      generate_block();
+
+      signed_transaction tx;
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+      // --------- Create streaming platform ------------
+      {
+      fund( "suzy", MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
+      streaming_platform_update_operation spuo;
+      spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
+      spuo.owner = "suzy";
+      spuo.url = "http://www.google.de";
+      tx.operations.push_back( spuo );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( suzy_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Create content ------------
+      {
+      content_operation cop;
+      cop.uploader = "uhura";
+      cop.url = "ipfs://abcdef1";
+      cop.album_meta.album_title = "First test song";
+      cop.track_meta.track_title = "First test song";
+      cop.comp_meta.third_party_publishers = false;
+      distribution dist;
+      dist.payee = "paula";
+      dist.bp = MUSE_100_PERCENT;
+      cop.distributions.push_back( dist );
+      management_vote mgmt;
+      mgmt.voter = "martha";
+      mgmt.percentage = 100;
+      cop.management.push_back( mgmt );
+      cop.management_threshold = 100;
+      cop.playing_reward = 10;
+      cop.publishers_share = 0;
+      tx.operations.clear();
+      tx.operations.push_back( cop );
+      tx.sign( suzy_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Publish playtime ------------
+      {
+      streaming_platform_report_operation spro;
+      spro.streaming_platform = "suzy";
+      spro.consumer = "colette";
+      spro.content = "ipfs://abcdef1";
+      spro.play_time = 100;
+      tx.operations.clear();
+      tx.operations.push_back( spro );
+      tx.sign( colette_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( suzy_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Content update ------------
+      {
+      content_update_operation cup;
+      cup.side = content_update_operation::side_t::master;
+      cup.url = "ipfs://abcdef1";
+      cup.new_playing_reward = 11;
+      cup.new_publishers_share = 1;
+      cup.album_meta = content_metadata_album_master();
+      cup.album_meta->album_title = "Simple test album";
+      cup.track_meta = content_metadata_track_master();
+      cup.track_meta->track_title = "Simple test track";
+      management_vote mgmt;
+      mgmt.voter = "muriel";
+      mgmt.percentage = 100;
+      cup.new_management.push_back( mgmt );
+      tx.operations.clear();
+      tx.operations.push_back( cup );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( muriel_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( martha_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Content removal ------------
+      {
+      content_remove_operation cro;
+      cro.url = "ipfs://abcdef1";
+      tx.operations.clear();
+      tx.signatures.clear();
+      tx.operations.push_back( cro );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( martha_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( muriel_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Wait for payout time and verify zero payout ------------
+
+      generate_blocks( db.head_block_time() + 86400 - MUSE_BLOCK_INTERVAL );
+
+      BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, uhura_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, paula_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, martha_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, muriel_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, colette_id(db).balance.amount.value );
+
+      BOOST_CHECK_EQUAL( 0, suzy_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, uhura_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, paula_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, martha_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, muriel_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, colette_id(db).mbd_balance.amount.value );
+
+      BOOST_CHECK_EQUAL( 100000, suzy_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, uhura_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, paula_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, martha_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, muriel_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, colette_id(db).vesting_shares.amount.value );
+
+      BOOST_CHECK_EQUAL( 0, suzy_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, uhura_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, paula_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, martha_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, muriel_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, colette_id(db).curation_rewards.value );
+
+      generate_block();
+
+      BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, uhura_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, paula_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, martha_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, muriel_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, colette_id(db).balance.amount.value );
+
+      BOOST_CHECK_EQUAL( 0, suzy_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, uhura_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, paula_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, martha_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, muriel_id(db).mbd_balance.amount.value );
+      BOOST_CHECK_EQUAL( 0, colette_id(db).mbd_balance.amount.value );
+
+      BOOST_CHECK_EQUAL( 100000, suzy_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, uhura_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, paula_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, martha_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, muriel_id(db).vesting_shares.amount.value );
+      BOOST_CHECK_EQUAL( 100000, colette_id(db).vesting_shares.amount.value );
+
+      BOOST_CHECK_EQUAL( 0, suzy_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, uhura_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, paula_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, martha_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, muriel_id(db).curation_rewards.value );
+      BOOST_CHECK_EQUAL( 0, colette_id(db).curation_rewards.value );
 
       validate_database();
    }
    FC_LOG_AND_RETHROW()
 }
+
+BOOST_AUTO_TEST_CASE( multi_authority_test )
+{
+   try
+   {
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+
+      BOOST_TEST_MESSAGE( "Testing: streaming platform contract authority" );
+
+      muse::app::database_api dbapi(db);
+
+      ACTORS( (suzy)(uhura)(paula)(martha)(miranda)(muriel)(colette) );
+
+      generate_block();
+
+      signed_transaction tx;
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+      // --------- Create streaming platform ------------
+      {
+      fund( "suzy", MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
+      streaming_platform_update_operation spuo;
+      spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
+      spuo.owner = "suzy";
+      spuo.url = "http://www.google.de";
+      tx.operations.push_back( spuo );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( suzy_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Create content ------------
+      {
+      content_operation cop;
+      cop.uploader = "uhura";
+      cop.url = "ipfs://abcdef1";
+      cop.album_meta.album_title = "First test song";
+      cop.track_meta.track_title = "First test song";
+      cop.comp_meta.third_party_publishers = true;
+      distribution dist;
+      dist.payee = "paula";
+      dist.bp = MUSE_100_PERCENT;
+      cop.distributions.push_back( dist );
+      management_vote mgmt;
+      mgmt.voter = "martha";
+      mgmt.percentage = 34;
+      cop.management.push_back( mgmt );
+      mgmt.voter = "miranda";
+      mgmt.percentage = 33;
+      cop.management.push_back( mgmt );
+      mgmt.voter = "muriel";
+      mgmt.percentage = 33;
+      cop.management.push_back( mgmt );
+      cop.management_threshold = 50;
+      cop.playing_reward = 10;
+      cop.publishers_share = 0;
+      tx.operations.clear();
+      tx.signatures.clear();
+      tx.operations.push_back( cop );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Content update ------------
+      {
+      content_update_operation cup;
+      cup.side = content_update_operation::side_t::master;
+      cup.url = "ipfs://abcdef1";
+      cup.album_meta = content_metadata_album_master();
+      cup.album_meta->album_title = "Simple test album";
+      cup.track_meta = content_metadata_track_master();
+      cup.track_meta->track_title = "Simple test track";
+      management_vote mgmt;
+      mgmt.voter = "muriel";
+      mgmt.percentage = 100;
+      cup.new_management.push_back( mgmt );
+      // FIXME
+      mgmt.voter = "martha";
+      cup.comp_meta = content_metadata_publisher();
+      tx.operations.clear();
+      tx.signatures.clear();
+      tx.operations.push_back( cup );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( muriel_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.sign( martha_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Another update ------------
+      {
+      content_update_operation cup;
+      cup.side = content_update_operation::side_t::publisher;
+      cup.url = "ipfs://abcdef1";
+      tx.operations.clear();
+      tx.signatures.clear();
+      tx.operations.push_back( cup );
+      tx.sign( muriel_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( martha_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      // --------- Content removal ------------
+      {
+      content_remove_operation cro;
+      cro.url = "ipfs://abcdef1";
+      tx.operations.clear();
+      tx.signatures.clear();
+      tx.operations.push_back( cro );
+      tx.sign( uhura_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( martha_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
+      tx.signatures.clear();
+      tx.sign( muriel_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+      }
+
+      validate_database();
+   }
+   FC_LOG_AND_RETHROW()
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
