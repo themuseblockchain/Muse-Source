@@ -26,6 +26,8 @@
 
 #include <muse/app/database_api.hpp>
 
+#include <graphene/utilities/tempdir.hpp>
+
 #include "../common/database_fixture.hpp"
 
 using namespace muse::chain;
@@ -1083,5 +1085,108 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
    FC_LOG_AND_RETHROW()
 }
 
+BOOST_AUTO_TEST_CASE( balance_object_test )
+{ try {
+   const auto n_key = generate_private_key("n");
+   const auto x_key = generate_private_key("x");
+
+   // Intentionally overriding the fixture's db; I need to control genesis on this one.
+   database db;
+   fc::temp_directory td( graphene::utilities::temp_directory_path() );
+   genesis_state_type genesis_state;
+   {
+   genesis_state_type::initial_balance_type balance;
+   balance.owner = n_key.get_public_key();
+   balance.asset_symbol = MUSE_SYMBOL;
+   balance.amount = 1;
+   genesis_state.initial_balances.push_back( balance );
+   balance.owner = x_key.get_public_key();
+   balance.amount = 10;
+   genesis_state.initial_balances.push_back( balance );
+   }
+   fc::time_point_sec starting_time = genesis_state.initial_timestamp + 3000;
+
+   genesis_state.initial_accounts.emplace_back("nina", n_key.get_public_key());
+   genesis_state.initial_accounts.emplace_back("xana", x_key.get_public_key());
+
+   genesis_state_type::initial_vesting_balance_type vest;
+   vest.owner = account_id_type( 3 + MUSE_NUM_INIT_MINERS );
+   vest.asset_symbol = MUSE_SYMBOL;
+   vest.amount = 500;
+   vest.begin_balance = vest.amount;
+   vest.begin_timestamp = starting_time;
+   vest.vesting_duration_seconds = 60;
+   genesis_state.initial_vesting_balances.push_back(vest);
+   vest.owner = account_id_type( 3 + MUSE_NUM_INIT_MINERS + 1);
+   vest.begin_timestamp -= fc::seconds(30);
+   vest.amount = 400;
+   genesis_state.initial_vesting_balances.push_back(vest);
+
+   auto _sign = [&]( signed_transaction& tx, const private_key_type& key )
+   {  tx.sign( key, db.get_chain_id() );   };
+
+   db.open( td.path(), genesis_state );
+   const balance_object& balance = balance_id_type()(db);
+   BOOST_CHECK_EQUAL(1, balance.balance.amount.value);
+   BOOST_CHECK_EQUAL(10, balance_id_type(1)(db).balance.amount.value);
+
+   const auto& account_n = db.get_account("nina");
+   const auto& account_x = db.get_account("xana");
+   ilog( "n: ${n_id}, x: ${x_id}", ("n_id",account_n.id)("x_id",account_x.id) );
+
+   BOOST_CHECK_EQUAL(0, account_n.balance.amount.value);
+   BOOST_CHECK_EQUAL(0, account_x.balance.amount.value);
+   BOOST_CHECK_EQUAL(0, account_n.mbd_balance.amount.value);
+   BOOST_CHECK_EQUAL(0, account_x.mbd_balance.amount.value);
+   BOOST_CHECK_EQUAL(500, account_n.vesting_shares.amount.value);
+   BOOST_CHECK_EQUAL(400, account_x.vesting_shares.amount.value);
+
+   balance_claim_operation op;
+   op.deposit_to_account = account_n.name;
+   op.total_claimed = asset(1);
+   op.balance_to_claim = balance_id_type(1);
+   op.balance_owner_key = x_key.get_public_key();
+   trx.operations = {op};
+   _sign( trx, n_key );
+   // Fail because I'm claiming from an address which hasn't signed
+   MUSE_CHECK_THROW(db.push_transaction(trx), tx_missing_other_auth);
+   trx.clear();
+   op.balance_to_claim = balance_id_type();
+   trx.operations = {op};
+   _sign( trx, x_key );
+   // Fail because I'm claiming from a wrong address
+   MUSE_CHECK_THROW(db.push_transaction(trx), fc::assert_exception);
+   trx.clear();
+   op.balance_owner_key = n_key.get_public_key();
+   trx.operations = {op};
+   _sign( trx, x_key );
+   // Fail because I'm claiming from an address which hasn't signed
+   MUSE_CHECK_THROW(db.push_transaction(trx), tx_missing_other_auth);
+   trx.clear();
+   op.total_claimed = asset(2);
+   trx.operations = {op};
+   _sign( trx, n_key );
+   // Fail because I'm claiming more than available
+   MUSE_CHECK_THROW(db.push_transaction(trx), fc::assert_exception);
+   trx.clear();
+   op.total_claimed = asset(1);
+   trx.operations = {op};
+   _sign( trx, n_key );
+   db.push_transaction(trx);
+
+   BOOST_CHECK_EQUAL(account_n.balance.amount.value, 1);
+   BOOST_CHECK(db.find_object(balance_id_type()) == nullptr);
+
+   op.balance_to_claim = balance_id_type(1);
+   op.balance_owner_key = x_key.get_public_key();
+   trx.operations = {op};
+   trx.signatures.clear();
+   //_sign( trx, n_key );
+   _sign( trx, x_key );
+   db.push_transaction(trx);
+
+   BOOST_CHECK_EQUAL(account_n.balance.amount.value, 2);
+   BOOST_CHECK(db.find_object(balance_id_type(1)) != nullptr);
+} FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()

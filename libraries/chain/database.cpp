@@ -2377,15 +2377,15 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
       }
       for( const genesis_state_type::initial_vesting_balance_type& vest : initial_allocation.initial_vesting_balances )
       {
-         asset new_vesting = asset( vest.amount, VESTS_SYMBOL );
-         auto to_account = get( vest.owner );
+         const asset new_vesting = asset( vest.amount, VESTS_SYMBOL );
+         const auto& to_account = get(vest.owner);
 
-         modify( to_account, [&]( account_object& to )
+         modify( to_account, [&new_vesting]( account_object& to )
          {
             to.vesting_shares += new_vesting;
          } );
 
-         modify( gpo, [&]( dynamic_global_property_object& props )
+         modify( gpo, [&new_vesting]( dynamic_global_property_object& props )
          {
             props.total_vesting_shares += new_vesting;
          } );
