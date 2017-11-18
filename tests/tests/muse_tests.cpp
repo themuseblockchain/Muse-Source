@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
 
       muse::app::database_api dbapi(db);
 
-      ACTORS( (suzy)(uhura)(paula)(penny)(martha)(muriel)(colette)(veronica)(vici) );
+      ACTORS( (alice)(suzy)(uhura)(paula)(penny)(martha)(muriel)(colette)(veronica)(vici) );
 
       generate_block();
 
@@ -250,7 +250,38 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_TEST_MESSAGE( "--- Test success" );
       tx.operations.clear();
       tx.operations.push_back( cop );
-      db.push_transaction( tx, database::skip_transaction_signatures  );
+      db.push_transaction( tx, database::skip_transaction_signatures );
+      }
+
+      // --------- Approve content ------------
+      {
+          content_approve_operation cao;
+          cao.approver = "alice";
+          cao.url = "ipfs://abcdef1";
+
+          cao.approver = "x";
+          FAIL( "with bad account", cao );
+
+          cao.approver = "alice";
+          cao.url = "http://abcdef1";
+          FAIL( "with bad url protocol", cao );
+          cao.url = "";
+          FAIL( "with empty url", cao );
+          cao.url = "ipfs://1234567890";
+          for( int i = 0; i < MUSE_MAX_URL_LENGTH / 10; i++ )
+              cao.url += "1234567890";
+          FAIL( "with too long url", cao );
+
+          cao.url = "ipfs://abcdef1";
+          BOOST_TEST_MESSAGE( "--- Test success" );
+          tx.operations.clear();
+          tx.operations.push_back( cao );
+          db.push_transaction( tx, database::skip_transaction_signatures );
+
+          BOOST_TEST_MESSAGE( "--- Test failure with double approval" );
+          tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION - 1 );
+          tx.sign( alice_private_key, db.get_chain_id() );
+          MUSE_REQUIRE_THROW( db.push_transaction( tx ), fc::assert_exception );
       }
 
       // --------- Publish playtime ------------
@@ -444,6 +475,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
          BOOST_CHECK_EQUAL( last_update.sec_since_epoch(), voted->last_update.sec_since_epoch() );
       }
 
+      BOOST_CHECK_EQUAL( 0, alice_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, paula_id(db).balance.amount.value );
@@ -454,6 +486,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 0, veronica_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).balance.amount.value );
 
+      BOOST_CHECK_EQUAL( 0, alice_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, paula_id(db).mbd_balance.amount.value );
@@ -464,6 +497,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 0, veronica_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).mbd_balance.amount.value );
 
+      BOOST_CHECK_EQUAL( 100000, alice_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, suzy_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, uhura_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, paula_id(db).vesting_shares.amount.value );
@@ -474,6 +508,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 100000, veronica_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, vici_id(db).vesting_shares.amount.value );
 
+      BOOST_CHECK_EQUAL( 0, alice_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, paula_id(db).curation_rewards.value );
@@ -508,6 +543,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( curation_reserve.amount.value / 10, veronica_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( ( curation_reserve.amount.value - curation_reserve.amount.value / 10 ) / 10, vici_id(db).balance.amount.value );
 
+      BOOST_CHECK_EQUAL( 0, alice_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, paula_id(db).balance.amount.value );
@@ -518,6 +554,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       //BOOST_CHECK_EQUAL( 0, veronica_id(db).balance.amount.value );
       //BOOST_CHECK_EQUAL( 0, vici_id(db).balance.amount.value );
 
+      BOOST_CHECK_EQUAL( 0, alice_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, paula_id(db).mbd_balance.amount.value );
@@ -528,6 +565,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 0, veronica_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).mbd_balance.amount.value );
 
+      BOOST_CHECK_EQUAL( 100000, alice_id(db).vesting_shares.amount.value );
       //BOOST_CHECK_EQUAL( 100000, suzy_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, uhura_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, paula_id(db).vesting_shares.amount.value );
@@ -538,6 +576,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 100000, veronica_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, vici_id(db).vesting_shares.amount.value );
 
+      BOOST_CHECK_EQUAL( 0, alice_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, paula_id(db).curation_rewards.value );
