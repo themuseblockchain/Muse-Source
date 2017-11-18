@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE( streaming_platform_test )
 
       BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
 
-      ACTORS( (suzy) );
+      ACTORS( (suzy)(victoria) );
 
       generate_block();
 
@@ -131,6 +131,54 @@ BOOST_AUTO_TEST_CASE( streaming_platform_test )
       BOOST_CHECK_EQUAL( "suzy", suzys.owner );
       BOOST_CHECK_EQUAL( creation_time.sec_since_epoch(), suzys.created.sec_since_epoch() );
       BOOST_CHECK_EQUAL( "http://www.peertracks.com", suzys.url );
+
+      // --------- Vote for streaming platform ------------
+      {
+         const account_object& vici = db.get_account( "victoria" );
+         BOOST_CHECK_EQUAL( 0, vici.streaming_platforms_voted_for );
+         BOOST_CHECK_EQUAL( 0, suzys.votes.value );
+
+         account_streaming_platform_vote_operation aspvo;
+         aspvo.account = "victoria";
+         aspvo.streaming_platform = "suzy";
+         aspvo.approve = true;
+
+         aspvo.account = "x";
+         FAIL( "with bad voting account", aspvo );
+
+         aspvo.account = "victoria";
+         aspvo.streaming_platform = "x";
+         FAIL( "with bad streaming platform", aspvo );
+
+         aspvo.streaming_platform = "suzy";
+         aspvo.approve = false;
+         FAIL( "with missing approval", aspvo );
+
+         aspvo.approve = true;
+         tx.operations.clear();
+         tx.operations.push_back( aspvo );
+         db.push_transaction( tx, database::skip_transaction_signatures );
+
+         const auto& by_account_streaming_platform_idx = db.get_index_type< streaming_platform_vote_index >().indices().get< by_account_streaming_platform >();
+         auto itr = by_account_streaming_platform_idx.find( boost::make_tuple( victoria_id, suzys.get_id() ) );
+
+         BOOST_CHECK( itr != by_account_streaming_platform_idx.end() );
+         BOOST_CHECK_EQUAL( victoria_id, itr->account );
+         BOOST_CHECK_EQUAL( suzys.id, itr->streaming_platform );
+         BOOST_CHECK_EQUAL( 1, vici.streaming_platforms_voted_for );
+         BOOST_CHECK_EQUAL( vici.vesting_shares.amount.value, suzys.votes.value );
+
+         tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION - 1 );
+         FAIL( "with missing disapproval", aspvo );
+
+         aspvo.approve = false;
+         tx.operations.clear();
+         tx.operations.push_back( aspvo );
+         db.push_transaction( tx, database::skip_transaction_signatures  );
+
+         BOOST_CHECK_EQUAL( 0, vici.streaming_platforms_voted_for );
+         BOOST_CHECK_EQUAL( 0, suzys.votes.value );
+      }
 
       validate_database();
    }
