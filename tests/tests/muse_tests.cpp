@@ -414,6 +414,34 @@ BOOST_AUTO_TEST_CASE( simple_test )
          tx.operations.clear();
          tx.operations.push_back( vop );
          db.push_transaction( tx, database::skip_transaction_signatures  );
+
+         auto last_update = db.head_block_time();
+         try
+         {
+            for( uint32_t i = 0; i < MUSE_MAX_VOTE_CHANGES + 2; i++ )
+            {
+               generate_blocks( db.head_block_time() + MUSE_MIN_VOTE_INTERVAL_SEC + 1 );
+               vop.weight++;
+               tx.operations.clear();
+               tx.operations.push_back( vop );
+               db.push_transaction( tx, database::skip_transaction_signatures  );
+               last_update = db.head_block_time();
+            }
+         }
+         catch( fc::assert_exception& ex )
+         {
+             BOOST_CHECK_EQUAL( 1 + MUSE_MAX_VOTE_CHANGES + 1, vop.weight );
+         }
+
+         const content_object& song1 = db.get_content( "ipfs://abcdef1" );
+         const auto& content_vote_idx = db.get_index_type< content_vote_index >().indices().get< by_content_voter >();
+         const auto voted = content_vote_idx.find( std::make_tuple( song1.id, vici_id ) );
+         BOOST_CHECK( voted != content_vote_idx.end() );
+         BOOST_CHECK_EQUAL( vici_id, voted->voter );
+         BOOST_CHECK_EQUAL( song1.id, voted->content );
+         BOOST_CHECK_EQUAL( vop.weight - 1, voted->weight );
+         BOOST_CHECK_EQUAL( MUSE_MAX_VOTE_CHANGES, voted->num_changes );
+         BOOST_CHECK_EQUAL( last_update.sec_since_epoch(), voted->last_update.sec_since_epoch() );
       }
 
       BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
