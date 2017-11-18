@@ -41,18 +41,18 @@ BOOST_FIXTURE_TEST_SUITE( muse_tests, clean_database_fixture )
    tx.operations.push_back( op ); \
    MUSE_REQUIRE_THROW( db.push_transaction( tx, database::skip_transaction_signatures ), fc::assert_exception )
 
-BOOST_AUTO_TEST_CASE( simple_test )
+BOOST_AUTO_TEST_CASE( streaming_platform_test )
 {
    try
    {
+      muse::app::database_api dbapi(db);
+
       generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
       BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
 
       BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
 
-      muse::app::database_api dbapi(db);
-
-      ACTORS( (suzy)(uhura)(paula)(penny)(martha)(muriel)(colette)(veronica)(vici) );
+      ACTORS( (suzy) );
 
       generate_block();
 
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
 
       FAIL( "when insufficient funds for fee", spuo );
 
-      fund( "suzy", MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
+      fund( "suzy", 2 * MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
 
       spuo.fee = asset( 10, MUSE_SYMBOL );
       FAIL( "when fee too low", spuo );
@@ -93,6 +93,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       tx.operations.push_back( spuo );
       db.push_transaction( tx, database::skip_transaction_signatures  );
       }
+
       // --------- Look up streaming platforms ------------
       {
       set<string> sps = dbapi.lookup_streaming_platform_accounts("x", 5);
@@ -101,6 +102,69 @@ BOOST_AUTO_TEST_CASE( simple_test )
       sps = dbapi.lookup_streaming_platform_accounts("", 5);
       BOOST_CHECK_EQUAL( 1, sps.size() );
       BOOST_CHECK( sps.find("suzy") != sps.end() );
+      const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
+      BOOST_CHECK_EQUAL( "suzy", suzys.owner );
+      BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), suzys.created.sec_since_epoch() );
+      BOOST_CHECK_EQUAL( "http://www.google.de", suzys.url );
+      }
+
+      const auto creation_time = db.head_block_time();
+
+      generate_block();
+
+      const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
+      BOOST_CHECK_EQUAL( "suzy", suzys.owner );
+      BOOST_CHECK_EQUAL( creation_time.sec_since_epoch(), suzys.created.sec_since_epoch() );
+      BOOST_CHECK_EQUAL( "http://www.google.de", suzys.url );
+
+      // --------- Update streaming platform ------------
+      {
+      streaming_platform_update_operation spuo;
+      spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
+      spuo.owner = "suzy";
+      spuo.url = "http://www.peertracks.com";
+      tx.operations.clear();
+      tx.operations.push_back( spuo );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+      }
+
+      BOOST_CHECK_EQUAL( "suzy", suzys.owner );
+      BOOST_CHECK_EQUAL( creation_time.sec_since_epoch(), suzys.created.sec_since_epoch() );
+      BOOST_CHECK_EQUAL( "http://www.peertracks.com", suzys.url );
+
+      validate_database();
+   }
+   FC_LOG_AND_RETHROW()
+}
+
+BOOST_AUTO_TEST_CASE( simple_test )
+{
+   try
+   {
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+
+      BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
+
+      muse::app::database_api dbapi(db);
+
+      ACTORS( (suzy)(uhura)(paula)(penny)(martha)(muriel)(colette)(veronica)(vici) );
+
+      generate_block();
+
+      signed_transaction tx;
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+      // --------- Create streaming platform ------------
+      {
+      fund( "suzy", MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
+      streaming_platform_update_operation spuo;
+      spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
+      spuo.owner = "suzy";
+      spuo.url = "http://www.google.de";
+      tx.operations.clear();
+      tx.operations.push_back( spuo );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
       }
       const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
 
