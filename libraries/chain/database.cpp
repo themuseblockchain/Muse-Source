@@ -3489,22 +3489,22 @@ uint64_t database::get_scoring(const content_object& co ) const
 void database::recursive_recalculate_score(const account_object& a, share_type delta)
 {
    share_type old_amount = a.vesting_shares.amount - delta;
-   uint64_t score_delta = detail::isqrt(a.get_scoring_vesting()) - detail::isqrt(old_amount.value);
+   int64_t score_delta = ((int64_t) detail::isqrt(a.get_scoring_vesting())) - detail::isqrt(old_amount.value);
 
-   modify<account_object>(a,[&](account_object& ao){
+   modify<account_object>(a,[score_delta](account_object& ao){
         ao.score += score_delta;
    });
 
    for( auto &f:a.friends ) {
       const auto& f_object = get<account_object>(f);
-      modify<account_object>(f_object,[&](account_object& ao){
+      modify<account_object>(f_object,[score_delta](account_object& ao){
            ao.score += score_delta * MUSE_1ST_LEVEL_SCORING_PERCENTAGE / 100;
       });
    }
 
    for( auto &f:a.second_level ) {
       const auto& f_object = get<account_object>(f);
-      modify<account_object>(f_object,[&](account_object& ao){
+      modify<account_object>(f_object,[score_delta](account_object& ao){
            ao.score += score_delta * MUSE_2ST_LEVEL_SCORING_PERCENTAGE / 100;
       });
    }
