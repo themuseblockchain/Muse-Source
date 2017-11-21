@@ -1366,6 +1366,322 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
 
    BOOST_CHECK_EQUAL(account_n.balance.amount.value, 2);
    BOOST_CHECK(db.find_object(balance_id_type(1)) != nullptr);
+
+   validate_database();
+   }
+   FC_LOG_AND_RETHROW()
+}
+
+
+BOOST_AUTO_TEST_CASE( friends_test )
+{ try {
+   ACTORS( (alice)(brenda)(charlene)(dora)(eve) );
+
+   fund( "alice", 9000000 );
+   fund( "brenda", 4000000 );
+   fund( "charlene", 1000000 );
+   fund( "dora", 810000 );
+   fund( "eve", 640000 );
+
+   const auto& dgpo = db.get_dynamic_global_properties();
+   const auto& vest_to = [&]( const string& who, const uint64_t target )
+   {
+      const auto& acct = db.get_account( who );
+      asset amount( target, VESTS_SYMBOL );
+      amount = ( amount - acct.vesting_shares ) * dgpo.get_vesting_share_price();
+      vest( who, amount.amount );
+
+      BOOST_CHECK_EQUAL( acct.vesting_shares.amount.value, target );
+   };
+
+   vest_to( "alice", 900000000 );
+   vest_to( "brenda", 400000000 );
+   vest_to( "charlene", 100000000 );
+   vest_to( "dora", 81000000 );
+   vest_to( "eve", 64000000 );
+
+   signed_transaction tx;
+   tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+   // --------- Make some friends ------------
+   {
+      friendship_operation fop;
+      fop.who = "alice";
+      fop.whom = "brenda";
+
+      fop.who = "x";
+      FAIL( "with bad account name", fop );
+
+      fop.who = "bob";
+      FAIL( "with non-existing account", fop );
+
+      fop.who = "alice";
+      fop.whom = "x";
+      FAIL( "with bad other account name", fop );
+
+      fop.whom = "bob";
+      FAIL( "with non-existing other account", fop );
+
+      fop.whom = "brenda";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.who = "dora";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.whom = "charlene";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.whom = "eve";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.who = "alice";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+   }
+
+   BOOST_CHECK( alice.waiting.empty() );
+   BOOST_CHECK( brenda.waiting.find( alice_id ) != brenda.waiting.end() );
+   BOOST_CHECK( brenda.waiting.find( dora_id ) != brenda.waiting.end() );
+   BOOST_CHECK_EQUAL( 2, brenda.waiting.size() );
+   BOOST_CHECK( charlene.waiting.find( dora_id ) != charlene.waiting.end() );
+   BOOST_CHECK_EQUAL( 1, charlene.waiting.size() );
+   BOOST_CHECK( dora.waiting.empty() );
+   BOOST_CHECK( eve.waiting.find( dora_id ) != eve.waiting.end() );
+   BOOST_CHECK( eve.waiting.find( alice_id ) != eve.waiting.end() );
+   BOOST_CHECK_EQUAL( 2, eve.waiting.size() );
+
+   BOOST_CHECK( alice.friends.empty() );
+   BOOST_CHECK( brenda.friends.empty() );
+   BOOST_CHECK( charlene.friends.empty() );
+   BOOST_CHECK( dora.friends.empty() );
+   BOOST_CHECK( eve.friends.empty() );
+
+   BOOST_CHECK( alice.second_level.empty() );
+   BOOST_CHECK( brenda.second_level.empty() );
+   BOOST_CHECK( charlene.second_level.empty() );
+   BOOST_CHECK( dora.second_level.empty() );
+   BOOST_CHECK( eve.second_level.empty() );
+
+   {
+      friendship_operation fop;
+      fop.who = "brenda";
+      fop.whom = "alice";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.whom = "dora";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.who = "charlene";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      fop.who = "eve";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+   }
+
+   BOOST_CHECK( alice.waiting.empty() );
+   BOOST_CHECK( brenda.waiting.empty() );
+   BOOST_CHECK( charlene.waiting.empty() );
+   BOOST_CHECK( dora.waiting.empty() );
+   BOOST_CHECK( eve.waiting.find( alice_id ) != eve.waiting.end() );
+   BOOST_CHECK_EQUAL( 1, eve.waiting.size() );
+
+   BOOST_CHECK( alice.friends.find( brenda_id ) != alice.friends.end() );
+   BOOST_CHECK_EQUAL( 1, alice.friends.size() );
+   BOOST_CHECK( brenda.friends.find( alice_id ) != brenda.friends.end() );
+   BOOST_CHECK( brenda.friends.find( dora_id ) != brenda.friends.end() );
+   BOOST_CHECK_EQUAL( 2, brenda.friends.size() );
+   BOOST_CHECK( charlene.friends.find( dora_id ) != charlene.friends.end() );
+   BOOST_CHECK_EQUAL( 1, charlene.friends.size() );
+   BOOST_CHECK( dora.friends.find( brenda_id ) != dora.friends.end() );
+   BOOST_CHECK( dora.friends.find( charlene_id ) != dora.friends.end() );
+   BOOST_CHECK( dora.friends.find( eve_id ) != dora.friends.end() );
+   BOOST_CHECK_EQUAL( 3, dora.friends.size() );
+   BOOST_CHECK( eve.friends.find( dora_id ) != eve.friends.end() );
+   BOOST_CHECK_EQUAL( 1, eve.friends.size() );
+
+   BOOST_CHECK( alice.second_level.find( dora_id ) != alice.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, alice.second_level.size() );
+   BOOST_CHECK( brenda.second_level.find( charlene_id ) != brenda.second_level.end() );
+   BOOST_CHECK( brenda.second_level.find( eve_id ) != brenda.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, brenda.second_level.size() );
+   BOOST_CHECK( charlene.second_level.find( brenda_id ) != charlene.second_level.end() );
+   BOOST_CHECK( charlene.second_level.find( eve_id ) != charlene.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, charlene.second_level.size() );
+   BOOST_CHECK( dora.second_level.find( alice_id ) != dora.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, dora.second_level.size() );
+   BOOST_CHECK( eve.second_level.find( brenda_id ) != eve.second_level.end() );
+   BOOST_CHECK( eve.second_level.find( charlene_id ) != eve.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, eve.second_level.size() );
+
+   BOOST_CHECK_EQUAL( 30000 + 200 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 90 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, alice.score );
+   BOOST_CHECK_EQUAL( 20000 + (300 + 90) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (100 + 80) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, brenda.score );
+   BOOST_CHECK_EQUAL( 10000 + 90 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 80) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, charlene.score );
+   BOOST_CHECK_EQUAL(  9000 + (200 + 100 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 300 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, dora.score );
+   BOOST_CHECK_EQUAL(  8000 + 90 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 100) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, eve.score );
+
+   fund( "dora", 3000 );
+   vest_to( "dora", 82810000 );
+
+   BOOST_CHECK_EQUAL( 30000 + 200 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 91 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, alice.score );
+   BOOST_CHECK_EQUAL( 20000 + (300 + 91) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (100 + 80) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, brenda.score );
+   BOOST_CHECK_EQUAL( 10000 + 91 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 80) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, charlene.score );
+   BOOST_CHECK_EQUAL(  9100 + (200 + 100 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 300 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, dora.score );
+   BOOST_CHECK_EQUAL(  8000 + 91 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 100) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, eve.score );
+
+   {
+      friendship_operation fop;
+      fop.who = "eve";
+      fop.whom = "alice";
+      tx.operations.clear();
+      tx.operations.push_back( fop );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+   }
+
+   BOOST_CHECK( alice.waiting.empty() );
+   BOOST_CHECK( brenda.waiting.empty() );
+   BOOST_CHECK( charlene.waiting.empty() );
+   BOOST_CHECK( dora.waiting.empty() );
+   BOOST_CHECK( eve.waiting.empty() );
+
+   BOOST_CHECK( alice.friends.find( brenda_id ) != alice.friends.end() );
+   BOOST_CHECK( alice.friends.find( eve_id ) != alice.friends.end() );
+   BOOST_CHECK_EQUAL( 2, alice.friends.size() );
+   BOOST_CHECK( brenda.friends.find( alice_id ) != brenda.friends.end() );
+   BOOST_CHECK( brenda.friends.find( dora_id ) != brenda.friends.end() );
+   BOOST_CHECK_EQUAL( 2, brenda.friends.size() );
+   BOOST_CHECK( charlene.friends.find( dora_id ) != charlene.friends.end() );
+   BOOST_CHECK_EQUAL( 1, charlene.friends.size() );
+   BOOST_CHECK( dora.friends.find( brenda_id ) != dora.friends.end() );
+   BOOST_CHECK( dora.friends.find( charlene_id ) != dora.friends.end() );
+   BOOST_CHECK( dora.friends.find( eve_id ) != dora.friends.end() );
+   BOOST_CHECK_EQUAL( 3, dora.friends.size() );
+   BOOST_CHECK( eve.friends.find( alice_id ) != eve.friends.end() );
+   BOOST_CHECK( eve.friends.find( dora_id ) != eve.friends.end() );
+   BOOST_CHECK_EQUAL( 2, eve.friends.size() );
+
+   BOOST_CHECK( alice.second_level.find( dora_id ) != alice.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, alice.second_level.size() );
+   BOOST_CHECK( brenda.second_level.find( charlene_id ) != brenda.second_level.end() );
+   BOOST_CHECK( brenda.second_level.find( eve_id ) != brenda.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, brenda.second_level.size() );
+   BOOST_CHECK( charlene.second_level.find( brenda_id ) != charlene.second_level.end() );
+   BOOST_CHECK( charlene.second_level.find( eve_id ) != charlene.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, charlene.second_level.size() );
+   BOOST_CHECK( dora.second_level.find( alice_id ) != dora.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, dora.second_level.size() );
+   BOOST_CHECK( eve.second_level.find( brenda_id ) != eve.second_level.end() );
+   BOOST_CHECK( eve.second_level.find( charlene_id ) != eve.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, eve.second_level.size() );
+
+   BOOST_CHECK_EQUAL( 30000 + (200 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 91 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, alice.score );
+   BOOST_CHECK_EQUAL( 20000 + (300 + 91) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (100 + 80) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, brenda.score );
+   BOOST_CHECK_EQUAL( 10000 + 91 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 80) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, charlene.score );
+   BOOST_CHECK_EQUAL(  9100 + (200 + 100 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 300 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, dora.score );
+   BOOST_CHECK_EQUAL(  8000 + (300 + 91) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 100) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, eve.score );
+
+   // --------- Lose friends ------------
+   {
+      unfriend_operation ufo;
+      ufo.who = "brenda";
+      ufo.whom = "dora";
+
+      ufo.who = "x";
+      FAIL( "with bad account name", ufo );
+
+      ufo.who = "bob";
+      FAIL( "with non-existing account", ufo );
+
+      ufo.who = "brenda";
+      ufo.whom = "x";
+      FAIL( "with bad other account name", ufo );
+
+      ufo.whom = "bob";
+      FAIL( "with non-existing other account", ufo );
+
+      ufo.whom = "dora";
+      tx.operations.clear();
+      tx.operations.push_back( ufo );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+   }
+
+   BOOST_CHECK( alice.waiting.empty() );
+   BOOST_CHECK( brenda.waiting.empty() );
+   BOOST_CHECK( charlene.waiting.empty() );
+   BOOST_CHECK( dora.waiting.empty() );
+   BOOST_CHECK( eve.waiting.empty() );
+
+   BOOST_CHECK( alice.friends.find( brenda_id ) != alice.friends.end() );
+   BOOST_CHECK( alice.friends.find( eve_id ) != alice.friends.end() );
+   BOOST_CHECK_EQUAL( 2, alice.friends.size() );
+   BOOST_CHECK( brenda.friends.find( alice_id ) != brenda.friends.end() );
+   BOOST_CHECK_EQUAL( 1, brenda.friends.size() );
+   BOOST_CHECK( charlene.friends.find( dora_id ) != charlene.friends.end() );
+   BOOST_CHECK_EQUAL( 1, charlene.friends.size() );
+   BOOST_CHECK( dora.friends.find( charlene_id ) != dora.friends.end() );
+   BOOST_CHECK( dora.friends.find( eve_id ) != dora.friends.end() );
+   BOOST_CHECK_EQUAL( 2, dora.friends.size() );
+   BOOST_CHECK( eve.friends.find( alice_id ) != eve.friends.end() );
+   BOOST_CHECK( eve.friends.find( dora_id ) != eve.friends.end() );
+   BOOST_CHECK_EQUAL( 2, eve.friends.size() );
+
+   BOOST_CHECK( alice.second_level.find( dora_id ) != alice.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, alice.second_level.size() );
+   BOOST_CHECK( brenda.second_level.find( eve_id ) != brenda.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, brenda.second_level.size() );
+   BOOST_CHECK( charlene.second_level.find( eve_id ) != charlene.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, charlene.second_level.size() );
+   BOOST_CHECK( dora.second_level.find( alice_id ) != dora.second_level.end() );
+   BOOST_CHECK_EQUAL( 1, dora.second_level.size() );
+   BOOST_CHECK( eve.second_level.find( brenda_id ) != eve.second_level.end() );
+   BOOST_CHECK( eve.second_level.find( charlene_id ) != eve.second_level.end() );
+   BOOST_CHECK_EQUAL( 2, eve.second_level.size() );
+
+   BOOST_CHECK_EQUAL( 30000 + (200 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 91 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, alice.score );
+   BOOST_CHECK_EQUAL( 20000 + 300 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 80 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, brenda.score );
+   BOOST_CHECK_EQUAL( 10000 + 91 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 80 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, charlene.score );
+   BOOST_CHECK_EQUAL(  9100 + (100 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 300 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, dora.score );
+   BOOST_CHECK_EQUAL(  8000 + (300 + 91) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 100) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, eve.score );
+
+   {
+      withdraw_vesting_operation op;
+      op.account = "alice";
+      op.vesting_shares = asset( 767000000, VESTS_SYMBOL );
+      tx.operations.clear();
+      tx.operations.push_back( op );
+      tx.sign( alice_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+
+      BOOST_CHECK_EQUAL( 59000000, alice.vesting_withdraw_rate.amount.value );
+   }
+
+   auto next_withdrawal = db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS;
+   generate_blocks( next_withdrawal - ( MUSE_BLOCK_INTERVAL / 2 ), true);
+   generate_block();
+
+   BOOST_CHECK_EQUAL( 29000 + (200 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 91 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, alice_id(db).score );
+   BOOST_CHECK_EQUAL( 20000 + 290 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 80 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, brenda_id(db).score );
+   BOOST_CHECK_EQUAL( 10000 + 91 * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 80 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, charlene_id(db).score );
+   BOOST_CHECK_EQUAL(  9100 + (100 + 80) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + 290 * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, dora_id(db).score );
+   BOOST_CHECK_EQUAL(  8000 + (290 + 91) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 100) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, eve_id(db).score );
+
+   validate_database();
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()

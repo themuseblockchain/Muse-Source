@@ -480,9 +480,6 @@ void database_fixture::validate_database( void )
          }
       }
 
-      fc::uint128_t total_rshares2;
-      fc::uint128_t total_children_rshares2;
-
       auto gpo = db.get_dynamic_global_properties();
 
       total_supply += gpo.total_vesting_fund_muse + gpo.total_reward_fund_muse;
@@ -494,6 +491,13 @@ void database_fixture::validate_database( void )
       if ( !db.get_feed_history().current_median_history.is_null() )
          BOOST_REQUIRE( gpo.current_mbd_supply * db.get_feed_history().current_median_history + gpo.current_supply
             == gpo.virtual_supply );
+
+      for( auto itr = account_idx.begin(); itr != account_idx.end(); itr++ )
+      {
+          uint64_t pre_score = itr->score;
+          db.recalculate_score( *itr );
+          BOOST_CHECK_EQUAL( pre_score, itr->score );
+      }
    }
    FC_LOG_AND_RETHROW();
 }
