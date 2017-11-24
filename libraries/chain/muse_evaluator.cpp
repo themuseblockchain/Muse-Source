@@ -227,6 +227,7 @@ void unfriend_evaluator::do_apply( const unfriend_operation& o )
            a.second_level = new_sl_list;
       });
       db().recalculate_score(a1);
+      db().recalculate_score(a2);
 
       //rebuild second level lists of all friends. this is expensive
       for( auto aid : a1.friends )
