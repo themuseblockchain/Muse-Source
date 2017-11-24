@@ -10,7 +10,7 @@ if( GPERFTOOLS_FOUND )
 endif()
 
 target_link_libraries( mused
-                       PRIVATE muse_external_plugins muse_internal_plugins muse_mf_plugins muse_app muse_witness muse_account_history muse_chain muse_egenesis_full fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
+                       PRIVATE muse_external_plugins muse_internal_plugins muse_mf_plugins muse_app muse_witness muse_account_history muse_chain muse_egenesis_full muse_snapshot fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
 
 install( TARGETS
         mused
