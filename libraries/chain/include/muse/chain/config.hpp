@@ -93,7 +93,6 @@
 #define MUSE_OWNER_AUTH_RECOVERY_PERIOD                  fc::days(30)
 #define MUSE_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD  fc::days(1)
 #define MUSE_OWNER_UPDATE_LIMIT                          fc::minutes(60)
-#define MUSE_OWNER_AUTH_HISTORY_TRACKING_START_BLOCK_NUM 3186477
 
 #endif
 
