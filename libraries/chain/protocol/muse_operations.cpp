@@ -128,7 +128,7 @@ void content_update_operation::validate() const {
 
 }
 
-void content_remove_operation::validate() const {
+void content_disable_operation::validate() const {
    validate_url(url);
 }
 

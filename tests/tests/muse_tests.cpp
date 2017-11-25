@@ -1052,7 +1052,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
 
       // --------- Content removal ------------
       {
-      content_remove_operation cro;
+      content_disable_operation cro;
       cro.url = "ipfs://abcdef1";
       tx.operations.clear();
       tx.signatures.clear();
@@ -1244,7 +1244,7 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
 
       // --------- Content removal ------------
       {
-      content_remove_operation cro;
+      content_disable_operation cro;
       cro.url = "ipfs://abcdef1";
       tx.operations.clear();
       tx.signatures.clear();

@@ -65,7 +65,10 @@ namespace muse { namespace chain {
          bool           curation_rewards=true;
          time_point_sec curation_reward_expiration;
 
-         bool     allow_votes   = true;      /// allows a post to receive votes;
+         bool allow_votes   = true;      /// allows a post to receive votes;
+
+         bool disabled = false;
+
          friend bool operator<(const content_object& a, const content_object& b) {
             return a.id<b.id;
          }
