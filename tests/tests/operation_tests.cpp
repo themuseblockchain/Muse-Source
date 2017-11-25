@@ -3001,6 +3001,8 @@ BOOST_AUTO_TEST_CASE( account_recovery )
    {
       BOOST_TEST_MESSAGE( "Testing: account recovery" );
 
+      generate_blocks( fc::time_point_sec(MUSE_HARDFORK_0_2_TIME) );
+
       ACTORS( (alice) );
       fund( "alice", 1000000000 );
 
@@ -3023,13 +3025,17 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
 
+      account_update_operation acc_update;
+      request_account_recovery_operation request;
+      recover_account_operation recover;
+
+      {
       const auto& bob = db.get_account( "bob" );
       BOOST_REQUIRE( bob.owner == acc_create.owner );
 
 
       BOOST_TEST_MESSAGE( "Changing bob's owner authority" );
 
-      account_update_operation acc_update;
       acc_update.account = "bob";
       acc_update.owner = authority( 1, generate_private_key( "bad_key" ).get_public_key(), 1 );
       acc_update.memo_key = acc_create.memo_key;
@@ -3047,7 +3053,6 @@ BOOST_AUTO_TEST_CASE( account_recovery )
 
       BOOST_TEST_MESSAGE( "Creating recover request for bob with alice" );
 
-      request_account_recovery_operation request;
       request.recovery_account = "alice";
       request.account_to_recover = "bob";
       request.new_owner_authority = authority( 1, generate_private_key( "new_key" ).get_public_key(), 1 );
@@ -3064,7 +3069,6 @@ BOOST_AUTO_TEST_CASE( account_recovery )
 
       BOOST_TEST_MESSAGE( "Recovering bob's account with original owner auth and new secret" );
 
-      recover_account_operation recover;
       recover.account_to_recover = "bob";
       recover.new_owner_authority = request.new_owner_authority;
       recover.recent_owner_authority = acc_create.owner;
@@ -3090,8 +3094,13 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.operations.push_back( request );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
+      }
 
+      generate_blocks( db.head_block_time() + MUSE_OWNER_UPDATE_LIMIT + fc::seconds(MUSE_BLOCK_INTERVAL) );
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
 
+      {
+      const auto& bob = db.get_account( "bob" );
       BOOST_TEST_MESSAGE( "Testing failure when bob does not have new authority" );
 
       recover.new_owner_authority = authority( 1, generate_private_key( "idontknow" ).get_public_key(), 1 );
@@ -3158,6 +3167,7 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       BOOST_REQUIRE( req_itr == request_idx.end() );
 
       generate_blocks( time_point_sec( expires - MUSE_BLOCK_INTERVAL ), true );
+      }
 
       const auto& new_request_idx = db.get_index_type< account_recovery_request_index >().indices();
       BOOST_REQUIRE( new_request_idx.begin() != new_request_idx.end() );
@@ -3217,6 +3227,8 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.sign( generate_private_key( "last key" ), db.get_chain_id() );
       MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
       BOOST_REQUIRE( db.get_account( "bob" ).owner == authority( 1, generate_private_key( "new_key" ).get_public_key(), 1 ) );
+
+      generate_blocks( db.head_block_time() + MUSE_OWNER_UPDATE_LIMIT + fc::seconds(MUSE_BLOCK_INTERVAL) );
 
       recover.recent_owner_authority = authority( 1, generate_private_key( "foo bar" ).get_public_key(), 1 );
 
