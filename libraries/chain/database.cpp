@@ -3301,7 +3301,22 @@ void database::apply_hardfork( uint32_t hardfork )
 
    switch( hardfork )
    {
-     default:
+      case MUSE_HARDFORK_0_1:
+         {
+            // This is for unit tests only. Evil.
+            const auto& initminer = get_account( MUSE_INIT_MINER_NAME );
+            if ( initminer.balance.amount.value >= 10 * asset::static_precision() )
+            {
+               custom_operation test_op;
+               string op_msg = "Test: Hardfork applied";
+               test_op.data = vector< char >( op_msg.begin(), op_msg.end() );
+               test_op.required_auths.insert( MUSE_INIT_MINER_NAME );
+               push_applied_operation( test_op );
+            }
+         }
+         break;
+
+      default:
          break;
    }
 

@@ -790,7 +790,6 @@ BOOST_FIXTURE_TEST_CASE( skip_block, clean_database_fixture )
    FC_LOG_AND_RETHROW();
 }
 
-#ifdef MUSE_HARDFORK_0_1
 BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 {
    try
@@ -814,6 +813,17 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 
          open_database();
 
+         {
+            const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
+            db.modify( init_acct, [&]( account_object& acct ) {
+               acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
+            });
+            const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+            db.modify( init_witness, [&]( witness_object& witness ) {
+               witness.signing_key = init_account_pub_key;
+            });
+         }
+
          // app.initialize();
          ahplugin->plugin_set_app( &app );
          ahplugin->plugin_initialize( options );
@@ -828,6 +838,8 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
             fund( MUSE_INIT_MINER_NAME + fc::to_string( i ), MUSE_MIN_PRODUCER_REWARD.amount.value );
             witness_create( MUSE_INIT_MINER_NAME + fc::to_string( i ), init_account_priv_key, "foo.bar", init_account_pub_key, MUSE_MIN_PRODUCER_REWARD.amount );
          }
+
+         generate_blocks( 2 * MUSE_MAX_MINERS );
 
          validate_database();
       } catch ( const fc::exception& e )
@@ -849,7 +861,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_TEST_MESSAGE( "Generate a block and check hardfork is applied" );
       generate_block();
 
-      string op_msg = "Testnet: Hardfork applied";
+      string op_msg = "Test: Hardfork applied";
       auto itr = db.get_index_type< account_history_index >().indices().get< by_id >().end();
       itr--;
 
@@ -871,6 +883,5 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
    }
    FC_LOG_AND_RETHROW()
 }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()
