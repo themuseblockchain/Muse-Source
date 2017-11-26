@@ -3221,6 +3221,13 @@ void database::init_hardforks()
 {
    _hardfork_times[ 0 ] = fc::time_point_sec( MUSE_GENESIS_TIME );
    _hardfork_versions[ 0 ] = hardfork_version( 0, 0 );
+   FC_ASSERT( MUSE_HARDFORK_0_1 == 1, "Invalid hardfork configuration" );
+   _hardfork_times[ MUSE_HARDFORK_0_1 ] = fc::time_point_sec( MUSE_HARDFORK_0_1_TIME );
+   _hardfork_versions[ MUSE_HARDFORK_0_1 ] = MUSE_HARDFORK_0_1_VERSION;
+   FC_ASSERT( MUSE_HARDFORK_0_2 == 2, "Invalid hardfork configuration" );
+   _hardfork_times[ MUSE_HARDFORK_0_2 ] = fc::time_point_sec( MUSE_HARDFORK_0_2_TIME );
+   _hardfork_versions[ MUSE_HARDFORK_0_2 ] = MUSE_HARDFORK_0_2_VERSION;
+
    const auto& hardforks = hardfork_property_id_type()( *this );
    FC_ASSERT( hardforks.last_hardfork <= MUSE_NUM_HARDFORKS, "Chain knows of more hardforks than configuration", ("hardforks.last_hardfork",hardforks.last_hardfork)("MUSE_NUM_HARDFORKS",MUSE_NUM_HARDFORKS) );
    FC_ASSERT( _hardfork_versions[ hardforks.last_hardfork ] <= MUSE_BLOCKCHAIN_VERSION, "Blockchain version is older than last applied hardfork" );
@@ -3290,6 +3297,8 @@ void database::set_hardfork( uint32_t hardfork, bool apply_now )
 
 void database::apply_hardfork( uint32_t hardfork )
 {
+   ilog("Applying hardfork ${i} at #${n} / ${t}", ("i",hardfork)("n",head_block_num())("t",head_block_time()) );
+
    switch( hardfork )
    {
      default:
