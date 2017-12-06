@@ -15,7 +15,7 @@ namespace muse { namespace chain {
             content_operation,
             content_update_operation,
             content_approve_operation,
-            content_remove_operation,
+            content_disable_operation,
 
             transfer_operation,
             transfer_to_vesting_operation,

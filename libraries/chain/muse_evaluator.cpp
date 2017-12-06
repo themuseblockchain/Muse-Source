@@ -66,6 +66,7 @@ void streaming_platform_report_evaluator::do_apply ( const streaming_platform_re
 
    FC_ASSERT ( db().is_voted_streaming_platform( o.streaming_platform ));
    const auto& content = db().get_content( o.content );
+   FC_ASSERT( !content.disabled );
 
    db().create< report_object>( [&](report_object& ro) {
         ro.consumer = consumer.id;
@@ -336,11 +337,10 @@ void content_evaluator::do_apply( const content_operation& o )
 
 void content_update_evaluator::do_apply( const content_update_operation& o )
 { try {
+      const auto& content = db().get_content( o.url );
+      FC_ASSERT( !content.disabled );
+      const content_object* itr = &content;
 
-      const auto& by_url_idx = db().get_index_type< content_index >().indices().get< by_url >();
-      auto itr = by_url_idx.find( o.url );
-
-      FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
       bool two_sides = itr->comp_meta.third_party_publishers;
       if(db().has_hardfork(MUSE_HARDFORK_0_1))
          FC_ASSERT( two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
@@ -428,31 +428,30 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
          db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
-void content_remove_evaluator::do_apply( const content_remove_operation& o )
+void content_disable_evaluator::do_apply( const content_disable_operation& o )
 { try{
-      const auto& by_url_idx = db().get_index_type< content_index >().indices().get< by_url >();
-      auto itr = by_url_idx.find( o.url );
+   FC_ASSERT( db().has_hardfork( MUSE_HARDFORK_0_2 ) ); // remove after HF time
 
-      FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
+   const auto& content = db().get_content( o.url );
 
-      //FC_ASSERT( o.force || itr->accumulated_balance_master.amount == share_type(0), "There is still accumulated balance associated to the object");
+   FC_ASSERT( !content.disabled );
 
-      db().remove( *itr );
+   db().modify( content, []( content_object& co ) {
+       co.disabled = true;
+   });
 
-   }  FC_CAPTURE_AND_RETHROW( (o) ) }
+}  FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void content_approve_evaluator::do_apply( const content_approve_operation& o )
 {try{
-      const auto& by_url_idx = db().get_index_type< content_index >().indices().get< by_url >();
-      auto itr = by_url_idx.find( o.url );
-
-      FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
+      const auto& content = db().get_content( o.url );
+      FC_ASSERT( !content.disabled );
 
       const auto& appr = db().get_account( o.approver );
 
-      db().create <content_approve_object> ( [&](content_approve_object& con){
+      db().create <content_approve_object> ( [&appr,&o](content_approve_object& con){
            con.approver=appr.id;
-           con.content=itr->url;
+           con.content=o.url;
       });
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
@@ -504,6 +503,7 @@ void vote_evaluator::do_apply( const vote_operation& o )
       if( o.url.length() > 0 ) //vote for content
       {
          const auto&content = db().get_content( o.url );
+         FC_ASSERT( !content.disabled );
          if( o.weight > 0 ) FC_ASSERT( content.allow_votes );
          const auto& content_vote_idx = db().get_index_type< content_vote_index >().indices().get< by_content_voter >();
          auto itr = content_vote_idx.find( std::make_tuple( content.id, voter.id ) );

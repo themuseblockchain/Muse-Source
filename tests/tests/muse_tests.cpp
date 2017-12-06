@@ -1052,7 +1052,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
 
       // --------- Content removal ------------
       {
-      content_remove_operation cro;
+      content_disable_operation cro;
       cro.url = "ipfs://abcdef1";
       tx.operations.clear();
       tx.signatures.clear();
@@ -1244,7 +1244,7 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
 
       // --------- Content removal ------------
       {
-      content_remove_operation cro;
+      content_disable_operation cro;
       cro.url = "ipfs://abcdef1";
       tx.operations.clear();
       tx.signatures.clear();
@@ -1682,6 +1682,124 @@ BOOST_AUTO_TEST_CASE( friends_test )
    BOOST_CHECK_EQUAL(  8000 + (290 + 91) * MUSE_1ST_LEVEL_SCORING_PERCENTAGE + (200 + 100) * MUSE_2ST_LEVEL_SCORING_PERCENTAGE, eve_id(db).score );
 
    validate_database();
+} FC_LOG_AND_RETHROW() }
+
+BOOST_AUTO_TEST_CASE( disable_test )
+{ try {
+   generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
+   BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+
+   BOOST_TEST_MESSAGE( "Testing: streaming platform contract disable" );
+
+   ACTORS( (alice)(suzy)(uhura)(paula)(martha)(colette)(veronica) );
+
+   generate_block();
+
+   signed_transaction tx;
+   tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+   // --------- Create streaming platform ------------
+   {
+      fund( "suzy", MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE );
+      streaming_platform_update_operation spuo;
+      spuo.fee = asset( MUSE_MIN_STREAMING_PLATFORM_CREATION_FEE, MUSE_SYMBOL );
+      spuo.owner = "suzy";
+      spuo.url = "http://www.google.de";
+      tx.operations.clear();
+      tx.operations.push_back( spuo );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+   }
+   const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
+
+   // --------- Create content ------------
+   {
+      content_operation cop;
+      cop.uploader = "uhura";
+      cop.url = "ipfs://abcdef1";
+      cop.album_meta.album_title = "First test song";
+      cop.track_meta.track_title = "First test song";
+      cop.comp_meta.third_party_publishers = false;
+      distribution dist;
+      dist.payee = "paula";
+      dist.bp = MUSE_100_PERCENT;
+      cop.distributions.push_back( dist );
+      management_vote mgmt;
+      mgmt.voter = "martha";
+      mgmt.percentage = 100;
+      cop.management.push_back( mgmt );
+      cop.management_threshold = 100;
+      cop.playing_reward = 10;
+      cop.publishers_share = 0;
+      tx.operations.clear();
+      tx.operations.push_back( cop );
+      db.push_transaction( tx, database::skip_transaction_signatures );
+   }
+
+   // --------- Publish playtime ------------
+   {
+      streaming_platform_report_operation spro;
+      spro.streaming_platform = "suzy";
+      spro.consumer = "colette";
+      spro.content = "ipfs://abcdef1";
+      spro.play_time = 100;
+      tx.operations.clear();
+      tx.operations.push_back( spro );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+   }
+
+   // --------- Content removal ------------
+   {
+      content_disable_operation cro;
+      cro.url = "ipfs://abcdef1";
+
+      cro.url = "http://abcdef1";
+      FAIL( "with bad url protocol", cro );
+      cro.url = "";
+      FAIL( "with empty url", cro );
+      cro.url = "ipfs://1234567890";
+      for( int i = 0; i < MUSE_MAX_URL_LENGTH / 10; i++ )
+          cro.url += "1234567890";
+      FAIL( "with too long url", cro );
+
+      cro.url = "ipfs://abcdef1";
+      tx.operations.clear();
+      tx.operations.push_back( cro );
+      db.push_transaction( tx, database::skip_transaction_signatures  );
+
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION - 1 );
+      FAIL( "double disable", cro );
+   }
+
+   // --------- Approve content ------------
+   {
+       content_approve_operation cao;
+       cao.approver = "alice";
+       cao.url = "ipfs://abcdef1";
+       FAIL( "approve after disable", cao );
+   }
+
+   // --------- Content update ------------
+   {
+      content_update_operation cup;
+      cup.side = content_update_operation::side_t::master;
+      cup.url = "ipfs://abcdef1";
+      cup.new_publishers_share = 1;
+      cup.album_meta = content_metadata_album_master();
+      cup.album_meta->album_title = "Simple test album";
+      cup.track_meta = content_metadata_track_master();
+      cup.track_meta->track_title = "Simple test track";
+      FAIL( "update after disable", cup );
+   }
+
+   // --------- Vote ------------
+   {
+      vote_operation vop;
+      vop.voter = "veronica";
+      vop.url = "ipfs://abcdef1";
+      vop.weight = 1;
+      FAIL( "vote after disable", vop );
+   }
+
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()

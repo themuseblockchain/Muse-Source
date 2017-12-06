@@ -223,12 +223,12 @@ struct content_update_operation : public base_operation
 /**
  * Remove content from MUSE
  */
-struct content_remove_operation : public base_operation
+struct content_disable_operation : public base_operation
 {
    string url; //<URL of the content to be removed
 
    void validate()const;
-   void get_required_active_authorities( flat_set<string>& a )const{ a.insert(url); }
+   void get_required_master_content_authorities( flat_set<string>& a )const{ a.insert(url); }
 };
 
 /**
@@ -374,7 +374,7 @@ FC_REFLECT( muse::chain::content_operation, (uploader)(url)(album_meta)(track_me
       (playing_reward)(publishers_share) )
 FC_REFLECT( muse::chain::content_update_operation, (url)(side)(album_meta)(track_meta)(comp_meta)(new_distributions)(new_management)(new_threshold)(new_playing_reward)(new_publishers_share) )
 FC_REFLECT( muse::chain::content_approve_operation, (approver)(url) )
-FC_REFLECT( muse::chain::content_remove_operation, (url) )
+FC_REFLECT( muse::chain::content_disable_operation, (url) )
 FC_REFLECT( muse::chain::friendship_operation, (who)(whom) )
 FC_REFLECT( muse::chain::unfriend_operation, (who)(whom) )
 FC_REFLECT( muse::chain::content_reward_operation, (payee)(url)(mbd_payout)(vesting_payout) )

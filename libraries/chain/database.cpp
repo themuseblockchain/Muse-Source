@@ -2110,7 +2110,7 @@ void database::initialize_evaluators()
     register_evaluator<streaming_platform_report_evaluator>();
     register_evaluator<content_evaluator>();
     register_evaluator<content_update_evaluator>();
-    register_evaluator<content_remove_evaluator>();
+    register_evaluator<content_disable_evaluator>();
     register_evaluator<content_approve_evaluator>();
 
     register_evaluator<balance_claim_evaluator>();
