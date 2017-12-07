@@ -189,8 +189,8 @@ BOOST_AUTO_TEST_CASE( simple_test )
 {
    try
    {
-      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
-      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_2_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
 
       BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
 
