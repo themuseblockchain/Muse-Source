@@ -443,6 +443,9 @@ BOOST_AUTO_TEST_CASE( simple_test )
       cup.new_management[0].percentage = 101;
       FAIL( "with invalid voter percentage", cup );
 
+      cup.comp_meta = content_metadata_publisher();
+      cup.comp_meta->third_party_publishers = true;
+
       cup.new_management[0].percentage = 100;
       BOOST_TEST_MESSAGE( "--- Test success" );
       tx.operations.clear();
@@ -452,6 +455,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       // --------- Verify update ------------
       {
       const content_object& song1 = db.get_content( "ipfs://abcdef1" );
+      BOOST_CHECK( ! song1.comp_meta.third_party_publishers );
       BOOST_CHECK_EQUAL( "Simple test album", song1.album_meta.album_title );
       BOOST_CHECK_EQUAL( "Simple test track", song1.track_meta.track_title );
       BOOST_CHECK_EQUAL( "penny", song1.distributions_master[0].payee );
