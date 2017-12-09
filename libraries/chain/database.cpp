@@ -1583,14 +1583,13 @@ void database::process_vesting_withdrawals()
    }
 }
 
-
-asset database::process_content_cashout()
-{try{
+asset database::process_content_cashout( const asset& content_reward )
+{ try {
    auto now = head_block_time();
    auto cashing_time = now - fc::seconds(60*24*60);
    asset paid(0);
    
-   asset total_payout = get_content_reward();
+   asset total_payout = has_hardfork( MUSE_HARDFORK_0_2 ) ? content_reward : get_content_reward();
 
    //find thresholds
    const auto& cridx = get_index_type< content_index >().indices().get< by_popularity >();
@@ -1616,7 +1615,7 @@ asset database::process_content_cashout()
          current_plays_threshold2 = critr->times_played_24;
 
       auto& c_stat = get<content_stats_object> (content_stats_id_type(0));
-      modify<content_stats_object>(c_stat, [&](content_stats_object& cso){
+      modify<content_stats_object>(c_stat, [current_plays_threshold1,current_plays_threshold2](content_stats_object& cso){
            cso.current_plays_threshold1 = current_plays_threshold1;
            cso.current_plays_threshold2 = current_plays_threshold2;
       });
@@ -1637,32 +1636,32 @@ asset database::process_content_cashout()
       FC_ASSERT( consumer.total_listening_time > 0 );
       asset pay_reserve = total_payout * itr->play_time / customers.size() / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
-      modify<account_object>(consumer, [&](account_object & a){
+      modify<account_object>(consumer, [&itr](account_object & a){
          a.total_listening_time -= itr->play_time;
       });
       remove(*itr);
       itr = ridx.begin();
    }
    return paid;
-}FC_LOG_AND_RETHROW() }
+} FC_LOG_AND_RETHROW() }
 
-void database::pay_to_content_master(const content_object &co, asset payout)
+void database::pay_to_content_master(const content_object &co, const asset& payout)
 {try{
    if ( co.distributions_master.size() == 0)
    {
-      modify(co, [&]( content_object& c ){
-           if(c.accumulated_balance_master.amount == 0 )
-              c.accumulated_balance_master = payout;
-           else
-              c.accumulated_balance_master += payout;
+      modify(co, [&payout]( content_object& c ){
+         c.accumulated_balance_master += payout;
       });
    }
    else
    {
+      asset to_pay = payout + co.accumulated_balance_master;
+      asset total_paid = asset( 0, to_pay.asset_id );
       for ( const auto& di : co.distributions_master )
       {
-         asset author_reward = payout;
-         author_reward.amount = payout.amount * di.bp / 10000;
+         asset author_reward = to_pay;
+         author_reward.amount = author_reward.amount * di.bp / 10000;
+         total_paid += author_reward;
 
          auto mbd_muse     = author_reward;
          auto vesting_muse = author_reward - mbd_muse;
@@ -1673,26 +1672,34 @@ void database::pay_to_content_master(const content_object &co, asset payout)
 
          push_applied_operation( content_reward_operation( di.payee, co.url, mbd_created, vest_created ) );
       }
+      if( total_paid > to_pay )
+         elog( "Paid out too much for content ${co}: ${paid} > ${to_pay}",
+               ("co",co)("paid",total_paid)("to_pay",to_pay) );
+      to_pay -= total_paid;
+      if( co.accumulated_balance_master != to_pay )
+         modify(co, [&to_pay]( content_object& c ){
+            c.accumulated_balance_master = to_pay;
+         });
    }
 }FC_LOG_AND_RETHROW() }
 
-void database::pay_to_content_comp(const content_object &co, asset payout)
+void database::pay_to_content_comp(const content_object &co, const asset& payout)
 {try{
    if ( co.distributions_comp.size() == 0)
    {
-      modify(co, [&]( content_object& c ){
-           if(c.accumulated_balance_comp.amount == 0 )
-              c.accumulated_balance_comp = payout;
-           else
-              c.accumulated_balance_comp += payout;
+      modify(co, [&payout]( content_object& c ){
+         c.accumulated_balance_comp += payout;
       });
    }
    else
    {
+      asset to_pay = payout + co.accumulated_balance_comp;
+      asset total_paid = asset( 0, to_pay.asset_id );
       for ( const auto& di : co.distributions_comp )
       {
-         asset author_reward = payout;
-         author_reward.amount = payout.amount * di.bp / 10000;
+         asset author_reward = to_pay;
+         author_reward.amount = author_reward.amount * di.bp / 10000;
+         total_paid += author_reward;
 
          auto mbd_muse     = author_reward;
          auto vesting_muse = author_reward - mbd_muse;
@@ -1703,10 +1710,18 @@ void database::pay_to_content_comp(const content_object &co, asset payout)
 
          push_applied_operation( content_reward_operation( di.payee, co.url, mbd_created, vest_created ) );
       }
+      if( total_paid > to_pay )
+         elog( "Paid out too much for content composer ${co}: ${paid} > ${to_pay}",
+               ("co",co)("paid",total_paid)("to_pay",to_pay) );
+      to_pay -= total_paid;
+      if( co.accumulated_balance_comp != to_pay )
+         modify(co, [&to_pay]( content_object& c ){
+            c.accumulated_balance_comp = to_pay;
+         });
    }
 }FC_LOG_AND_RETHROW() }
 
-void database::pay_to_platform( streaming_platform_id_type platform, asset payout, string url )
+void database::pay_to_platform( streaming_platform_id_type platform, const asset& payout, const string& url )
 {try{
    const streaming_platform_object& pl = get<streaming_platform_object>( platform );
    const auto& owner = get_account(pl.owner);
@@ -1718,7 +1733,7 @@ void database::pay_to_platform( streaming_platform_id_type platform, asset payou
 }FC_LOG_AND_RETHROW() }
 
 
-void database::pay_to_curator(const content_object &co, account_id_type cur, asset pay)
+void database::pay_to_curator(const content_object &co, account_id_type cur, const asset& pay)
 {try{
    const auto& curator = get<account_object>(cur);
    auto vesting_muse = asset(0, MUSE_SYMBOL);
@@ -1750,12 +1765,12 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    paid += platform_reward;
 
    const content_stats_object& c_stat = get<content_stats_object> (content_stats_id_type(0));
-   bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
-   bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
+   const bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
+   const bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
    bool pay_curators = false;
    bool reset_curation_rewards = false;
 
-   modify<content_object>(co,[&](content_object& c){
+   modify<content_object>(co,[above_thr1,above_thr2,&pay_curators,&reset_curation_rewards,this](content_object& c){
         if(c.curation_rewards){
            if(above_thr2) { //still in top 2000
               if(head_block_time() < c.curation_reward_expiration)
@@ -1778,7 +1793,6 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    });
 
    const auto& vidx = get_index_type<content_vote_index>().indices().get< by_reward_flag_update > ();
-   auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
    if(reset_curation_rewards){
       auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
       while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
@@ -1814,19 +1828,11 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
  *  This method pays out vesting and reward shares every block, and liquidity shares once per day.
  *  This method does not pay out witnesses.
  */
-void database::process_funds()
+void database::process_funds( const asset& content_reward, const asset& witness_pay, const asset& vesting_reward )
 {
    const auto& props = get_dynamic_global_properties();
 
-   auto content_reward = get_content_reward();
-   auto witness_pay = get_producer_reward();
-   auto vesting_reward = get_vesting_reward();
-
-
-   if( props.head_block_number < MUSE_START_VESTING_BLOCK )
-      vesting_reward.amount = 0;
-
-   modify( props, [&]( dynamic_global_property_object& p )
+   modify( props, [&content_reward, &witness_pay, &vesting_reward]( dynamic_global_property_object& p )
    {
        p.total_vesting_fund_muse += vesting_reward;
        p.total_reward_fund_muse  += content_reward ;
@@ -1835,16 +1841,18 @@ void database::process_funds()
    } );
 }
 
-void database::adjust_funds(asset paid_to_content)
+void database::adjust_funds(const asset& content_reward, const asset& paid_to_content)
 {
-   auto initial_content_allocation = get_content_reward();
-   asset delta = initial_content_allocation - paid_to_content;
+   const auto initial_content_allocation = has_hardfork( MUSE_HARDFORK_0_2 ) ? content_reward : get_content_reward();
+   const asset delta = initial_content_allocation - paid_to_content;
+   const asset true_delta = content_reward - paid_to_content;
    const auto& props = get_dynamic_global_properties();
-   modify( props, [&]( dynamic_global_property_object& p )
+   modify( props, [&delta, &true_delta]( dynamic_global_property_object& p )
    {
         p.total_reward_fund_muse  -= delta;
         p.current_supply -= delta;
         p.virtual_supply -= delta;
+        p.supply_delta += delta - true_delta;
    } );
 }
 
@@ -2520,10 +2528,15 @@ void database::_apply_block( const signed_block& next_block )
    update_median_feed();
    update_virtual_supply();
 
-   process_funds();
+   const auto content_reward = get_content_reward();
+   const auto witness_pay = get_producer_reward();
+   const auto vesting_reward = head_block_num() < MUSE_START_VESTING_BLOCK ? asset( 0, MUSE_SYMBOL )
+                                                                           : get_vesting_reward();
+
+   process_funds( content_reward, witness_pay, vesting_reward );
    process_conversions();
-   asset paid_for_conent = process_content_cashout();
-   adjust_funds(paid_for_conent);
+   asset paid_for_content = process_content_cashout( content_reward );
+   adjust_funds( content_reward, paid_for_content );
    process_vesting_withdrawals();
    pay_liquidity_reward();
    update_virtual_supply();
@@ -3400,7 +3413,15 @@ void database::validate_invariants()const
          }
       }
 
-      total_supply += gpo.total_vesting_fund_muse + gpo.total_reward_fund_muse;
+      const auto& content_idx = db.get_index_type< content_index >().indices().get< by_id >();
+
+      for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
+      {
+          total_supply += itr->accumulated_balance_master;
+          total_supply += itr->accumulated_balance_comp;
+      }
+
+      total_supply += gpo.total_vesting_fund_muse;
 
       FC_ASSERT( gpo.current_supply == total_supply, "", ("gpo.current_supply",gpo.current_supply)("total_supply",total_supply) );
       FC_ASSERT( gpo.current_mbd_supply == total_mbd, "", ("gpo.current_mbd_supply",gpo.current_mbd_supply)("total_mbd",total_mbd) );

@@ -306,14 +306,10 @@ namespace muse { namespace chain {
          void process_vesting_withdrawals();
 
          asset pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform);
-         void pay_to_content_master(const content_object &content, asset payout);
-         void pay_to_content_comp(const content_object &content, asset payout);
-         void pay_to_platform( streaming_platform_id_type platform, asset payout, string url );
-         void pay_to_curator(const content_object &co, account_id_type cur, asset pay);
 
-         asset process_content_cashout();
-         void process_funds();
-         void adjust_funds(asset paid_to_content);
+         asset process_content_cashout(const asset& content_reward);
+         void process_funds(const asset& content_reward, const asset& witness_pay, const asset& vesting_reward);
+         void adjust_funds(const asset& content_reward, const asset& paid_to_content);
          void process_conversions();
          void account_recovery_processing();
          void update_median_feed();
@@ -321,8 +317,6 @@ namespace muse { namespace chain {
 
          asset get_liquidity_reward()const;
          asset get_content_reward()const;
-         asset get_producer_reward();
-         asset get_vesting_reward()const;
          asset get_curation_reward()const;
          asset get_pow_reward()const;
 
@@ -442,6 +436,13 @@ namespace muse { namespace chain {
          void process_hardforks();
          void apply_hardfork( uint32_t hardfork );
 
+         asset get_producer_reward();
+         asset get_vesting_reward()const;
+
+         void pay_to_content_master(const content_object &content, const asset& payout);
+         void pay_to_content_comp(const content_object &content, const asset& payout);
+         void pay_to_platform( streaming_platform_id_type platform, const asset& payout, const string& url );
+         void pay_to_curator(const content_object &co, account_id_type cur, const asset& pay);
          ///@}
 
          vector< signed_transaction >  _pending_tx;
@@ -469,9 +470,5 @@ namespace muse { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
-
-
    };
-
-
 } }
