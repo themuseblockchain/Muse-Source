@@ -480,15 +480,19 @@ void database_fixture::validate_database( void )
          }
       }
 
-      const auto& content_idx = db.get_index_type< content_index >().indices().get< by_id >();
-
-      for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
-      {
-          total_supply += itr->accumulated_balance_master;
-          total_supply += itr->accumulated_balance_comp;
-      }
-
       auto gpo = db.get_dynamic_global_properties();
+
+      if( db.has_hardfork( MUSE_HARDFORK_0_2 ) )
+      {
+         const auto& content_idx = db.get_index_type< content_index >().indices().get< by_id >();
+         for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
+         {
+            total_supply += itr->accumulated_balance_master;
+            total_supply += itr->accumulated_balance_comp;
+         }
+      }
+      else
+         total_supply += gpo.total_reward_fund_muse;
 
       total_supply += gpo.total_vesting_fund_muse;
 

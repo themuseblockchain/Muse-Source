@@ -1655,7 +1655,9 @@ void database::pay_to_content_master(const content_object &co, const asset& payo
    }
    else
    {
-      asset to_pay = payout + co.accumulated_balance_master;
+      asset to_pay = payout;
+      if (has_hardfork( MUSE_HARDFORK_0_2 ))
+         to_pay += co.accumulated_balance_master;
       asset total_paid = asset( 0, to_pay.asset_id );
       for ( const auto& di : co.distributions_master )
       {
@@ -1673,10 +1675,17 @@ void database::pay_to_content_master(const content_object &co, const asset& payo
          push_applied_operation( content_reward_operation( di.payee, co.url, mbd_created, vest_created ) );
       }
       if( total_paid > to_pay )
-         elog( "Paid out too much for content ${co}: ${paid} > ${to_pay}",
+         elog( "Paid out too much for content master ${co}: ${paid} > ${to_pay}",
                ("co",co)("paid",total_paid)("to_pay",to_pay) );
       to_pay -= total_paid;
-      if( co.accumulated_balance_master != to_pay )
+      if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+      {
+         if( to_pay.amount != 0 )
+            modify(co, [&to_pay]( content_object& c ){
+               c.accumulated_balance_master += to_pay;
+            });
+      }
+      else if( co.accumulated_balance_master != to_pay )
          modify(co, [&to_pay]( content_object& c ){
             c.accumulated_balance_master = to_pay;
          });
@@ -1693,7 +1702,9 @@ void database::pay_to_content_comp(const content_object &co, const asset& payout
    }
    else
    {
-      asset to_pay = payout + co.accumulated_balance_comp;
+      asset to_pay = payout;
+      if (has_hardfork( MUSE_HARDFORK_0_2 ))
+         to_pay += co.accumulated_balance_comp;
       asset total_paid = asset( 0, to_pay.asset_id );
       for ( const auto& di : co.distributions_comp )
       {
@@ -1714,7 +1725,14 @@ void database::pay_to_content_comp(const content_object &co, const asset& payout
          elog( "Paid out too much for content composer ${co}: ${paid} > ${to_pay}",
                ("co",co)("paid",total_paid)("to_pay",to_pay) );
       to_pay -= total_paid;
-      if( co.accumulated_balance_comp != to_pay )
+      if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+      {
+         if( to_pay.amount != 0 )
+            modify(co, [&to_pay]( content_object& c ){
+               c.accumulated_balance_comp += to_pay;
+            });
+      }
+      else if( co.accumulated_balance_comp != to_pay )
          modify(co, [&to_pay]( content_object& c ){
             c.accumulated_balance_comp = to_pay;
          });
@@ -3413,13 +3431,17 @@ void database::validate_invariants()const
          }
       }
 
-      const auto& content_idx = db.get_index_type< content_index >().indices().get< by_id >();
-
-      for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
+      if( has_hardfork( MUSE_HARDFORK_0_2 ) )
       {
-          total_supply += itr->accumulated_balance_master;
-          total_supply += itr->accumulated_balance_comp;
+         const auto& content_idx = get_index_type< content_index >().indices();
+         for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
+         {
+            total_supply += itr->accumulated_balance_master;
+            total_supply += itr->accumulated_balance_comp;
+         }
       }
+      else
+         total_supply += gpo.total_reward_fund_muse;
 
       total_supply += gpo.total_vesting_fund_muse;
 
