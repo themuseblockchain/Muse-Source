@@ -1579,7 +1579,7 @@ void database::process_vesting_withdrawals()
          recursive_recalculate_score(from_account, -to_withdraw);
       }
 
-      push_applied_operation( fill_vesting_withdraw_operation( from_account.name, from_account.name, asset( to_withdraw, VESTS_SYMBOL ), converted_muse ) );
+      push_applied_operation( fill_vesting_withdraw_operation( from_account.name, from_account.name, asset( to_convert, VESTS_SYMBOL ), converted_muse ) );
    }
 }
 
