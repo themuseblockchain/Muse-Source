@@ -135,7 +135,7 @@ struct content_metadata_track_master{
    string p_line;
    uint32_t track_no;
    uint32_t track_volume;
-   optional<string> copyright;
+   optional<string> json_metadata;
    uint32_t track_duration;
    bool samples;
    void validate_meta()const;
@@ -363,7 +363,7 @@ FC_REFLECT(muse::chain::content_metadata_publisher::publisher,(publisher)(IPI_CA
 FC_REFLECT(muse::chain::content_metadata_publisher::writer,(writer)(IPI_CAE)(ISNI)(role)(publisher))
 FC_REFLECT(muse::chain::content_metadata_track_master::track_artist,(artist)(aliases)(ISNI))
 FC_REFLECT(muse::chain::content_metadata_track_master,(track_title)(ISRC)(track_artists)(featured_artist)(featured_artist_ISNI)
-      (track_producer)(genre_1)(genre_2)(p_line)(track_no)(track_volume)(copyright)(track_duration)(samples) )
+      (track_producer)(genre_1)(genre_2)(p_line)(track_no)(track_volume)(json_metadata)(track_duration)(samples) )
 FC_REFLECT(muse::chain::content_metadata_publisher,(composition_title)(alternate_composition_title)(ISWC)(third_party_publishers)
       (publishers)(writers)(PRO))
 
