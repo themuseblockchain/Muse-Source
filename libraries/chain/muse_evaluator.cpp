@@ -362,9 +362,10 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
       bool redistribute_comp = ( o.side == o.publisher && o.new_distributions.size() > 0
                                  && itr->distributions_comp.size() == 0 );
 
-      auto now = db().head_block_time();
       asset accumulated_balances = (o.side==content_update_operation::side_t::master)?itr->accumulated_balance_master : itr->accumulated_balance_comp;
-      db().modify< content_object >( *itr, [&]( content_object& con ) {
+      db().modify< content_object >( *itr, [&o,this]( content_object& con ) {
+           //the third_party_publishers flag cannot be changed. EVER.
+           bool third_party_flag = con.comp_meta.third_party_publishers;
            if( o.side == o.master ) {
               if( o.album_meta )
                  con.album_meta = *o.album_meta;
@@ -372,15 +373,18 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.track_meta = *o.track_meta;
                  con.track_title = o.track_meta->track_title;
               }
-              if( !two_sides && o.comp_meta )
+              if( !third_party_flag && o.comp_meta ) {
                  con.comp_meta = *o.comp_meta;
+                 if(!db().has_hardfork(MUSE_HARDFORK_0_2)) {
+                    third_party_flag = con.comp_meta.third_party_publishers;
+                 }
+              }
 
               if( o.new_distributions.size() > 0 ) {
                  con.distributions_master = o.new_distributions;
                  con.accumulated_balance_master.amount = 0;
               }
 
-              con.last_update = now;
               if( o.new_management.size() > 0 ) {
                  con.manage_master.account_auths.clear();
                  for( const management_vote &m : o.new_management ) {
@@ -390,16 +394,12 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               }
            }else{
               if( o.comp_meta ) {
-                 //the third_party_publishers flag cannot be changed. EVER.
-                 bool third_party_flag = con.comp_meta.third_party_publishers;
                  con.comp_meta = *o.comp_meta;
-                 con.comp_meta.third_party_publishers = third_party_flag;
               }
               if( o.new_distributions.size() > 0 ) {
                  con.distributions_comp = o.new_distributions;
                  con.accumulated_balance_comp.amount = 0;
               }
-              con.last_update = now;
               if( o.new_management.size() > 0 ) {
                  con.manage_comp.account_auths.clear();
                  for( const management_vote &m : o.new_management ) {
@@ -408,6 +408,7 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.manage_comp.weight_threshold = o.new_threshold;
               }
            }
+           con.comp_meta.third_party_publishers = third_party_flag;
            if(db().has_hardfork(MUSE_HARDFORK_0_1)) {
               if( o.new_playing_reward > 0 )
                  con.playing_reward = o.new_playing_reward;
@@ -420,6 +421,7 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               if( o.new_publishers_share != con.publishers_share )
                  con.publishers_share = o.new_publishers_share;
            }
+           con.last_update = db().head_block_time();
       });
       //TODO_MUSE - the redistribute shall affect only the respective side... delete the accumulated balance afterwards
       if( redistribute_master )
