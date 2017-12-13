@@ -35,11 +35,13 @@ using namespace graphene::db;
 
 BOOST_FIXTURE_TEST_SUITE( muse_tests, clean_database_fixture )
 
-#define FAIL( msg, op ) \
+#define FAIL( msg, op ) FAIL_WITH( msg, op, fc::assert_exception )
+
+#define FAIL_WITH( msg, op, ex ) \
    BOOST_TEST_MESSAGE( "--- Test failure " # msg ); \
    tx.operations.clear(); \
    tx.operations.push_back( op ); \
-   MUSE_REQUIRE_THROW( db.push_transaction( tx, database::skip_transaction_signatures ), fc::assert_exception )
+   MUSE_REQUIRE_THROW( db.push_transaction( tx, database::skip_transaction_signatures ), ex )
 
 BOOST_AUTO_TEST_CASE( streaming_platform_test )
 {
@@ -267,6 +269,14 @@ BOOST_AUTO_TEST_CASE( simple_test )
       FAIL( "with long track title", cop );
 
       cop.track_meta.track_title = "First test song";
+      cop.track_meta.json_metadata = "";
+      FAIL( "with empty json metadata", cop );
+      cop.track_meta.json_metadata = "{123: 123}";
+      FAIL_WITH( "with invalid json metadata", cop, fc::parse_error_exception );
+      cop.track_meta.json_metadata = "{\"id\": \"\200\"}";
+      FAIL( "with non-utf8 json metadata", cop );
+      cop.track_meta.json_metadata.reset();
+
       cop.distributions.begin()->payee = "x";
       FAIL( "with invalid payee name", cop );
       cop.distributions.begin()->payee = "bob";
@@ -416,6 +426,14 @@ BOOST_AUTO_TEST_CASE( simple_test )
       FAIL( "with long track title", cup );
 
       cup.track_meta->track_title = "Simple test track";
+      cup.track_meta->json_metadata = "";
+      FAIL( "with empty json metadata", cup );
+      cup.track_meta->json_metadata = "{123: 123}";
+      FAIL_WITH( "with invalid json metadata", cup, fc::parse_error_exception );
+      cup.track_meta->json_metadata = "{\"id\": \"\200\"}";
+      FAIL( "with non-utf8 json metadata", cup );
+      cup.track_meta->json_metadata.reset();
+
       distribution dist;
       dist.payee = "penny";
       dist.bp = MUSE_100_PERCENT;
@@ -680,6 +698,7 @@ BOOST_AUTO_TEST_CASE( multi_test )
       cop.url = "ipfs://abcdef9";
       cop.album_meta.album_title = "Multi test song";
       cop.track_meta.track_title = "Multi test song";
+      cop.track_meta.json_metadata = "{\"id\": 1}";
       cop.comp_meta.third_party_publishers = true;
       distribution dist;
       dist.payee = "paula";
@@ -1034,6 +1053,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       cup.album_meta->album_title = "Simple test album";
       cup.track_meta = content_metadata_track_master();
       cup.track_meta->track_title = "Simple test track";
+      cup.track_meta->json_metadata = "{\"id\": 1}";
       management_vote mgmt;
       mgmt.voter = "muriel";
       mgmt.percentage = 100;
