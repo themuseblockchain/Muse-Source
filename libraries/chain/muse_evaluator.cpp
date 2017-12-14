@@ -388,7 +388,8 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
 
               if( o.new_distributions.size() > 0 ) {
                  con.distributions_master = o.new_distributions;
-                 con.accumulated_balance_master.amount = 0;
+                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+                    con.accumulated_balance_master.amount = 0;
               }
 
               if( o.new_management.size() > 0 ) {
@@ -404,7 +405,8 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               }
               if( o.new_distributions.size() > 0 ) {
                  con.distributions_comp = o.new_distributions;
-                 con.accumulated_balance_comp.amount = 0;
+                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+                    con.accumulated_balance_comp.amount = 0;
               }
               if( o.new_management.size() > 0 ) {
                  con.manage_comp.account_auths.clear();
@@ -429,11 +431,17 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
            }
            con.last_update = db().head_block_time();
       });
-      //TODO_MUSE - the redistribute shall affect only the respective side... delete the accumulated balance afterwards
-      if( redistribute_master )
-         db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
-      if( redistribute_comp )
-         db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
+      if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) {
+         if( redistribute_master )
+            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
+         if( redistribute_comp )
+            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
+      } else if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
+         if( o.side == o.master )
+            db().pay_to_content_master( *itr, asset( 0, MUSE_SYMBOL ) );
+         else
+            db().pay_to_content_comp( *itr, asset( 0, MUSE_SYMBOL ) );
+      }
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void content_disable_evaluator::do_apply( const content_disable_operation& o )

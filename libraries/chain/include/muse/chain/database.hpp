@@ -306,6 +306,8 @@ namespace muse { namespace chain {
          void process_vesting_withdrawals();
 
          asset pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform);
+         void pay_to_content_master(const content_object &content, const asset& payout);
+         void pay_to_content_comp(const content_object &content, const asset& payout);
 
          asset process_content_cashout(const asset& content_reward);
          void process_funds(const asset& content_reward, const asset& witness_pay, const asset& vesting_reward);
@@ -439,8 +441,6 @@ namespace muse { namespace chain {
          asset get_producer_reward();
          asset get_vesting_reward()const;
 
-         void pay_to_content_master(const content_object &content, const asset& payout);
-         void pay_to_content_comp(const content_object &content, const asset& payout);
          void pay_to_platform( streaming_platform_id_type platform, const asset& payout, const string& url );
          void pay_to_curator(const content_object &co, account_id_type cur, const asset& pay);
          ///@}
