@@ -383,8 +383,6 @@ BOOST_AUTO_TEST_CASE( duplicate_transactions )
 
       auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
 
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
-
       signed_transaction trx;
       account_create_operation cop;
       cop.new_account_name = "alice";
@@ -432,8 +430,6 @@ BOOST_AUTO_TEST_CASE( tapos )
       database db1;
       db1.open(dir1.path(), genesis );
       init_witness_keys( db1 );
-
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
 
       auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key(), database::skip_nothing);
 
@@ -612,7 +608,6 @@ BOOST_FIXTURE_TEST_CASE( pop_block_twice, clean_database_fixture )
       transaction tx;
       signed_transaction ptx;
 
-      const account_object& witness_account = db.get_account( MUSE_INIT_MINER_NAME );
       // transfer from committee account to Sam account
       transfer( MUSE_INIT_MINER_NAME, "sam", 100000 );
 
