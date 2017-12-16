@@ -2397,10 +2397,10 @@ annotated_signed_transaction wallet_api::update_content_global(string url, uint3
    return my->sign_transaction( tx, broadcast );
 }
 
-annotated_signed_transaction wallet_api::remove_content( string url, bool broadcast )
+annotated_signed_transaction wallet_api::disable_content( string url, bool broadcast )
 {
    FC_ASSERT( !is_locked() );
-   content_remove_operation op;
+   content_disable_operation op;
    op.url = url;
 
    signed_transaction tx;
