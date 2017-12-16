@@ -1733,7 +1733,6 @@ BOOST_AUTO_TEST_CASE( disable_test )
       tx.operations.push_back( spuo );
       db.push_transaction( tx, database::skip_transaction_signatures  );
    }
-   const streaming_platform_object& suzys = db.get_streaming_platform( "suzy" );
 
    // --------- Create content ------------
    {
