@@ -383,8 +383,6 @@ BOOST_AUTO_TEST_CASE( duplicate_transactions )
 
       auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
 
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
-
       signed_transaction trx;
       account_create_operation cop;
       cop.new_account_name = "alice";
@@ -432,8 +430,6 @@ BOOST_AUTO_TEST_CASE( tapos )
       database db1;
       db1.open(dir1.path(), genesis );
       init_witness_keys( db1 );
-
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
 
       auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key(), database::skip_nothing);
 
@@ -612,7 +608,6 @@ BOOST_FIXTURE_TEST_CASE( pop_block_twice, clean_database_fixture )
       transaction tx;
       signed_transaction ptx;
 
-      const account_object& witness_account = db.get_account( MUSE_INIT_MINER_NAME );
       // transfer from committee account to Sam account
       transfer( MUSE_INIT_MINER_NAME, "sam", 100000 );
 
@@ -790,7 +785,6 @@ BOOST_FIXTURE_TEST_CASE( skip_block, clean_database_fixture )
    FC_LOG_AND_RETHROW();
 }
 
-#ifdef MUSE_HARDFORK_0_1
 BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 {
    try
@@ -814,6 +808,17 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 
          open_database();
 
+         {
+            const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
+            db.modify( init_acct, [&]( account_object& acct ) {
+               acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
+            });
+            const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+            db.modify( init_witness, [&]( witness_object& witness ) {
+               witness.signing_key = init_account_pub_key;
+            });
+         }
+
          // app.initialize();
          ahplugin->plugin_set_app( &app );
          ahplugin->plugin_initialize( options );
@@ -828,6 +833,8 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
             fund( MUSE_INIT_MINER_NAME + fc::to_string( i ), MUSE_MIN_PRODUCER_REWARD.amount.value );
             witness_create( MUSE_INIT_MINER_NAME + fc::to_string( i ), init_account_priv_key, "foo.bar", init_account_pub_key, MUSE_MIN_PRODUCER_REWARD.amount );
          }
+
+         generate_blocks( 2 * MUSE_MAX_MINERS );
 
          validate_database();
       } catch ( const fc::exception& e )
@@ -849,7 +856,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_TEST_MESSAGE( "Generate a block and check hardfork is applied" );
       generate_block();
 
-      string op_msg = "Testnet: Hardfork applied";
+      string op_msg = "Test: Hardfork applied";
       auto itr = db.get_index_type< account_history_index >().indices().get< by_id >().end();
       itr--;
 
@@ -868,9 +875,21 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( get_last_operations( 1 )[0].get< custom_operation >().data == vector< char >( op_msg.begin(), op_msg.end() ) );
       BOOST_REQUIRE( itr->op(db).timestamp == db.head_block_time() - MUSE_BLOCK_INTERVAL );
+
+      generate_blocks( MUSE_MAX_MINERS );
+      generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_2_TIME - MUSE_BLOCK_INTERVAL ), true );
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+
+      generate_block();
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
    }
    FC_LOG_AND_RETHROW()
 }
-#endif
 
 BOOST_AUTO_TEST_SUITE_END()
