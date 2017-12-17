@@ -1875,18 +1875,6 @@ void database::adjust_funds(const asset& content_reward, const asset& paid_to_co
 }
 
 
-
-asset database::get_liquidity_reward()const
-{
-   if( true ) //TODO_MUSE - review during reward calculation modificaton
-      return asset( 0, MUSE_SYMBOL );
-
-   const auto& props = get_dynamic_global_properties();
-   static_assert( MUSE_LIQUIDITY_REWARD_PERIOD_SEC == 60*60, "this code assumes a 1 hour time interval" );
-   asset percent( calc_percent_reward_per_hour< MUSE_LIQUIDITY_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL );
-   return std::max( percent, MUSE_MIN_LIQUIDITY_REWARD );
-}
-
 asset database::get_content_reward()const
 {
    const auto& props = get_dynamic_global_properties();
@@ -1944,39 +1932,6 @@ asset database::get_producer_reward()
 
    return pay;
 }
-
-void database::pay_liquidity_reward()
-{
-#ifdef IS_TEST_NET
-   if( !liquidity_rewards_enabled )
-      return;
-#endif
-
-   if( (head_block_num() % MUSE_LIQUIDITY_REWARD_BLOCKS) == 0 )
-   {
-      auto reward = get_liquidity_reward();
-
-      if( reward.amount == 0 )
-         return;
-
-      const auto& ridx = get_index_type<liquidity_reward_index>().indices().get<by_volume_weight>();
-      auto itr = ridx.begin();
-      if( itr != ridx.end() && itr->volume_weight() > 0 )
-      {
-         adjust_supply( reward, true );
-         adjust_balance( itr->owner(*this), reward );
-         modify( *itr, [&]( liquidity_reward_balance_object& obj )
-         {
-            obj.muse_volume = 0;
-            obj.mbd_volume   = 0;
-            obj.last_update  = head_block_time();
-            obj.weight = 0;
-         } );
-         push_applied_operation( liquidity_reward_operation( itr->owner( *this ).name, reward ) );
-      }
-   }
-}
-
 
 /**
  *  Iterates over all conversion requests with a conversion date before
@@ -2556,7 +2511,6 @@ void database::_apply_block( const signed_block& next_block )
    asset paid_for_content = process_content_cashout( content_reward );
    adjust_funds( content_reward, paid_for_content );
    process_vesting_withdrawals();
-   pay_liquidity_reward();
    update_virtual_supply();
 
    account_recovery_processing();
@@ -3045,33 +2999,6 @@ int database::match( const limit_order_object& new_order, const limit_order_obje
    result |= fill_order( old_order, old_order_pays, old_order_receives ) << 1;
    assert( result != 0 );
    return result;
-}
-
-
-void database::adjust_liquidity_reward( const account_object& owner, const asset& volume, bool is_sdb )
-{
-   const auto& ridx = get_index_type<liquidity_reward_index>().indices().get<by_owner>();
-   auto itr = ridx.find( owner.id );
-   if( itr != ridx.end() )
-   {
-      modify<liquidity_reward_balance_object>( *itr, [&]( liquidity_reward_balance_object& r )
-      {
-         if( head_block_time() - r.last_update >= MUSE_LIQUIDITY_TIMEOUT_SEC )
-         {
-            r.mbd_volume = 0;
-            r.muse_volume = 0;
-            r.weight = 0;
-         }
-
-         if( is_sdb )
-            r.mbd_volume += volume.amount.value;
-         else
-            r.muse_volume += volume.amount.value;
-
-         r.update_weight( true );
-         r.last_update = head_block_time();
-      } );
-   }
 }
 
 
