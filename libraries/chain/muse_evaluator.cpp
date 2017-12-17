@@ -99,15 +99,15 @@ void account_streaming_platform_vote_evaluator::do_apply( const account_streamin
    const auto& by_account_streaming_platform_idx = db().get_index_type< streaming_platform_vote_index >().indices().get< by_account_streaming_platform >();
    auto itr = by_account_streaming_platform_idx.find( boost::make_tuple( voter.get_id(), streaming_platform.get_id() ) );
 
-   if( itr == by_account_streaming_platform_idx.end() ) {
+   if( itr == by_account_streaming_platform_idx.end() || !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) { // TODO remove check after HF activation
       FC_ASSERT( o.approve, "vote doesn't exist, user must be indicate a desire to approve the streaming_platform" );
       FC_ASSERT( voter.streaming_platforms_voted_for < MUSE_MAX_ACCOUNT_WITNESS_VOTES, "account has voted for too many streaming_platforms");
-      db().create<streaming_platform_vote_object> ( [&](streaming_platform_vote_object v) {
+      db().create<streaming_platform_vote_object> ( [&streaming_platform,&voter](streaming_platform_vote_object& v) {
            v.streaming_platform = streaming_platform.id;
            v.account = voter.id;
       });
       db().adjust_streaming_platform_vote( streaming_platform,  voter.witness_vote_weight());
-      db().modify( voter, [&]( account_object& a ) {
+      db().modify( voter, []( account_object& a ) {
            a.streaming_platforms_voted_for++;
       });
 
