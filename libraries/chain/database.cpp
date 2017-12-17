@@ -3227,9 +3227,9 @@ void database::set_hardfork( uint32_t hardfork, bool apply_now )
 {
    auto const& hardforks = hardfork_property_id_type()( *this );
 
-   for( int i = hardforks.last_hardfork + 1; i <= hardfork && i <= MUSE_NUM_HARDFORKS; i++ )
+   for( uint32_t i = hardforks.last_hardfork + 1; i <= hardfork && i <= MUSE_NUM_HARDFORKS; i++ )
    {
-      modify( hardforks, [&]( hardfork_property_object& hpo )
+      modify( hardforks, [i,this]( hardfork_property_object& hpo )
       {
          hpo.next_hardfork = _hardfork_versions[i];
          hpo.next_hardfork_time = head_block_time();
@@ -3250,7 +3250,7 @@ void database::apply_hardfork( uint32_t hardfork )
          {
             // This is for unit tests only. Evil.
             const auto& initminer = get_account( MUSE_INIT_MINER_NAME );
-            if ( initminer.balance.amount.value >= 10 * asset::static_precision() )
+            if ( initminer.balance.amount.value >= 10 * asset::static_precision() ) // not true in mainnet
             {
                custom_operation test_op;
                string op_msg = "Test: Hardfork applied";
@@ -3265,7 +3265,7 @@ void database::apply_hardfork( uint32_t hardfork )
          break;
    }
 
-   modify( hardfork_property_id_type()( *this ), [&]( hardfork_property_object& hfp )
+   modify( hardfork_property_id_type()( *this ), [hardfork,this]( hardfork_property_object& hfp )
    {
       FC_ASSERT( hardfork == hfp.last_hardfork + 1, "Hardfork being applied out of order", ("hardfork",hardfork)("hfp.last_hardfork",hfp.last_hardfork) );
       FC_ASSERT( hfp.processed_hardforks.size() == hardfork, "Hardfork being applied out of order" );
