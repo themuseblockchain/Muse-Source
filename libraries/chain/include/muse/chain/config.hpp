@@ -166,6 +166,9 @@
 #define MUSE_PAYOUT_TIME_OF_DAY                 2
 #define MUSE_MAX_LISTENING_PERIOD               3600
 
+// For the following constants, see comments in compound.hpp and the
+// script programs/util/calc_inflation_constants.js
+
 // 5ccc e802 de5f
 // int(expm1( log1p( 1 ) / BLOCKS_PER_YEAR ) * 2**MUSE_APR_PERCENT_SHIFT_PER_BLOCK / 100000 + 0.5)
 // we use 100000 here instead of 10000 because we end up creating an additional 9x for vesting
@@ -176,29 +179,24 @@
 // chosen to be the maximal value such that MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK * 2**64 * 100000 < 2**128
 #define MUSE_APR_PERCENT_SHIFT_PER_BLOCK             87
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_N        ( (uint64_t( 0x1E60 ) << 0x20) \
-                                                        | (uint64_t( 0x47E3 ) << 0x10) \
-                                                        | (uint64_t( 0x17B2 )        ) \
-                                                        )
-#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_N           85
-
+#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_0_2      (0x3e214e64a7380ULL)
+#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_0_2         91
 
 #define MUSE_APR_PERCENT_MULTIPLY_PER_DAY            ( (uint64_t( 0x1347 ) << 20 ) \
                                                         | (uint64_t( 0xdcd1 ) << 10 ) \
                                                         | (uint64_t( 0x906D )       ) )
 #define MUSE_APR_PERCENT_SHIFT_PER_DAY               73
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N          uint64_t( 0x1AB378B55670 )
-#define MUSE_APR_PERCENT_SHIFT_PER_DAY_N             70
-
+#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_0_2        (0x369c2966a19c8ULL)
+#define MUSE_APR_PERCENT_SHIFT_PER_DAY_0_2           76
 
 #define MUSE_CURATE_APR_PERCENT_RESERVE           10
-#define MUSE_CONTENT_APR_PERCENT                712
-#define MUSE_CONTENT_APR_PERCENT_N              7500
+#define MUSE_CONTENT_APR_PERCENT                 712
+#define MUSE_CONTENT_APR_PERCENT_0_2            5000
 #define MUSE_VESTING_ARP_PERCENT                 143
-#define MUSE_VESTING_ARP_PERCENT_N              1500
+#define MUSE_VESTING_ARP_PERCENT_0_2            3000
 #define MUSE_PRODUCER_APR_PERCENT                 95
-#define MUSE_PRODUCER_APR_PERCENT_N             1000
+#define MUSE_PRODUCER_APR_PERCENT_0_2           2000
 
 #define MUSE_CURATION_THRESHOLD1                1000
 #define MUSE_CURATION_THRESHOLD2                2000
