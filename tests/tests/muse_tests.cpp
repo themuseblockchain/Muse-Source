@@ -386,6 +386,8 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), reports[0].created.sec_since_epoch() );
       BOOST_CHECK_EQUAL( 100, reports[0].play_time );
       }
+      const auto& played_at = db.head_block_time();
+
       // --------- Content update ------------
       {
       content_update_operation cup;
@@ -545,6 +547,9 @@ BOOST_AUTO_TEST_CASE( simple_test )
          BOOST_CHECK_EQUAL( last_update.sec_since_epoch(), voted->last_update.sec_since_epoch() );
       }
 
+      BOOST_REQUIRE( played_at + 86400 - MUSE_BLOCK_INTERVAL > db.head_block_time() );
+      generate_blocks( played_at + 86400 - MUSE_BLOCK_INTERVAL );
+
       BOOST_CHECK_EQUAL( 0, alice_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).balance.amount.value );
@@ -589,9 +594,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 0, veronica_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).curation_rewards.value );
 
-      generate_blocks( db.head_block_time() + 86400 - MUSE_BLOCK_INTERVAL );
-
-      asset daily_content_reward = asset( 1863530, MUSE_SYMBOL ); //db.get_content_reward();
+      asset daily_content_reward = db.get_content_reward();
 
       generate_block();
 
@@ -667,8 +670,8 @@ BOOST_AUTO_TEST_CASE( multi_test )
 {
    try
    {
-      generate_blocks( time_point_sec( MUSE_HARDFORK_0_1_TIME ) );
-      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      generate_blocks( time_point_sec( MUSE_HARDFORK_0_2_TIME ) );
+      BOOST_CHECK( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
 
       BOOST_TEST_MESSAGE( "Testing: streaming platform contract" );
 
@@ -901,7 +904,7 @@ BOOST_AUTO_TEST_CASE( multi_test )
 
       generate_blocks( db.head_block_time() + 86400 - MUSE_BLOCK_INTERVAL );
 
-      asset daily_content_reward = asset( 1863530, MUSE_SYMBOL ); //db.get_content_reward();
+      asset daily_content_reward = db.get_content_reward();
 
       generate_block();
 
@@ -915,7 +918,7 @@ BOOST_AUTO_TEST_CASE( multi_test )
       asset master_reward = daily_content_reward - comp_reward;
 
       const content_object& song1 = db.get_content( "ipfs://abcdef9" );
-      BOOST_CHECK_EQUAL( 0, song1.accumulated_balance_master.amount.value );
+      BOOST_CHECK_EQUAL( 1, song1.accumulated_balance_master.amount.value );
       BOOST_CHECK_EQUAL( 0, song1.accumulated_balance_comp.amount.value );
       BOOST_CHECK_EQUAL( master_reward.amount.value * (MUSE_100_PERCENT/3) / MUSE_100_PERCENT, paula_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( comp_reward.amount.value + master_reward.amount.value * (MUSE_100_PERCENT - MUSE_100_PERCENT/3) / MUSE_100_PERCENT, penny_id(db).balance.amount.value );
@@ -1214,8 +1217,14 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       mgmt.percentage = 33;
       cop.management.push_back( mgmt );
       cop.management_threshold = 50;
+      cop.management_comp = vector<management_vote>();
+      mgmt.percentage = 50;
+      cop.management_comp->push_back(mgmt);
+      mgmt.voter = "miranda";
+      cop.management_comp->push_back(mgmt);
+      cop.management_threshold_comp = 50;
       cop.playing_reward = 10;
-      cop.publishers_share = 0;
+      cop.publishers_share = 100;
       tx.operations.clear();
       tx.signatures.clear();
       tx.operations.push_back( cop );
@@ -1236,9 +1245,11 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       mgmt.voter = "muriel";
       mgmt.percentage = 100;
       cup.new_management.push_back( mgmt );
+      cup.new_threshold = 40;
       // FIXME
       mgmt.voter = "martha";
       cup.comp_meta = content_metadata_publisher();
+      cup.new_publishers_share = 101;
       tx.operations.clear();
       tx.signatures.clear();
       tx.operations.push_back( cup );
