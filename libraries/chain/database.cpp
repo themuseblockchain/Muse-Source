@@ -1765,7 +1765,9 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
 {try{
    asset paid (0);
    const content_object& co = get<content_object>( content ); //content_id_type(content)(*this); //*get_index_type<content_index>().indices().get<by_id>().find(content);
-   asset curation_reserve = payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100;
+   asset curation_reserve;
+   if( !has_hardfork(MUSE_HARDFORK_0_2) )
+      curation_reserve = payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100;
    payout = payout - curation_reserve;
    asset platform_reward = payout;
    platform_reward.amount = platform_reward.amount * co.playing_reward / 10000;
@@ -1782,53 +1784,55 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    paid += comp_reward;
    paid += platform_reward;
 
-   const content_stats_object& c_stat = get<content_stats_object> (content_stats_id_type(0));
-   const bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
-   const bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
-   bool pay_curators = false;
-   bool reset_curation_rewards = false;
+   if( !has_hardfork(MUSE_HARDFORK_0_2) ) {
+      const content_stats_object& c_stat = get<content_stats_object> (content_stats_id_type(0));
+      const bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
+      const bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
+      bool pay_curators = false;
+      bool reset_curation_rewards = false;
 
-   modify<content_object>(co,[above_thr1,above_thr2,&pay_curators,&reset_curation_rewards,this](content_object& c){
-        if(c.curation_rewards){
-           if(above_thr2) { //still in top 2000
-              if(head_block_time() < c.curation_reward_expiration)
-              {
-                 pay_curators = true;
-              }
-           }else{
-              c.curation_rewards = false;
-              reset_curation_rewards = true;
-           }
-        }else{ //not in top 1000 yet...
-           if(above_thr1){
-              c.curation_rewards = true;
-              c.curation_reward_expiration = head_block_time() + MUSE_CURATION_DURATION;
-              pay_curators = true;
-           }
-        }
-        if(c.times_played_24)
-           --c.times_played_24;
-   });
+      modify<content_object>(co,[above_thr1,above_thr2,&pay_curators,&reset_curation_rewards,this](content_object& c){
+         if(c.curation_rewards){
+            if(above_thr2) { //still in top 2000
+               if(head_block_time() < c.curation_reward_expiration)
+               {
+                  pay_curators = true;
+               }
+            }else{
+               c.curation_rewards = false;
+               reset_curation_rewards = true;
+            }
+         }else{ //not in top 1000 yet...
+            if(above_thr1){
+               c.curation_rewards = true;
+               c.curation_reward_expiration = head_block_time() + MUSE_CURATION_DURATION;
+               pay_curators = true;
+            }
+         }
+         if(c.times_played_24)
+            --c.times_played_24;
+      });
 
-   const auto& vidx = get_index_type<content_vote_index>().indices().get< by_reward_flag_update > ();
-   if(reset_curation_rewards){
-      auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
-      while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-         modify<content_vote_object>(*vitr, [](content_vote_object &vo) {
-              vo.marked_for_curation_reward = false;
-         });
-         ++vitr;
+      const auto& vidx = get_index_type<content_vote_index>().indices().get< by_reward_flag_update > ();
+      if(reset_curation_rewards){
+         auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
+         while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
+            modify<content_vote_object>(*vitr, [](content_vote_object &vo) {
+               vo.marked_for_curation_reward = false;
+            });
+            ++vitr;
+         }
       }
-   }
-   if(pay_curators){
-      auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
+      if(pay_curators){
+         auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
 	  
-      while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-         asset cp = curation_reserve / 10;
-         curation_reserve = curation_reserve - cp;
-         pay_to_curator(co, vitr->voter, cp );
-         paid += cp;
-         ++vitr;
+         while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
+            asset cp = curation_reserve / 10;
+            curation_reserve = curation_reserve - cp;
+            pay_to_curator(co, vitr->voter, cp );
+            paid += cp;
+            ++vitr;
+         }
       }
    }
    return paid;

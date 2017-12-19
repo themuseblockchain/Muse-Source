@@ -636,7 +636,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
 
       {
       const auto& dgpo = db.get_dynamic_global_properties();
-      asset curation_reserve = asset( daily_content_reward.amount.value / 10, MUSE_SYMBOL );
+      asset curation_reserve = db.has_hardfork(MUSE_HARDFORK_0_2) ? asset(0) : asset( daily_content_reward.amount.value / 10, MUSE_SYMBOL );
       daily_content_reward -= curation_reserve;
       asset platform_reward = asset( daily_content_reward.amount.value * 11 / MUSE_100_PERCENT, MUSE_SYMBOL ); // playing reward
       daily_content_reward -= platform_reward;
@@ -996,7 +996,7 @@ BOOST_AUTO_TEST_CASE( multi_test )
 
       {
       const auto& dgpo = db.get_dynamic_global_properties();
-      asset curation_reserve = asset( daily_content_reward.amount.value / 10, MUSE_SYMBOL );
+      asset curation_reserve = db.has_hardfork(MUSE_HARDFORK_0_2) ? asset(0) : asset( daily_content_reward.amount.value / 10, MUSE_SYMBOL );
       daily_content_reward -= curation_reserve;
       asset platform_reward = asset( daily_content_reward.amount.value * 11 / MUSE_100_PERCENT, MUSE_SYMBOL ); // playing reward
       daily_content_reward -= platform_reward;
