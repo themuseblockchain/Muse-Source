@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE( simple_test )
           cop.album_meta.album_title += " are sixteen tons";
       FAIL( "with long album title", cop );
 
-      cop.album_meta.album_title = "First test song";
+      cop.album_meta.album_title = "First test album";
       cop.track_meta.track_title = "";
       FAIL( "with empty track title", cop );
       cop.track_meta.track_title = "Sixteen tons";
@@ -309,6 +309,42 @@ BOOST_AUTO_TEST_CASE( simple_test )
       tx.operations.clear();
       tx.operations.push_back( cop );
       db.push_transaction( tx, database::skip_transaction_signatures );
+      }
+      // --------- Verify content ------------
+      {
+         const content_object& song = db.get_content( "ipfs://abcdef1" );
+         BOOST_CHECK_EQUAL( "uhura", song.uploader );
+         BOOST_CHECK_EQUAL( "ipfs://abcdef1", song.url );
+         BOOST_CHECK_EQUAL( 0, song.accumulated_balance_master.amount.value );
+         BOOST_CHECK_EQUAL( MUSE_SYMBOL, song.accumulated_balance_master.asset_id );
+         BOOST_CHECK_EQUAL( 0, song.accumulated_balance_comp.amount.value );
+         BOOST_CHECK_EQUAL( MUSE_SYMBOL, song.accumulated_balance_comp.asset_id );
+         BOOST_CHECK_EQUAL( "First test album", song.album_meta.album_title );
+         BOOST_CHECK_EQUAL( "First test song", song.track_meta.track_title );
+         BOOST_CHECK( !song.comp_meta.third_party_publishers );
+         BOOST_CHECK_EQUAL( "First test song", song.track_title );
+         BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), song.last_update.sec_since_epoch() );
+         BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), song.created.sec_since_epoch() );
+         BOOST_CHECK_EQUAL( 0, song.last_played.sec_since_epoch() );
+         BOOST_CHECK_EQUAL( 1, song.distributions_master.size() );
+         BOOST_CHECK_EQUAL( "paula", song.distributions_master[0].payee );
+         BOOST_CHECK_EQUAL( MUSE_100_PERCENT, song.distributions_master[0].bp );
+         BOOST_CHECK_EQUAL( 0, song.distributions_comp.size() );
+         BOOST_CHECK_EQUAL( 10, song.playing_reward );
+         BOOST_CHECK_EQUAL( 0, song.publishers_share );
+         BOOST_CHECK_EQUAL( 100, song.manage_master.weight_threshold );
+         BOOST_CHECK_EQUAL( 1, song.manage_master.account_auths.size() );
+         const auto& tmp = song.manage_master.account_auths.find("martha");
+         BOOST_CHECK( tmp != song.manage_master.account_auths.end() );
+         BOOST_CHECK_EQUAL( 100, tmp->second );
+         BOOST_CHECK_EQUAL( 0, song.manage_master.key_auths.size() );
+         BOOST_CHECK_EQUAL( 0, song.manage_comp.weight_threshold );
+         BOOST_CHECK_EQUAL( 0, song.manage_comp.account_auths.size() );
+         BOOST_CHECK_EQUAL( 0, song.manage_comp.key_auths.size() );
+         BOOST_CHECK_EQUAL( 0, song.times_played );
+         BOOST_CHECK_EQUAL( 0, song.times_played_24 );
+         BOOST_CHECK( song.allow_votes );
+         BOOST_CHECK( !song.disabled );
       }
 
       // --------- Approve content ------------
@@ -703,7 +739,7 @@ BOOST_AUTO_TEST_CASE( multi_test )
       content_operation cop;
       cop.uploader = "uhura";
       cop.url = "ipfs://abcdef9";
-      cop.album_meta.album_title = "Multi test song";
+      cop.album_meta.album_title = "Multi test album";
       cop.track_meta.track_title = "Multi test song";
       cop.track_meta.json_metadata = "{\"id\": 1}";
       cop.comp_meta.third_party_publishers = true;
@@ -760,12 +796,62 @@ BOOST_AUTO_TEST_CASE( multi_test )
       tx.operations.push_back( cop );
       db.push_transaction( tx, database::skip_transaction_signatures  );
       }
+      // --------- Verify content ------------
       {
-      const content_object& song1 = db.get_content( "ipfs://abcdef9" );
-      BOOST_CHECK_EQUAL( 2, song1.distributions_master.size() );
-      BOOST_CHECK_EQUAL( 1, song1.distributions_comp.size() );
-      BOOST_CHECK_EQUAL( 3, song1.manage_master.num_auths() );
-      BOOST_CHECK_EQUAL( 1, song1.manage_comp.num_auths() );
+         const content_object& song = db.get_content( "ipfs://abcdef9" );
+         BOOST_CHECK_EQUAL( "uhura", song.uploader );
+         BOOST_CHECK_EQUAL( "ipfs://abcdef9", song.url );
+         BOOST_CHECK_EQUAL( 0, song.accumulated_balance_master.amount.value );
+         BOOST_CHECK_EQUAL( MUSE_SYMBOL, song.accumulated_balance_master.asset_id );
+         BOOST_CHECK_EQUAL( 0, song.accumulated_balance_comp.amount.value );
+         BOOST_CHECK_EQUAL( MUSE_SYMBOL, song.accumulated_balance_comp.asset_id );
+         BOOST_CHECK_EQUAL( "Multi test album", song.album_meta.album_title );
+         BOOST_CHECK_EQUAL( "Multi test song", song.track_meta.track_title );
+         BOOST_CHECK( song.comp_meta.third_party_publishers );
+         BOOST_CHECK_EQUAL( "Multi test song", song.track_title );
+         BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), song.last_update.sec_since_epoch() );
+         BOOST_CHECK_EQUAL( db.head_block_time().sec_since_epoch(), song.created.sec_since_epoch() );
+         BOOST_CHECK_EQUAL( 0, song.last_played.sec_since_epoch() );
+         BOOST_CHECK_EQUAL( 2, song.distributions_master.size() );
+         BOOST_CHECK_EQUAL( "paula", song.distributions_master[0].payee );
+         BOOST_CHECK_EQUAL( MUSE_100_PERCENT / 3, song.distributions_master[0].bp );
+         BOOST_CHECK_EQUAL( "penny", song.distributions_master[1].payee );
+         BOOST_CHECK_EQUAL( MUSE_100_PERCENT - MUSE_100_PERCENT / 3, song.distributions_master[1].bp );
+         BOOST_CHECK_EQUAL( 1, song.distributions_comp.size() );
+         BOOST_CHECK_EQUAL( "penny", song.distributions_comp[0].payee );
+         BOOST_CHECK_EQUAL( MUSE_100_PERCENT, song.distributions_comp[0].bp );
+         BOOST_CHECK_EQUAL( 10, song.playing_reward );
+         BOOST_CHECK_EQUAL( 1000, song.publishers_share );
+         BOOST_CHECK_EQUAL( 50, song.manage_master.weight_threshold );
+         BOOST_CHECK_EQUAL( 3, song.manage_master.account_auths.size() );
+         {
+            const auto& tmp = song.manage_master.account_auths.find("martha");
+            BOOST_CHECK( tmp != song.manage_master.account_auths.end() );
+            BOOST_CHECK_EQUAL( 34, tmp->second );
+         }
+         {
+            const auto& tmp = song.manage_master.account_auths.find("miranda");
+            BOOST_CHECK( tmp != song.manage_master.account_auths.end() );
+            BOOST_CHECK_EQUAL( 33, tmp->second );
+         }
+         {
+            const auto& tmp = song.manage_master.account_auths.find("muriel");
+            BOOST_CHECK( tmp != song.manage_master.account_auths.end() );
+            BOOST_CHECK_EQUAL( 33, tmp->second );
+         }
+         BOOST_CHECK_EQUAL( 0, song.manage_master.key_auths.size() );
+         BOOST_CHECK_EQUAL( 100, song.manage_comp.weight_threshold );
+         BOOST_CHECK_EQUAL( 1, song.manage_comp.account_auths.size() );
+         {
+            const auto& tmp = song.manage_comp.account_auths.find("martha");
+            BOOST_CHECK( tmp != song.manage_comp.account_auths.end() );
+            BOOST_CHECK_EQUAL( 100, tmp->second );
+         }
+         BOOST_CHECK_EQUAL( 0, song.manage_comp.key_auths.size() );
+         BOOST_CHECK_EQUAL( 0, song.times_played );
+         BOOST_CHECK_EQUAL( 0, song.times_played_24 );
+         BOOST_CHECK( song.allow_votes );
+         BOOST_CHECK( !song.disabled );
       }
       // --------- Publish playtime ------------
       {
