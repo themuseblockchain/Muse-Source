@@ -298,7 +298,7 @@ void content_evaluator::do_apply( const content_operation& o )
             const auto& voter = db().get_account(m.voter);
       }
 
-      const auto& new_content = db().create< content_object >( [&]( content_object& con ) {
+      db().create< content_object >( [&o,this]( content_object& con ) {
            //validate_url
            con.uploader = o.uploader;
            con.url = o.url;
@@ -326,16 +326,20 @@ void content_evaluator::do_apply( const content_operation& o )
               if( o.distributions_comp )
                  con.distributions_comp = *(o.distributions_comp);
 
+              if( db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+                 con.publishers_share = o.publishers_share;
            }
+           else if( db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+               con.publishers_share = 0;
            con.accumulated_balance_master = asset(0);
            con.accumulated_balance_comp = asset(0);
            con.created = db().head_block_time();
            con.last_update = con.created;
            con.last_played = time_point_sec(0);
            con.times_played = 0;
+           if( db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+              con.playing_reward = o.playing_reward;
       });
-
-
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void content_update_evaluator::do_apply( const content_update_operation& o )
