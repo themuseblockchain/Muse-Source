@@ -1626,8 +1626,14 @@ asset database::process_content_cashout( const asset& content_reward )
    const auto& ridx = get_index_type<report_index>().indices().get<by_created>();
    auto itr = ridx.begin();
    std::set<account_id_type> customers;
-   while ( itr != ridx.end() && itr->created <= now ){
-      customers.insert(itr->consumer);
+   uint64_t full_time = 0;
+   while ( itr != ridx.end() && itr->created <= now )  // FIXME: doesn't scale
+   {
+      if( customers.insert(itr->consumer).second )
+      {
+          const auto& user = get<account_object>( itr->consumer );
+          full_time += std::min( user.total_listening_time, uint32_t(3600) );
+      }
       ++itr;
    }
    itr = ridx.begin();
@@ -1637,7 +1643,12 @@ asset database::process_content_cashout( const asset& content_reward )
       ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       edump((consumer));
       FC_ASSERT( consumer.total_listening_time > 0 );
-      asset pay_reserve = total_payout * itr->play_time / customers.size() / consumer.total_listening_time;
+      asset pay_reserve = total_payout * itr->play_time;
+      if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+         pay_reserve = pay_reserve / customers.size();
+      else
+         pay_reserve = pay_reserve * std::min( consumer.total_listening_time, uint32_t(3600) ) / full_time;
+      pay_reserve = pay_reserve / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
       modify<account_object>(consumer, [&itr](account_object & a){
          a.total_listening_time -= itr->play_time;
