@@ -1591,12 +1591,14 @@ asset database::process_content_cashout( const asset& content_reward )
    
    asset total_payout = has_hardfork( MUSE_HARDFORK_0_2 ) ? content_reward : get_content_reward();
 
-   //find thresholds
-   const auto& cridx = get_index_type< content_index >().indices().get< by_popularity >();
-   auto critr = cridx.rbegin();
-   uint32_t i = 0;
-   uint32_t current_plays_threshold1;
-   uint32_t current_plays_threshold2;
+   if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+   {
+      //find thresholds
+      const auto& cridx = get_index_type< content_index >().indices().get< by_popularity >();
+      auto critr = cridx.rbegin();
+      uint32_t i = 0;
+      uint32_t current_plays_threshold1;
+      uint32_t current_plays_threshold2;
       while ( i < MUSE_CURATION_THRESHOLD1 && critr != cridx.rend() )
       {
          ++i; ++critr;
@@ -1619,6 +1621,7 @@ asset database::process_content_cashout( const asset& content_reward )
            cso.current_plays_threshold1 = current_plays_threshold1;
            cso.current_plays_threshold2 = current_plays_threshold2;
       });
+   }
 
    const auto& ridx = get_index_type<report_index>().indices().get<by_created>();
    auto itr = ridx.begin();
