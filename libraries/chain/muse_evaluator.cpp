@@ -68,6 +68,14 @@ void streaming_platform_report_evaluator::do_apply ( const streaming_platform_re
    const auto& content = db().get_content( o.content );
    FC_ASSERT( !content.disabled );
 
+   if ( !db().has_hardfork(MUSE_HARDFORK_0_2) )
+   {
+      // TODO: remove after HF date
+      const auto& reports = db().get_index_type<report_index>().indices().get<by_created>();
+      const auto& now = reports.find( db().head_block_time() );
+      FC_ASSERT( now == reports.end() );
+   }
+
    db().create< report_object>( [&](report_object& ro) {
         ro.consumer = consumer.id;
         ro.streaming_platform = sp.id;
