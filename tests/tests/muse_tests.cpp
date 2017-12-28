@@ -415,6 +415,12 @@ BOOST_AUTO_TEST_CASE( simple_test )
       FAIL( "with non-existing content", spro );
 
       spro.content = "ipfs://abcdef1";
+      spro.play_time = 86401;
+      FAIL( "with more than 1 day listening time", spro );
+      spro.play_time = 0;
+      FAIL( "with zero listening time", spro );
+
+      spro.play_time = 7200;
       BOOST_TEST_MESSAGE( "--- Test success" );
       tx.operations.clear();
       tx.operations.push_back( spro );
@@ -1193,6 +1199,20 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       tx.signatures.clear();
       tx.sign( suzy_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
+
+      spro.play_time = 86300;
+      tx.operations.clear();
+      tx.operations.push_back( spro );
+      tx.signatures.clear();
+      tx.sign( suzy_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+
+      spro.play_time = 1;
+      tx.operations.clear();
+      tx.operations.push_back( spro );
+      tx.signatures.clear();
+      tx.sign( suzy_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), assert_exception );
       }
 
       // --------- Content update ------------

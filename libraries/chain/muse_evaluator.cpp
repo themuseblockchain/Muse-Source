@@ -59,6 +59,11 @@ void streaming_platform_update_evaluator::do_apply( const streaming_platform_upd
 void streaming_platform_report_evaluator::do_apply ( const streaming_platform_report_operation& o )
 {
    const auto& consumer = db().get_account( o.consumer );
+   if ( db().has_hardfork(MUSE_HARDFORK_0_2) )
+   {
+      FC_ASSERT( o.play_time > 0, "Reported time must be greater than 0" );
+      FC_ASSERT( o.play_time + consumer.total_listening_time <= 86400, "User cannot cannot listen for more than 86400 seconds per day" );
+   }
    const auto& spidx = db().get_index_type<streaming_platform_index>().indices().get<by_name>();
    auto spitr = spidx.find(o.streaming_platform);
    FC_ASSERT(spitr != spidx.end());
