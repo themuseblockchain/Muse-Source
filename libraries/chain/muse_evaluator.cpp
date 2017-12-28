@@ -59,6 +59,11 @@ void streaming_platform_update_evaluator::do_apply( const streaming_platform_upd
 void streaming_platform_report_evaluator::do_apply ( const streaming_platform_report_operation& o )
 {
    const auto& consumer = db().get_account( o.consumer );
+   if ( db().has_hardfork(MUSE_HARDFORK_0_2) )
+   {
+      FC_ASSERT( o.play_time > 0, "Reported time must be greater than 0" );
+      FC_ASSERT( o.play_time + consumer.total_listening_time <= 86400, "User cannot cannot listen for more than 86400 seconds per day" );
+   }
    const auto& spidx = db().get_index_type<streaming_platform_index>().indices().get<by_name>();
    auto spitr = spidx.find(o.streaming_platform);
    FC_ASSERT(spitr != spidx.end());
@@ -67,6 +72,14 @@ void streaming_platform_report_evaluator::do_apply ( const streaming_platform_re
    FC_ASSERT ( db().is_voted_streaming_platform( o.streaming_platform ));
    const auto& content = db().get_content( o.content );
    FC_ASSERT( !content.disabled );
+
+   if ( !db().has_hardfork(MUSE_HARDFORK_0_2) )
+   {
+      // TODO: remove after HF date
+      const auto& reports = db().get_index_type<report_index>().indices().get<by_created>();
+      const auto& now = reports.find( db().head_block_time() );
+      FC_ASSERT( now == reports.end() );
+   }
 
    db().create< report_object>( [&](report_object& ro) {
         ro.consumer = consumer.id;
@@ -349,7 +362,7 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
       const content_object* itr = &content;
 
       bool two_sides = itr->comp_meta.third_party_publishers;
-      if(db().has_hardfork(MUSE_HARDFORK_0_1))
+      if( db().has_hardfork(MUSE_HARDFORK_0_2) )
          FC_ASSERT( two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
       else
          FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
@@ -358,14 +371,10 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
          FC_ASSERT( fc::is_utf8(*o.track_meta->json_metadata) && fc::json::is_valid(*o.track_meta->json_metadata), "JSON Metadata not valid JSON" );
 
       for( const distribution& d : o.new_distributions )
-      {
-         const auto& payee = db().get_account( d.payee );
-      }
+         db().get_account( d.payee ); // just to ensure that d.payee account exists
 
       for( const management_vote& m : o.new_management )
-      {
-         const auto& voter = db().get_account(m.voter);
-      }
+         db().get_account(m.voter); // just to ensure that m.voter account exists
 
       bool redistribute_master = ( o.side == o.master && o.new_distributions.size() > 0
                                    && itr->distributions_master.size() == 0 );
@@ -421,7 +430,7 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               }
            }
            con.comp_meta.third_party_publishers = third_party_flag;
-           if(db().has_hardfork(MUSE_HARDFORK_0_1)) {
+           if( db().has_hardfork(MUSE_HARDFORK_0_2) ) {
               if( o.new_playing_reward > 0 )
                  con.playing_reward = o.new_playing_reward;
               if( o.new_publishers_share > 0 )
@@ -450,7 +459,7 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
 
 void content_disable_evaluator::do_apply( const content_disable_operation& o )
 { try{
-   FC_ASSERT( db().has_hardfork( MUSE_HARDFORK_0_2 ) ); // remove after HF time
+   FC_ASSERT( db().has_hardfork( MUSE_HARDFORK_0_2 ) ); // TODO remove after HF time
 
    const auto& content = db().get_content( o.url );
 

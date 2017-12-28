@@ -1591,12 +1591,14 @@ asset database::process_content_cashout( const asset& content_reward )
    
    asset total_payout = has_hardfork( MUSE_HARDFORK_0_2 ) ? content_reward : get_content_reward();
 
-   //find thresholds
-   const auto& cridx = get_index_type< content_index >().indices().get< by_popularity >();
-   auto critr = cridx.rbegin();
-   uint32_t i = 0;
-   uint32_t current_plays_threshold1;
-   uint32_t current_plays_threshold2;
+   if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+   {
+      //find thresholds
+      const auto& cridx = get_index_type< content_index >().indices().get< by_popularity >();
+      auto critr = cridx.rbegin();
+      uint32_t i = 0;
+      uint32_t current_plays_threshold1;
+      uint32_t current_plays_threshold2;
       while ( i < MUSE_CURATION_THRESHOLD1 && critr != cridx.rend() )
       {
          ++i; ++critr;
@@ -1619,12 +1621,19 @@ asset database::process_content_cashout( const asset& content_reward )
            cso.current_plays_threshold1 = current_plays_threshold1;
            cso.current_plays_threshold2 = current_plays_threshold2;
       });
+   }
 
    const auto& ridx = get_index_type<report_index>().indices().get<by_created>();
    auto itr = ridx.begin();
    std::set<account_id_type> customers;
-   while ( itr != ridx.end() && itr->created <= now ){
-      customers.insert(itr->consumer);
+   uint64_t full_time = 0;
+   while ( itr != ridx.end() && itr->created <= now )  // FIXME: doesn't scale
+   {
+      if( customers.insert(itr->consumer).second )
+      {
+          const auto& user = get<account_object>( itr->consumer );
+          full_time += std::min( user.total_listening_time, uint32_t(3600) );
+      }
       ++itr;
    }
    itr = ridx.begin();
@@ -1634,7 +1643,12 @@ asset database::process_content_cashout( const asset& content_reward )
       ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       edump((consumer));
       FC_ASSERT( consumer.total_listening_time > 0 );
-      asset pay_reserve = total_payout * itr->play_time / customers.size() / consumer.total_listening_time;
+      asset pay_reserve = total_payout * itr->play_time;
+      if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+         pay_reserve = pay_reserve / customers.size();
+      else
+         pay_reserve = pay_reserve * std::min( consumer.total_listening_time, uint32_t(3600) ) / full_time;
+      pay_reserve = pay_reserve / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
       modify<account_object>(consumer, [&itr](account_object & a){
          a.total_listening_time -= itr->play_time;
@@ -1765,7 +1779,9 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
 {try{
    asset paid (0);
    const content_object& co = get<content_object>( content ); //content_id_type(content)(*this); //*get_index_type<content_index>().indices().get<by_id>().find(content);
-   asset curation_reserve = payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100;
+   asset curation_reserve;
+   if( !has_hardfork(MUSE_HARDFORK_0_2) )
+      curation_reserve = payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100;
    payout = payout - curation_reserve;
    asset platform_reward = payout;
    platform_reward.amount = platform_reward.amount * co.playing_reward / 10000;
@@ -1782,53 +1798,55 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    paid += comp_reward;
    paid += platform_reward;
 
-   const content_stats_object& c_stat = get<content_stats_object> (content_stats_id_type(0));
-   const bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
-   const bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
-   bool pay_curators = false;
-   bool reset_curation_rewards = false;
+   if( !has_hardfork(MUSE_HARDFORK_0_2) ) {
+      const content_stats_object& c_stat = get<content_stats_object> (content_stats_id_type(0));
+      const bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
+      const bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
+      bool pay_curators = false;
+      bool reset_curation_rewards = false;
 
-   modify<content_object>(co,[above_thr1,above_thr2,&pay_curators,&reset_curation_rewards,this](content_object& c){
-        if(c.curation_rewards){
-           if(above_thr2) { //still in top 2000
-              if(head_block_time() < c.curation_reward_expiration)
-              {
-                 pay_curators = true;
-              }
-           }else{
-              c.curation_rewards = false;
-              reset_curation_rewards = true;
-           }
-        }else{ //not in top 1000 yet...
-           if(above_thr1){
-              c.curation_rewards = true;
-              c.curation_reward_expiration = head_block_time() + MUSE_CURATION_DURATION;
-              pay_curators = true;
-           }
-        }
-        if(c.times_played_24)
-           --c.times_played_24;
-   });
+      modify<content_object>(co,[above_thr1,above_thr2,&pay_curators,&reset_curation_rewards,this](content_object& c){
+         if(c.curation_rewards){
+            if(above_thr2) { //still in top 2000
+               if(head_block_time() < c.curation_reward_expiration)
+               {
+                  pay_curators = true;
+               }
+            }else{
+               c.curation_rewards = false;
+               reset_curation_rewards = true;
+            }
+         }else{ //not in top 1000 yet...
+            if(above_thr1){
+               c.curation_rewards = true;
+               c.curation_reward_expiration = head_block_time() + MUSE_CURATION_DURATION;
+               pay_curators = true;
+            }
+         }
+         if(c.times_played_24)
+            --c.times_played_24;
+      });
 
-   const auto& vidx = get_index_type<content_vote_index>().indices().get< by_reward_flag_update > ();
-   if(reset_curation_rewards){
-      auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
-      while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-         modify<content_vote_object>(*vitr, [](content_vote_object &vo) {
-              vo.marked_for_curation_reward = false;
-         });
-         ++vitr;
+      const auto& vidx = get_index_type<content_vote_index>().indices().get< by_reward_flag_update > ();
+      if(reset_curation_rewards){
+         auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
+         while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
+            modify<content_vote_object>(*vitr, [](content_vote_object &vo) {
+               vo.marked_for_curation_reward = false;
+            });
+            ++vitr;
+         }
       }
-   }
-   if(pay_curators){
-      auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
+      if(pay_curators){
+         auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
 	  
-      while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-         asset cp = curation_reserve / 10;
-         curation_reserve = curation_reserve - cp;
-         pay_to_curator(co, vitr->voter, cp );
-         paid += cp;
-         ++vitr;
+         while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
+            asset cp = curation_reserve / 10;
+            curation_reserve = curation_reserve - cp;
+            pay_to_curator(co, vitr->voter, cp );
+            paid += cp;
+            ++vitr;
+         }
       }
    }
    return paid;
@@ -1874,43 +1892,23 @@ void database::adjust_funds(const asset& content_reward, const asset& paid_to_co
    } );
 }
 
-
-
-asset database::get_liquidity_reward()const
-{
-   if( true ) //TODO_MUSE - review during reward calculation modificaton
-      return asset( 0, MUSE_SYMBOL );
-
-   const auto& props = get_dynamic_global_properties();
-   static_assert( MUSE_LIQUIDITY_REWARD_PERIOD_SEC == 60*60, "this code assumes a 1 hour time interval" );
-   asset percent( calc_percent_reward_per_hour< MUSE_LIQUIDITY_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL );
-   return std::max( percent, MUSE_MIN_LIQUIDITY_REWARD );
-}
-
 asset database::get_content_reward()const
 {
    const auto& props = get_dynamic_global_properties();
 
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
-   if(has_hardfork(MUSE_HARDFORK_0_1)){
-      asset percent( calc_percent_reward_per_day_new< MUSE_CONTENT_APR_PERCENT_N >( props.virtual_supply.amount ), MUSE_SYMBOL );
-      return std::max( percent, MUSE_MIN_CONTENT_REWARD );
-   }
-   asset percent( calc_percent_reward_per_day< MUSE_CONTENT_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL );
-   return std::max( percent, MUSE_MIN_CONTENT_REWARD );
+   const auto amount = has_hardfork(MUSE_HARDFORK_0_2) ? calc_percent_reward_per_day_0_2< MUSE_CONTENT_APR_PERCENT_0_2 >( props.virtual_supply.amount )
+                                                       : calc_percent_reward_per_day< MUSE_CONTENT_APR_PERCENT >( props.virtual_supply.amount );
+   return std::max( asset( amount, MUSE_SYMBOL ), MUSE_MIN_CONTENT_REWARD );
 }
 
 asset database::get_vesting_reward()const
 {
    const auto& props = get_dynamic_global_properties();
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
-
-   if(has_hardfork(MUSE_HARDFORK_0_1)){
-      asset percent( calc_percent_reward_per_block_new< MUSE_VESTING_ARP_PERCENT_N >( props.virtual_supply.amount ), MUSE_SYMBOL );
-      return percent;
-   }
-   asset percent( calc_percent_reward_per_block< MUSE_VESTING_ARP_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL );
-   return percent;
+   const auto amount = has_hardfork(MUSE_HARDFORK_0_2) ? calc_percent_reward_per_block_0_2< MUSE_VESTING_ARP_PERCENT_0_2 >( props.virtual_supply.amount )
+                                                       : calc_percent_reward_per_block< MUSE_VESTING_ARP_PERCENT >( props.virtual_supply.amount );
+   return asset( amount, MUSE_SYMBOL );
 }
 
 asset database::get_producer_reward()
@@ -1918,15 +1916,9 @@ asset database::get_producer_reward()
    const auto& props = get_dynamic_global_properties();
    static_assert( MUSE_BLOCK_INTERVAL == 3, "this code assumes a 3-second time interval" );
 
-   asset percent;
-   if( has_hardfork(MUSE_HARDFORK_0_1)){
-      asset p (calc_percent_reward_per_block_new< MUSE_PRODUCER_APR_PERCENT_N >( props.virtual_supply.amount), MUSE_SYMBOL );
-      percent = p;
-   }else {
-      asset p (calc_percent_reward_per_block< MUSE_PRODUCER_APR_PERCENT >( props.virtual_supply.amount ), MUSE_SYMBOL);
-      percent = p;
-   }
-   auto pay = std::max( percent, MUSE_MIN_PRODUCER_REWARD );
+   const auto amount = has_hardfork(MUSE_HARDFORK_0_2) ? calc_percent_reward_per_block_0_2< MUSE_PRODUCER_APR_PERCENT_0_2 >( props.virtual_supply.amount)
+                                                       : calc_percent_reward_per_block< MUSE_PRODUCER_APR_PERCENT >( props.virtual_supply.amount );
+   const auto pay = std::max( asset( amount, MUSE_SYMBOL ), MUSE_MIN_PRODUCER_REWARD );
    const auto& witness_account = get_account( props.current_witness );
 
    /// pay witness in vesting shares
@@ -1936,7 +1928,7 @@ asset database::get_producer_reward()
    }
    else
    {
-      modify( get_account( witness_account.name), [&]( account_object& a )
+      modify( get_account( witness_account.name), [&pay]( account_object& a )
       {
          a.balance += pay;
       } );
@@ -1944,39 +1936,6 @@ asset database::get_producer_reward()
 
    return pay;
 }
-
-void database::pay_liquidity_reward()
-{
-#ifdef IS_TEST_NET
-   if( !liquidity_rewards_enabled )
-      return;
-#endif
-
-   if( (head_block_num() % MUSE_LIQUIDITY_REWARD_BLOCKS) == 0 )
-   {
-      auto reward = get_liquidity_reward();
-
-      if( reward.amount == 0 )
-         return;
-
-      const auto& ridx = get_index_type<liquidity_reward_index>().indices().get<by_volume_weight>();
-      auto itr = ridx.begin();
-      if( itr != ridx.end() && itr->volume_weight() > 0 )
-      {
-         adjust_supply( reward, true );
-         adjust_balance( itr->owner(*this), reward );
-         modify( *itr, [&]( liquidity_reward_balance_object& obj )
-         {
-            obj.muse_volume = 0;
-            obj.mbd_volume   = 0;
-            obj.last_update  = head_block_time();
-            obj.weight = 0;
-         } );
-         push_applied_operation( liquidity_reward_operation( itr->owner( *this ).name, reward ) );
-      }
-   }
-}
-
 
 /**
  *  Iterates over all conversion requests with a conversion date before
@@ -2556,7 +2515,6 @@ void database::_apply_block( const signed_block& next_block )
    asset paid_for_content = process_content_cashout( content_reward );
    adjust_funds( content_reward, paid_for_content );
    process_vesting_withdrawals();
-   pay_liquidity_reward();
    update_virtual_supply();
 
    account_recovery_processing();
@@ -3048,33 +3006,6 @@ int database::match( const limit_order_object& new_order, const limit_order_obje
 }
 
 
-void database::adjust_liquidity_reward( const account_object& owner, const asset& volume, bool is_sdb )
-{
-   const auto& ridx = get_index_type<liquidity_reward_index>().indices().get<by_owner>();
-   auto itr = ridx.find( owner.id );
-   if( itr != ridx.end() )
-   {
-      modify<liquidity_reward_balance_object>( *itr, [&]( liquidity_reward_balance_object& r )
-      {
-         if( head_block_time() - r.last_update >= MUSE_LIQUIDITY_TIMEOUT_SEC )
-         {
-            r.mbd_volume = 0;
-            r.muse_volume = 0;
-            r.weight = 0;
-         }
-
-         if( is_sdb )
-            r.mbd_volume += volume.amount.value;
-         else
-            r.muse_volume += volume.amount.value;
-
-         r.update_weight( true );
-         r.last_update = head_block_time();
-      } );
-   }
-}
-
-
 bool database::fill_order( const limit_order_object& order, const asset& pays, const asset& receives )
 {
    try
@@ -3314,9 +3245,9 @@ void database::set_hardfork( uint32_t hardfork, bool apply_now )
 {
    auto const& hardforks = hardfork_property_id_type()( *this );
 
-   for( int i = hardforks.last_hardfork + 1; i <= hardfork && i <= MUSE_NUM_HARDFORKS; i++ )
+   for( uint32_t i = hardforks.last_hardfork + 1; i <= hardfork && i <= MUSE_NUM_HARDFORKS; i++ )
    {
-      modify( hardforks, [&]( hardfork_property_object& hpo )
+      modify( hardforks, [i,this]( hardfork_property_object& hpo )
       {
          hpo.next_hardfork = _hardfork_versions[i];
          hpo.next_hardfork_time = head_block_time();
@@ -3337,7 +3268,7 @@ void database::apply_hardfork( uint32_t hardfork )
          {
             // This is for unit tests only. Evil.
             const auto& initminer = get_account( MUSE_INIT_MINER_NAME );
-            if ( initminer.balance.amount.value >= 10 * asset::static_precision() )
+            if ( initminer.balance.amount.value >= 10 * asset::static_precision() ) // not true in mainnet
             {
                custom_operation test_op;
                string op_msg = "Test: Hardfork applied";
@@ -3352,7 +3283,7 @@ void database::apply_hardfork( uint32_t hardfork )
          break;
    }
 
-   modify( hardfork_property_id_type()( *this ), [&]( hardfork_property_object& hfp )
+   modify( hardfork_property_id_type()( *this ), [hardfork,this]( hardfork_property_object& hfp )
    {
       FC_ASSERT( hardfork == hfp.last_hardfork + 1, "Hardfork being applied out of order", ("hardfork",hardfork)("hfp.last_hardfork",hfp.last_hardfork) );
       FC_ASSERT( hfp.processed_hardforks.size() == hardfork, "Hardfork being applied out of order" );

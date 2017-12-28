@@ -15,36 +15,16 @@ share_type calc_percent_reward( share_type current_supply )
    static_assert( shift_constant > 0, "shift constant cannot be zero" );
    static_assert( shift_constant < 128, "shift constant is implausibly large, re-check your arguments" );
    static_assert( multiply_constant > 256, "multiply constant is implausibly small, re-check your arguments" );
-   static_assert( multiply_constant < UINT64_MAX / (10 * uint64_t( MUSE_100_PERCENT )), "multiply constant is too large, we may be in danger of overflow" );
-   //static_assert( (percent == 0) || (percent > MUSE_1_PERCENT), "percent is smaller than 1%, re-check your arguments" );
+   static_assert( multiply_constant < UINT64_MAX / uint64_t( MUSE_100_PERCENT ), "multiply constant is too large, we may be in danger of overflow" );
    static_assert( percent <= MUSE_100_PERCENT, "percent is implausibly large, re-check your arguments (if you really mean to do this, you should revise the overflow check above accordingly)" );
 
    static const uint128_t half = uint128_t(1) << (shift_constant - 1);
 
-   uint128_t reward = current_supply.value;      //18000000000000
-   reward *= (percent * multiply_constant);      // compile-time constant, fits in 64 bits //95*18000000000000*133921203762304
+   uint128_t reward = current_supply.value;
+   reward *= (percent * multiply_constant);      // compile-time constant, fits in 64 bits
    reward += half;                               // round to nearest whole integer instead of truncating
-   reward >>= shift_constant;                    //1480
+   reward >>= shift_constant;
    return reward.to_uint64();
-}
-
-// (1+x)^REWARDS_PER_YEAR = 1.095
-// ln (1+x) * REWARDS_PER_YEAR = ln(1.095)
-// ln (1+x) = ln(1.095) / REWARDS_PER_YEAR
-// x = exp( ln(1.095) / REWARDS_PER_YEAR ) - 1
-// Block per year - 10512000
-
-
-template< uint16_t percent >
-inline share_type calc_percent_reward_per_hour( share_type current_supply )
-{
-   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_HOUR, MUSE_APR_PERCENT_SHIFT_PER_HOUR >( current_supply );
-}
-
-template< uint16_t percent >
-inline share_type calc_percent_reward_per_block_new( share_type current_supply )
-{
-   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_N, MUSE_APR_PERCENT_SHIFT_PER_BLOCK_N >( current_supply );
 }
 
 template< uint16_t percent >
@@ -54,9 +34,9 @@ inline share_type calc_percent_reward_per_block( share_type current_supply )
 }
 
 template< uint16_t percent >
-inline share_type calc_percent_reward_per_round( share_type current_supply )
+inline share_type calc_percent_reward_per_block_0_2( share_type current_supply )
 {
-   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_ROUND, MUSE_APR_PERCENT_SHIFT_PER_ROUND >( current_supply );
+   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_0_2, MUSE_APR_PERCENT_SHIFT_PER_BLOCK_0_2 >( current_supply );
 }
 
 template< uint16_t percent >
@@ -65,11 +45,10 @@ inline share_type calc_percent_reward_per_day( share_type current_supply )
    return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_DAY, MUSE_APR_PERCENT_SHIFT_PER_DAY >( current_supply );
 }
 
-
 template< uint16_t percent >
-inline share_type calc_percent_reward_per_day_new( share_type current_supply )
+inline share_type calc_percent_reward_per_day_0_2( share_type current_supply )
 {
-   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N, MUSE_APR_PERCENT_SHIFT_PER_DAY_N >( current_supply );
+   return calc_percent_reward< percent, MUSE_APR_PERCENT_MULTIPLY_PER_DAY_0_2, MUSE_APR_PERCENT_SHIFT_PER_DAY_0_2 >( current_supply );
 }
 
 } }

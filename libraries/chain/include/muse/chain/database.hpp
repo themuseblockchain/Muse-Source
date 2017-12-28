@@ -260,7 +260,6 @@ namespace muse { namespace chain {
 
          void update_witness_schedule();
 
-         void        adjust_liquidity_reward( const account_object& owner, const asset& volume, bool is_bid );
          string      to_pretty_string( const asset& a )const;
          void        adjust_balance( const account_object& a, const asset& delta );
          void        adjust_supply( const asset& delta, bool adjust_vesting = false );
@@ -317,14 +316,10 @@ namespace muse { namespace chain {
          void update_median_feed();
          share_type claim_rshare_reward( share_type rshares, uint16_t reward_weight, asset max_muse );
 
-         asset get_liquidity_reward()const;
          asset get_content_reward()const;
          asset get_curation_reward()const;
-         asset get_pow_reward()const;
 
       uint16_t get_curation_rewards_percent() const;
-
-      void  pay_liquidity_reward();
 
 
          //////////////////// db_getter.cpp ////////////////////
@@ -393,10 +388,6 @@ namespace muse { namespace chain {
          /**
           * @}
           */
-
-#ifdef IS_TEST_NET
-         bool liquidity_rewards_enabled = true;
-#endif
 
    protected:
          //Mark pop_undo() as protected -- we do not want outside calling pop_undo(); it should call pop_block() instead

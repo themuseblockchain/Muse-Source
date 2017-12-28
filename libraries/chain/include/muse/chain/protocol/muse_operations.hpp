@@ -309,7 +309,7 @@ struct streaming_platform_report_operation : public base_operation
    string streaming_platform; //<Platform submiting the report
    string consumer; //<Consumer of the art piece
    string content; //<URL of the art piece
-   uint64_t play_time; //<How long the consumer listened to it
+   uint64_t play_time; //<How long the consumer listened to it (in seconds))
    string playlist_creator;//<Not used
 
    void validate() const;
