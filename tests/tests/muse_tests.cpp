@@ -1212,7 +1212,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       tx.operations.push_back( spro );
       tx.signatures.clear();
       tx.sign( suzy_private_key, db.get_chain_id() );
-      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), assert_exception );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
       }
 
       // --------- Content update ------------
