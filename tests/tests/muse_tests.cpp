@@ -1231,6 +1231,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       mgmt.voter = "muriel";
       mgmt.percentage = 100;
       cup.new_management.push_back( mgmt );
+      cup.new_threshold = 100;
       tx.operations.clear();
       tx.operations.push_back( cup );
       tx.sign( uhura_private_key, db.get_chain_id() );
@@ -1380,7 +1381,6 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       mgmt.percentage = 33;
       cop.management.push_back( mgmt );
       mgmt.voter = "muriel";
-      mgmt.percentage = 33;
       cop.management.push_back( mgmt );
       cop.management_threshold = 50;
       cop.management_comp = vector<management_vote>();
@@ -1388,7 +1388,7 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       cop.management_comp->push_back(mgmt);
       mgmt.voter = "miranda";
       cop.management_comp->push_back(mgmt);
-      cop.management_threshold_comp = 50;
+      cop.management_threshold_comp = 100;
       cop.playing_reward = 10;
       cop.publishers_share = 100;
       tx.operations.clear();
@@ -1408,14 +1408,15 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       cup.track_meta = content_metadata_track_master();
       cup.track_meta->track_title = "Simple test track";
       management_vote mgmt;
-      mgmt.voter = "muriel";
-      mgmt.percentage = 100;
-      cup.new_management.push_back( mgmt );
-      cup.new_threshold = 40;
-      // FIXME
       mgmt.voter = "martha";
+      mgmt.percentage = 50;
+      cup.new_management.push_back( mgmt );
+      mgmt.voter = "muriel";
+      cup.new_management.push_back( mgmt );
+      cup.new_threshold = 51;
       cup.comp_meta = content_metadata_publisher();
-      cup.new_publishers_share = 101;
+      cup.new_playing_reward = 0;
+      cup.new_publishers_share = 0;
       tx.operations.clear();
       tx.signatures.clear();
       tx.operations.push_back( cup );
@@ -1433,13 +1434,14 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       content_update_operation cup;
       cup.side = content_update_operation::side_t::publisher;
       cup.url = "ipfs://abcdef1";
+      cup.new_playing_reward = 0;
+      cup.new_publishers_share = 0;
       tx.operations.clear();
       tx.signatures.clear();
       tx.operations.push_back( cup );
       tx.sign( muriel_private_key, db.get_chain_id() );
       MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
-      tx.signatures.clear();
-      tx.sign( martha_private_key, db.get_chain_id() );
+      tx.sign( miranda_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
       }
 
@@ -1455,7 +1457,6 @@ BOOST_AUTO_TEST_CASE( multi_authority_test )
       tx.signatures.clear();
       tx.sign( martha_private_key, db.get_chain_id() );
       MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), tx_missing_active_auth );
-      tx.signatures.clear();
       tx.sign( muriel_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
       }
