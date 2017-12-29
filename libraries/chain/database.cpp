@@ -1636,6 +1636,7 @@ asset database::process_content_cashout( const asset& content_reward )
       }
       ++itr;
    }
+   flat_map<account_id_type, uint32_t> listening_times;
    itr = ridx.begin();
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
@@ -1650,11 +1651,27 @@ asset database::process_content_cashout( const asset& content_reward )
          pay_reserve = pay_reserve * std::min( consumer.total_listening_time, uint32_t(3600) ) / full_time;
       pay_reserve = pay_reserve / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
-      modify<account_object>(consumer, [&itr](account_object & a){
-         a.total_listening_time -= itr->play_time;
-      });
+      auto listened = listening_times.find(consumer.id);
+      if( listened == listening_times.end() )
+         listening_times[consumer.id] = itr->play_time;
+      else
+         listened->second += itr->play_time;
+      if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+         modify<account_object>(consumer, [&itr](account_object & a){
+            a.total_listening_time -= itr->play_time;
+         });
       remove(*itr);
       itr = ridx.begin();
+   }
+   if( has_hardfork( MUSE_HARDFORK_0_2 ) )
+   {
+      for ( const auto& listened : listening_times )
+      {
+         const account_object& consumer = get<account_object>( listened.first );
+         modify<account_object>(consumer, [&listened](account_object & a){
+            a.total_listening_time -= listened.second;
+         });
+      }
    }
    return paid;
 } FC_LOG_AND_RETHROW() }

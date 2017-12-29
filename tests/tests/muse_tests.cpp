@@ -675,6 +675,10 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 0, veronica_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).curation_rewards.value );
 
+      BOOST_CHECK_EQUAL( 7200, colette_id(db).total_listening_time );
+      BOOST_CHECK_EQUAL( 3600, cora_id(db).total_listening_time );
+      BOOST_CHECK_EQUAL( 1800, coreen_id(db).total_listening_time );
+
       asset daily_content_reward = db.get_content_reward();
 
       generate_block();
@@ -761,6 +765,10 @@ BOOST_AUTO_TEST_CASE( simple_test )
       BOOST_CHECK_EQUAL( 0, coreen_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, veronica_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).curation_rewards.value );
+
+      BOOST_CHECK_EQUAL( 0, colette_id(db).total_listening_time );
+      BOOST_CHECK_EQUAL( 0, cora_id(db).total_listening_time );
+      BOOST_CHECK_EQUAL( 0, coreen_id(db).total_listening_time );
       }
 
       validate_database();
@@ -1054,6 +1062,8 @@ BOOST_AUTO_TEST_CASE( multi_test )
       BOOST_CHECK_EQUAL( 0, veronica_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).curation_rewards.value );
 
+      BOOST_CHECK_EQUAL( 3600, colette_id(db).total_listening_time );
+
       generate_blocks( db.head_block_time() + 86400 - MUSE_BLOCK_INTERVAL );
 
       asset daily_content_reward = db.get_content_reward();
@@ -1117,6 +1127,8 @@ BOOST_AUTO_TEST_CASE( multi_test )
       BOOST_CHECK_EQUAL( 0, colette_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, veronica_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, vici_id(db).curation_rewards.value );
+
+      BOOST_CHECK_EQUAL( 0, colette_id(db).total_listening_time );
       }
 
       validate_database();
@@ -1261,7 +1273,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       db.push_transaction( tx, 0 );
       }
 
-      // --------- Wait for payout time and verify zero payout ------------
+      // --------- Wait for payout time and verify payout ------------
 
       generate_blocks( db.head_block_time() + 86400 - MUSE_BLOCK_INTERVAL );
 
@@ -1293,11 +1305,31 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       BOOST_CHECK_EQUAL( 0, muriel_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, colette_id(db).curation_rewards.value );
 
+      BOOST_CHECK_EQUAL( 86400, colette_id(db).total_listening_time );
+
+      asset daily_content_reward = db.get_content_reward();
+
       generate_block();
+
+      const auto& dgpo = db.get_dynamic_global_properties();
+      asset payout1 = asset( daily_content_reward.amount.value * 100 / 86400, MUSE_SYMBOL );
+      asset payout2 = asset( daily_content_reward.amount.value * 86300 / 86400, MUSE_SYMBOL );
+      asset platform_reward1 = asset( payout1.amount.value * 11 / MUSE_100_PERCENT, MUSE_SYMBOL ); // playing reward
+      asset platform_reward2 = asset( payout2.amount.value * 11 / MUSE_100_PERCENT, MUSE_SYMBOL ); // playing reward
+      payout1 -= platform_reward1;
+      payout2 -= platform_reward2;
+      asset comp_reward = asset( (payout1.amount.value + payout2.amount.value) * 1 / MUSE_100_PERCENT, MUSE_SYMBOL ); // publishers_share
+      asset master_reward = payout1 + payout2 - comp_reward;
+
+      const content_object& song1 = db.get_content( "ipfs://abcdef1" );
+      BOOST_CHECK_EQUAL( 0, song1.accumulated_balance_master.amount.value );
+      BOOST_CHECK_EQUAL( comp_reward.amount.value, song1.accumulated_balance_comp.amount.value );
+      BOOST_CHECK_EQUAL( master_reward.amount.value, paula_id(db).balance.amount.value );
+      BOOST_CHECK_EQUAL( 100000 + (platform_reward1 * dgpo.get_vesting_share_price()).amount.value + (platform_reward2 * dgpo.get_vesting_share_price()).amount.value, suzy_id(db).vesting_shares.amount.value );
 
       BOOST_CHECK_EQUAL( 0, suzy_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, uhura_id(db).balance.amount.value );
-      BOOST_CHECK_EQUAL( 0, paula_id(db).balance.amount.value );
+      //BOOST_CHECK_EQUAL( 0, paula_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, martha_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, muriel_id(db).balance.amount.value );
       BOOST_CHECK_EQUAL( 0, colette_id(db).balance.amount.value );
@@ -1309,7 +1341,7 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       BOOST_CHECK_EQUAL( 0, muriel_id(db).mbd_balance.amount.value );
       BOOST_CHECK_EQUAL( 0, colette_id(db).mbd_balance.amount.value );
 
-      BOOST_CHECK_EQUAL( 100000, suzy_id(db).vesting_shares.amount.value );
+      //BOOST_CHECK_EQUAL( 100000, suzy_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, uhura_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, paula_id(db).vesting_shares.amount.value );
       BOOST_CHECK_EQUAL( 100000, martha_id(db).vesting_shares.amount.value );
@@ -1322,6 +1354,8 @@ BOOST_AUTO_TEST_CASE( simple_authority_test )
       BOOST_CHECK_EQUAL( 0, martha_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, muriel_id(db).curation_rewards.value );
       BOOST_CHECK_EQUAL( 0, colette_id(db).curation_rewards.value );
+
+      BOOST_CHECK_EQUAL( 0, colette_id(db).total_listening_time );
 
       validate_database();
    }
@@ -2000,6 +2034,17 @@ BOOST_AUTO_TEST_CASE( disable_test )
       vop.weight = 1;
       FAIL( "vote after disable", vop );
    }
+
+   // --------- Publish playtime ------------
+   {
+      streaming_platform_report_operation spro;
+      spro.streaming_platform = "suzy";
+      spro.consumer = "colette";
+      spro.content = "ipfs://abcdef1";
+      spro.play_time = 100;
+      FAIL( "report after disable", spro );
+   }
+
 
 } FC_LOG_AND_RETHROW() }
 
