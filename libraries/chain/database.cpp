@@ -1442,8 +1442,7 @@ void database::clear_streaming_platform_votes( const account_object& a )
 
 void database::update_owner_authority( const account_object& account, const authority& owner_authority )
 {
-   if( head_block_num() >= 3186477 // remove check after this block has passed
-           || has_hardfork(MUSE_HARDFORK_0_2) )
+   if( head_block_num() >= 3186477 ) // FIXME: needs to be removed, but usage must be HF-protected
    {
       create< owner_authority_history_object >( [&]( owner_authority_history_object& hist )
       {
