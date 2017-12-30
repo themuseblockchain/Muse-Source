@@ -3324,7 +3324,6 @@ void database::retally_liquidity_weight() {
  */
 void database::validate_invariants()const
 {
-//TODO_MUSE - rework!
    try
    {
       const auto& account_idx = get_index_type<account_index>().indices().get<by_name>();
@@ -3377,6 +3376,10 @@ void database::validate_invariants()const
             total_mbd += asset( itr->for_sale, MBD_SYMBOL );
          }
       }
+
+      const auto& balances = get_index_type< balance_index >().indices();
+      for( auto itr = balances.begin(); itr != balances.end(); itr++ )
+         total_supply += itr->balance;
 
       if( has_hardfork( MUSE_HARDFORK_0_2 ) )
       {
