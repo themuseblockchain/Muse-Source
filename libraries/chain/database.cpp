@@ -3295,6 +3295,17 @@ void database::apply_hardfork( uint32_t hardfork )
          }
          break;
 
+      case MUSE_HARDFORK_0_2:
+         {
+            const auto& gpo = get_dynamic_global_properties();
+            modify( gpo, []( dynamic_global_property_object& dgpo ) {
+               dgpo.current_supply += dgpo.supply_delta;
+               dgpo.virtual_supply += dgpo.supply_delta;
+               dgpo.supply_delta = asset();
+            } );
+         }
+         break;
+
       default:
          break;
    }
@@ -3324,6 +3335,7 @@ void database::retally_liquidity_weight() {
  */
 void database::validate_invariants()const
 {
+   if( !has_hardfork(MUSE_HARDFORK_0_2) ) return; // total_supply tracking is incorrect before HF2
    try
    {
       const auto& account_idx = get_index_type<account_index>().indices().get<by_name>();
