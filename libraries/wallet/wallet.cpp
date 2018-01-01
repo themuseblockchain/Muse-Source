@@ -2296,14 +2296,13 @@ annotated_signed_transaction wallet_api::create_content(string uploader, string 
    op.uploader = uploader;
    op.url = url;
    op.track_meta.track_title = title;
+   op.album_meta.album_title = title;
    op.distributions = distributor;
    op.management = management;
    op.management_threshold = threshold;
    if( playing_reward > 0 )
       op.playing_reward = playing_reward;
    op.comp_meta.third_party_publishers = third_party_publishers;
-   op.album_meta.album_title = title;
-   op.track_meta.track_title = title;
    if( third_party_publishers )
    {
       FC_ASSERT(management_publishing.size() > 0);
@@ -2312,6 +2311,7 @@ annotated_signed_transaction wallet_api::create_content(string uploader, string 
       if( distributor_publishing.size()>0 )
          op.distributions_comp = distributor_publishing;
    }
+   op.publishers_share = publishers_share;
    signed_transaction tx;
    tx.operations.push_back( op );
    tx.validate();
@@ -2397,10 +2397,10 @@ annotated_signed_transaction wallet_api::update_content_global(string url, uint3
    return my->sign_transaction( tx, broadcast );
 }
 
-annotated_signed_transaction wallet_api::remove_content( string url, bool broadcast )
+annotated_signed_transaction wallet_api::disable_content( string url, bool broadcast )
 {
    FC_ASSERT( !is_locked() );
-   content_remove_operation op;
+   content_disable_operation op;
    op.url = url;
 
    signed_transaction tx;

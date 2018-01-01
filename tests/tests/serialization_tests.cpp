@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifdef IS_TEST_NET
 #include <boost/test/unit_test.hpp>
 
 #include <muse/chain/base_objects.hpp>
@@ -86,33 +85,83 @@ BOOST_AUTO_TEST_CASE( asset_test )
 {
    try
    {
-      BOOST_CHECK_EQUAL( asset().decimals(), 3 );
-      BOOST_CHECK_EQUAL( asset().symbol_name(), "TESTS" );
-      BOOST_CHECK_EQUAL( asset().to_string(), "0.000 TESTS" );
+      BOOST_CHECK_EQUAL( asset().decimals(), MUSE_ASSET_PRECISION );
+      BOOST_CHECK_EQUAL( asset().asset_id, MUSE_SYMBOL );
+      BOOST_CHECK_EQUAL( asset().to_string(), "0.000000 2.28.0" );
 
       BOOST_TEST_MESSAGE( "Asset Test" );
-      asset muse = asset::from_string( "123.456 TESTS" );
-      asset mbd = asset::from_string( "654.321 TBD" );
-      asset tmp = asset::from_string( "0.456 TESTS" );
-      BOOST_CHECK_EQUAL( tmp.amount.value, 456 );
-      tmp = asset::from_string( "0.056 TESTS" );
-      BOOST_CHECK_EQUAL( tmp.amount.value, 56 );
+      asset muse = asset::from_string( "123.456 2.28.0" );
+      asset mbd = asset::from_string( "654.321 2.28.2" );
+      asset tmp = asset::from_string( "0.456 2.28.0" );
+      BOOST_CHECK_EQUAL( tmp.amount.value, 456000 );
+      tmp = asset::from_string( "0.056 2.28.0" );
+      BOOST_CHECK_EQUAL( tmp.amount.value, 56000 );
 
       BOOST_CHECK( std::abs( muse.to_real() - 123.456 ) < 0.0005 );
-      BOOST_CHECK_EQUAL( muse.decimals(), 3 );
-      BOOST_CHECK_EQUAL( muse.symbol_name(), "TESTS" );
-      BOOST_CHECK_EQUAL( muse.to_string(), "123.456 TESTS" );
-      BOOST_CHECK_EQUAL( muse.symbol, MUSE_SYMBOL);
-      BOOST_CHECK_EQUAL( asset(50, MUSE_SYMBOL).to_string(), "0.050 TESTS" );
-      BOOST_CHECK_EQUAL( asset(50000, MUSE_SYMBOL).to_string(), "50.000 TESTS" );
+      BOOST_CHECK_EQUAL( muse.decimals(), MUSE_ASSET_PRECISION );
+      BOOST_CHECK_EQUAL( muse.asset_id, MUSE_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.to_string(), "123.456000 2.28.0" );
+      BOOST_CHECK_EQUAL( asset(50, MUSE_SYMBOL).to_string(), "0.000050 2.28.0" );
+      BOOST_CHECK_EQUAL( asset(50000000, MUSE_SYMBOL).to_string(), "50.000000 2.28.0" );
 
       BOOST_CHECK( std::abs( mbd.to_real() - 654.321 ) < 0.0005 );
-      BOOST_CHECK_EQUAL( mbd.decimals(), 3 );
-      BOOST_CHECK_EQUAL( mbd.symbol_name(), "TBD" );
-      BOOST_CHECK_EQUAL( mbd.to_string(), "654.321 TBD" );
-      BOOST_CHECK_EQUAL( mbd.symbol, MBD_SYMBOL);
-      BOOST_CHECK_EQUAL( asset(50, MBD_SYMBOL).to_string(), "0.050 TBD" );
-      BOOST_CHECK_EQUAL( asset(50000, MBD_SYMBOL).to_string(), "50.000 TBD" );
+      BOOST_CHECK_EQUAL( mbd.decimals(), MUSE_ASSET_PRECISION );
+      BOOST_CHECK_EQUAL( mbd.asset_id, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "654.321000 2.28.2" );
+      BOOST_CHECK_EQUAL( asset(50000, MBD_SYMBOL).to_string(), "0.050000 2.28.2" );
+      BOOST_CHECK_EQUAL( asset(50000000, MBD_SYMBOL).to_string(), "50.000000 2.28.2" );
+
+      muse = asset::from_string( "123.456789 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123456789 );
+
+      muse = asset::from_string( "123.45678 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123456780 );
+
+      muse = asset::from_string( "123.4567 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123456700 );
+
+      muse = asset::from_string( "123.456 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123456000 );
+
+      muse = asset::from_string( "123.45 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123450000 );
+
+      muse = asset::from_string( "123.4 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123400000 );
+
+      muse = asset::from_string( "123.0 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123000000 );
+
+      muse = asset::from_string( "123 2.28.1" );
+      BOOST_CHECK_EQUAL( muse.asset_id, VESTS_SYMBOL );
+      BOOST_CHECK_EQUAL( muse.amount.value, 123000000 );
+
+      mbd = asset::from_string( "120.0000091 2.28.2" );
+      BOOST_CHECK_EQUAL( mbd.asset_id, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.amount.value, 120000009 );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "120.000009 2.28.2" );
+
+      mbd = asset( 120000090, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "120.000090 2.28.2" );
+
+      mbd = asset( 120000900, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "120.000900 2.28.2" );
+
+      mbd = asset( 120009000, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "120.009000 2.28.2" );
+
+      mbd = asset( 120090000, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "120.090000 2.28.2" );
+
+      mbd = asset( 120900000, MBD_SYMBOL );
+      BOOST_CHECK_EQUAL( mbd.to_string(), "120.900000 2.28.2" );
    }
    FC_LOG_AND_RETHROW()
 }
@@ -256,4 +305,3 @@ BOOST_AUTO_TEST_CASE( hardfork_version_test )
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-#endif

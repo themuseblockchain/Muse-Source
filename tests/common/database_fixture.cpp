@@ -51,9 +51,23 @@ clean_database_fixture::clean_database_fixture()
    ahplugin->plugin_set_app( &app );
    ahplugin->plugin_initialize( options );
 
+   validate_database();
    generate_block();
+   validate_database();
+
+   {
+      const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
+      db.modify( init_acct, [&]( account_object& acct ) {
+          acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
+      });
+      const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+      db.modify( init_witness, [&]( witness_object& witness ) {
+         witness.signing_key = init_account_pub_key;
+      });
+   }
+
    db.set_hardfork( MUSE_NUM_HARDFORKS );
-   vest( "initminer", 10000 );
+   vest( MUSE_INIT_MINER_NAME, 10000 );
 
    // Fill up the rest of the required miners
    for( int i = MUSE_NUM_INIT_MINERS; i < MUSE_MAX_MINERS; i++ )
@@ -143,11 +157,18 @@ string database_fixture::generate_anon_acct_name()
    return "anon-acct-x" + std::to_string( anon_acct_count++ );
 }
 
+static genesis_state_type prepare_genesis() {
+   genesis_state_type result;
+   result.init_supply = 10000 * asset::scaled_precision( MUSE_ASSET_PRECISION );
+   return result;
+}
+
 void database_fixture::open_database()
 {
    if( !data_dir ) {
       data_dir = fc::temp_directory( graphene::utilities::temp_directory_path() );
-      db.open( data_dir->path() );
+      const genesis_state_type genesis = prepare_genesis();
+      db.open( data_dir->path(), genesis );
    }
 }
 
@@ -459,12 +480,21 @@ void database_fixture::validate_database( void )
          }
       }
 
-      fc::uint128_t total_rshares2;
-      fc::uint128_t total_children_rshares2;
-
       auto gpo = db.get_dynamic_global_properties();
 
-      total_supply += gpo.total_vesting_fund_muse + gpo.total_reward_fund_muse;
+      if( db.has_hardfork( MUSE_HARDFORK_0_2 ) )
+      {
+         const auto& content_idx = db.get_index_type< content_index >().indices().get< by_id >();
+         for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
+         {
+            total_supply += itr->accumulated_balance_master;
+            total_supply += itr->accumulated_balance_comp;
+         }
+      }
+      else
+         total_supply += gpo.total_reward_fund_muse;
+
+      total_supply += gpo.total_vesting_fund_muse;
 
       FC_ASSERT( gpo.current_supply == total_supply, "", ("gpo.current_supply",gpo.current_supply)("total_supply",total_supply) );
       FC_ASSERT( gpo.current_mbd_supply == total_mbd, "", ("gpo.current_mbd_supply",gpo.current_mbd_supply)("total_mbd",total_mbd) );
@@ -473,6 +503,13 @@ void database_fixture::validate_database( void )
       if ( !db.get_feed_history().current_median_history.is_null() )
          BOOST_REQUIRE( gpo.current_mbd_supply * db.get_feed_history().current_median_history + gpo.current_supply
             == gpo.virtual_supply );
+
+      for( auto itr = account_idx.begin(); itr != account_idx.end(); itr++ )
+      {
+          uint64_t pre_score = itr->score;
+          db.recalculate_score( *itr );
+          BOOST_CHECK_EQUAL( pre_score, itr->score );
+      }
    }
    FC_LOG_AND_RETHROW();
 }

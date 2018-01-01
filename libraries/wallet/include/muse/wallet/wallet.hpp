@@ -814,12 +814,11 @@ class wallet_api
 
 
       /**
-       * Delete existing content object
-       * @param publisher the creating account
+       * Disable existing content object
        * @param url URL of the content
        * @param broadcast true if you wish to broadcast the transaction
        */
-      annotated_signed_transaction remove_content( string url, bool broadcast );
+      annotated_signed_transaction disable_content( string url, bool broadcast );
 
       /**
        * Get reports for a given consumer.
@@ -1155,7 +1154,7 @@ FC_API( muse::wallet::wallet_api,
         (update_content_master)
         (update_content_publishing)
         (update_content_global)
-        (remove_content)
+        (disable_content)
         (get_content_by_account)
         (get_content_by_url)
         (lookup_content)

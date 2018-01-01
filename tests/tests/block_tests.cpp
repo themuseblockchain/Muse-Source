@@ -21,7 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifdef IS_TEST_NET
 #include <boost/test/unit_test.hpp>
 
 #include <muse/chain/database.hpp>
@@ -101,6 +100,30 @@ BOOST_AUTO_TEST_CASE( block_database_test )
    }
 }
 
+static const fc::ecc::private_key& init_account_priv_key()
+{
+   static const auto priv_key = fc::ecc::private_key::regenerate( fc::sha256::hash( string( "init_key" ) ) );
+   return priv_key;
+}
+
+static const fc::ecc::public_key& init_account_pub_key()
+{
+   static const auto pub_key = init_account_priv_key().get_public_key();
+   return pub_key;
+}
+
+static void init_witness_keys( muse::chain::database& db )
+{
+   const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
+   db.modify( init_acct, []( account_object& acct ) {
+      acct.active.add_authority( init_account_pub_key(), acct.active.weight_threshold );
+   });
+   const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+   db.modify( init_witness, []( witness_object& witness ) {
+      witness.signing_key = init_account_pub_key();
+   });
+}
+
 BOOST_AUTO_TEST_CASE( generate_empty_blocks )
 {
    try {
@@ -108,13 +131,16 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
       fc::temp_directory data_dir( graphene::utilities::temp_directory_path() );
       signed_block b;
 
+      genesis_state_type genesis;
+      genesis.init_supply = INITIAL_TEST_SUPPLY;
+
       // TODO:  Don't generate this here
-      auto init_account_priv_key = fc::ecc::private_key::regenerate( fc::sha256::hash( string( "init_key" ) ) );
       signed_block cutoff_block;
       {
          database db;
-         db.open(data_dir.path(), INITIAL_TEST_SUPPLY );
-         b = db.generate_block(db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+         db.open(data_dir.path(), genesis );
+         init_witness_keys( db );
+         b = db.generate_block(db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
 
          // TODO:  Change this test when we correct #406
          // n.b. we generate MUSE_MIN_UNDO_HISTORY+1 extra blocks which will be discarded on save
@@ -124,7 +150,7 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
             //witness_id_type prev_witness = b.witness;
             string cur_witness = db.get_scheduled_witness(1);
             //BOOST_CHECK( cur_witness != prev_witness );
-            b = db.generate_block(db.get_slot_time(1), cur_witness, init_account_priv_key, database::skip_nothing);
+            b = db.generate_block(db.get_slot_time(1), cur_witness, init_account_priv_key(), database::skip_nothing);
             BOOST_CHECK( b.witness == cur_witness );
             uint32_t cutoff_height = db.get_dynamic_global_properties().last_irreversible_block_num;
             if( cutoff_height >= 200 )
@@ -137,7 +163,8 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
       }
       {
          database db;
-         db.open(data_dir.path(), INITIAL_TEST_SUPPLY );
+         db.open(data_dir.path(), genesis );
+         init_witness_keys( db );
          BOOST_CHECK_EQUAL( db.head_block_num(), cutoff_block.block_num() );
          b = cutoff_block;
          for( uint32_t i = 0; i < 200; ++i )
@@ -146,7 +173,7 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
             //witness_id_type prev_witness = b.witness;
             string cur_witness = db.get_scheduled_witness(1);
             //BOOST_CHECK( cur_witness != prev_witness );
-            b = db.generate_block(db.get_slot_time(1), cur_witness, init_account_priv_key, database::skip_nothing);
+            b = db.generate_block(db.get_slot_time(1), cur_witness, init_account_priv_key(), database::skip_nothing);
          }
          BOOST_CHECK_EQUAL( db.head_block_num(), cutoff_block.block_num()+200 );
       }
@@ -159,19 +186,22 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
 BOOST_AUTO_TEST_CASE( undo_block )
 {
    try {
+      genesis_state_type genesis;
+      genesis.init_supply = INITIAL_TEST_SUPPLY;
+
       fc::temp_directory data_dir( graphene::utilities::temp_directory_path() );
       {
          database db;
-         db.open(data_dir.path(), INITIAL_TEST_SUPPLY );
+         db.open(data_dir.path(), genesis );
+         init_witness_keys( db );
          fc::time_point_sec now( MUSE_TESTING_GENESIS_TIMESTAMP );
          std::vector< time_point_sec > time_stack;
 
-         auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
          for( uint32_t i = 0; i < 5; ++i )
          {
             now = db.get_slot_time(1);
             time_stack.push_back( now );
-            auto b = db.generate_block( now, db.get_scheduled_witness( 1 ), init_account_priv_key, database::skip_nothing );
+            auto b = db.generate_block( now, db.get_scheduled_witness( 1 ), init_account_priv_key(), database::skip_nothing );
          }
          BOOST_CHECK( db.head_block_num() == 5 );
          BOOST_CHECK( db.head_block_time() == now );
@@ -194,7 +224,7 @@ BOOST_AUTO_TEST_CASE( undo_block )
          {
             now = db.get_slot_time(1);
             time_stack.push_back( now );
-            auto b = db.generate_block( now, db.get_scheduled_witness( 1 ), init_account_priv_key, database::skip_nothing );
+            auto b = db.generate_block( now, db.get_scheduled_witness( 1 ), init_account_priv_key(), database::skip_nothing );
          }
          BOOST_CHECK( db.head_block_num() == 7 );
       }
@@ -210,30 +240,34 @@ BOOST_AUTO_TEST_CASE( fork_blocks )
       fc::temp_directory data_dir1( graphene::utilities::temp_directory_path() );
       fc::temp_directory data_dir2( graphene::utilities::temp_directory_path() );
 
+      genesis_state_type genesis;
+      genesis.init_supply = INITIAL_TEST_SUPPLY;
+
       //TODO This test needs 6-7 ish witnesses prior to fork
 
       database db1;
-      db1.open( data_dir1.path(), INITIAL_TEST_SUPPLY );
+      db1.open( data_dir1.path(), genesis );
+      init_witness_keys( db1 );
       database db2;
-      db2.open( data_dir2.path(), INITIAL_TEST_SUPPLY );
+      db2.open( data_dir2.path(), genesis );
+      init_witness_keys( db2 );
 
-      auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
       for( uint32_t i = 0; i < 10; ++i )
       {
-         auto b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+         auto b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
          try {
             PUSH_BLOCK( db2, b );
          } FC_CAPTURE_AND_RETHROW( ("db2") );
       }
       for( uint32_t i = 10; i < 13; ++i )
       {
-         auto b =  db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+         auto b =  db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       }
       string db1_tip = db1.head_block_id().str();
       uint32_t next_slot = 3;
       for( uint32_t i = 13; i < 16; ++i )
       {
-         auto b =  db2.generate_block(db2.get_slot_time(next_slot), db2.get_scheduled_witness(next_slot), init_account_priv_key, database::skip_nothing);
+         auto b =  db2.generate_block(db2.get_slot_time(next_slot), db2.get_scheduled_witness(next_slot), init_account_priv_key(), database::skip_nothing);
          next_slot = 1;
          // notify both databases of the new block.
          // only db2 should switch to the new fork, db1 should not
@@ -248,11 +282,11 @@ BOOST_AUTO_TEST_CASE( fork_blocks )
       BOOST_CHECK_EQUAL(db1.head_block_num(), 13);
       BOOST_CHECK_EQUAL(db2.head_block_num(), 13);
       {
-         auto b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+         auto b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
          good_block = b;
          b.transactions.emplace_back(signed_transaction());
          b.transactions.back().operations.emplace_back(transfer_operation());
-         b.sign( init_account_priv_key );
+         b.sign( init_account_priv_key() );
          BOOST_CHECK_EQUAL(b.block_num(), 14);
          MUSE_CHECK_THROW(PUSH_BLOCK( db1, b ), fc::exception);
       }
@@ -274,40 +308,43 @@ BOOST_AUTO_TEST_CASE( switch_forks_undo_create )
    try {
       fc::temp_directory dir1( graphene::utilities::temp_directory_path() ),
                          dir2( graphene::utilities::temp_directory_path() );
+
+      genesis_state_type genesis;
+      genesis.init_supply = INITIAL_TEST_SUPPLY;
+
       database db1,
                db2;
-      db1.open( dir1.path(), INITIAL_TEST_SUPPLY );
-      db2.open( dir2.path(), INITIAL_TEST_SUPPLY );
+      db1.open( dir1.path(), genesis );
+      init_witness_keys( db1 );
+      db2.open( dir2.path(), genesis );
+      init_witness_keys( db2 );
 
-      auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
-      public_key_type init_account_pub_key  = init_account_priv_key.get_public_key();
       const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
 
-      //*
       signed_transaction trx;
       account_id_type alice_id = account_idx.get_next_id();
       account_create_operation cop;
+      cop.fee = asset(50, MUSE_SYMBOL);
       cop.new_account_name = "alice";
       cop.creator = MUSE_INIT_MINER_NAME;
-      cop.owner = authority(1, init_account_pub_key, 1);
+      cop.owner = authority(1, init_account_pub_key(), 1);
       cop.active = cop.owner;
       trx.operations.push_back(cop);
       trx.set_expiration( db1.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
+      trx.sign( init_account_priv_key(), db1.get_chain_id() );
       PUSH_TX( db1, trx );
-      //*/
+
       // generate blocks
       // db1 : A
       // db2 : B C D
-
-      auto b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      auto b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
 
       BOOST_CHECK( alice_id == db1.get_account( "alice" ).id );
-      //BOOST_CHECK(alice_id(db1).name == "alice");
+      BOOST_CHECK( alice_id(db1).name == "alice" );
 
-      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       db1.push_block(b);
-      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       db1.push_block(b);
       MUSE_REQUIRE_THROW(alice_id(db2), fc::exception);
       alice_id(db1); /// it should be included in the pending state
@@ -316,7 +353,7 @@ BOOST_AUTO_TEST_CASE( switch_forks_undo_create )
 
       PUSH_TX( db2, trx );
 
-      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       db1.push_block(b);
 
       BOOST_CHECK(alice_id(db1).name == "alice");
@@ -332,27 +369,29 @@ BOOST_AUTO_TEST_CASE( duplicate_transactions )
    try {
       fc::temp_directory dir1( graphene::utilities::temp_directory_path() ),
                          dir2( graphene::utilities::temp_directory_path() );
+
+      genesis_state_type genesis;
+      genesis.init_supply = INITIAL_TEST_SUPPLY;
+
       database db1,
                db2;
-      db1.open(dir1.path(), INITIAL_TEST_SUPPLY );
-      db2.open(dir2.path(), INITIAL_TEST_SUPPLY );
+      db1.open(dir1.path(), genesis );
+      init_witness_keys( db1 );
+      db2.open(dir2.path(), genesis );
+      init_witness_keys( db2 );
       BOOST_CHECK( db1.get_chain_id() == db2.get_chain_id() );
 
       auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
-
-      auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
-      public_key_type init_account_pub_key  = init_account_priv_key.get_public_key();
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
 
       signed_transaction trx;
       account_create_operation cop;
       cop.new_account_name = "alice";
       cop.creator = MUSE_INIT_MINER_NAME;
-      cop.owner = authority(1, init_account_pub_key, 1);
+      cop.owner = authority(1, init_account_pub_key(), 1);
       cop.active = cop.owner;
       trx.operations.push_back(cop);
       trx.set_expiration( db1.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
+      trx.sign( init_account_priv_key(), db1.get_chain_id() );
       PUSH_TX( db1, trx, skip_sigs );
 
       trx = decltype(trx)();
@@ -362,12 +401,12 @@ BOOST_AUTO_TEST_CASE( duplicate_transactions )
       t.amount = asset(500,MUSE_SYMBOL);
       trx.operations.push_back(t);
       trx.set_expiration( db1.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
+      trx.sign( init_account_priv_key(), db1.get_chain_id() );
       PUSH_TX( db1, trx, skip_sigs );
 
       MUSE_CHECK_THROW(PUSH_TX( db1, trx, skip_sigs ), fc::exception);
 
-      auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key, skip_sigs );
+      auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key(), skip_sigs );
       PUSH_BLOCK( db2, b, skip_sigs );
 
       MUSE_CHECK_THROW(PUSH_TX( db1, trx, skip_sigs ), fc::exception);
@@ -384,16 +423,15 @@ BOOST_AUTO_TEST_CASE( tapos )
 {
    try {
       fc::temp_directory dir1( graphene::utilities::temp_directory_path() );
+
+      genesis_state_type genesis;
+      genesis.init_supply = INITIAL_TEST_SUPPLY;
+
       database db1;
-      db1.open(dir1.path(), INITIAL_TEST_SUPPLY );
+      db1.open(dir1.path(), genesis );
+      init_witness_keys( db1 );
 
-      const account_object& init1 = *db1.get_index_type<account_index>().indices().get<by_name>().find( MUSE_INIT_MINER_NAME );
-
-      auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
-      public_key_type init_account_pub_key  = init_account_priv_key.get_public_key();
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
-
-      auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key, database::skip_nothing);
+      auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key(), database::skip_nothing);
 
       BOOST_TEST_MESSAGE( "Creating a transaction with reference block" );
       idump((db1.head_block_id()));
@@ -402,19 +440,20 @@ BOOST_AUTO_TEST_CASE( tapos )
       trx.set_reference_block( db1.head_block_id() );
 
       account_create_operation cop;
+      cop.fee = asset(50, MUSE_SYMBOL);
       cop.new_account_name = "alice";
       cop.creator = MUSE_INIT_MINER_NAME;
-      cop.owner = authority(1, init_account_pub_key, 1);
+      cop.owner = authority(1, init_account_pub_key(), 1);
       cop.active = cop.owner;
       trx.operations.push_back(cop);
       trx.set_expiration( db1.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
+      trx.sign( init_account_priv_key(), db1.get_chain_id() );
 
       BOOST_TEST_MESSAGE( "Pushing Pending Transaction" );
       idump((trx));
       db1.push_transaction(trx);
       BOOST_TEST_MESSAGE( "Generating a block" );
-      b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       trx.clear();
 
       transfer_operation t;
@@ -423,13 +462,13 @@ BOOST_AUTO_TEST_CASE( tapos )
       t.amount = asset(50,MUSE_SYMBOL);
       trx.operations.push_back(t);
       trx.set_expiration( db1.head_block_time() + fc::seconds(2) );
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
+      trx.sign( init_account_priv_key(), db1.get_chain_id() );
       idump((trx)(db1.head_block_time()));
-      b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       idump((b));
-      b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
+      b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
       trx.signatures.clear();
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
+      trx.sign( init_account_priv_key(), db1.get_chain_id() );
       BOOST_REQUIRE_THROW( db1.push_transaction(trx, 0/*database::skip_transaction_signatures | database::skip_authority_check*/), fc::exception );
    } catch (fc::exception& e) {
       edump((e.to_detail_string()));
@@ -523,10 +562,10 @@ BOOST_FIXTURE_TEST_CASE( double_sign_check, clean_database_fixture )
    db.push_transaction(trx, ~0);
 
    trx.operations.clear();
-   t.from = "bob";
-   t.to = MUSE_INIT_MINER_NAME;
-   t.amount = asset(amount,MUSE_SYMBOL);
-   trx.operations.push_back(t);
+   account_witness_vote_operation v;
+   v.account = "bob";
+   v.witness = MUSE_INIT_MINER_NAME;
+   trx.operations.push_back(v);
    trx.validate();
 
    BOOST_TEST_MESSAGE( "Verify that not-signing causes an exception" );
@@ -545,7 +584,6 @@ BOOST_FIXTURE_TEST_CASE( double_sign_check, clean_database_fixture )
    BOOST_TEST_MESSAGE( "Verify that signing once with the proper key passes" );
    trx.signatures.pop_back();
    db.push_transaction(trx, 0);
-   trx.sign( bob_private_key, db.get_chain_id() );
 
 } FC_LOG_AND_RETHROW() }
 
@@ -570,7 +608,6 @@ BOOST_FIXTURE_TEST_CASE( pop_block_twice, clean_database_fixture )
       transaction tx;
       signed_transaction ptx;
 
-      const account_object& witness_account = db.get_account( MUSE_INIT_MINER_NAME );
       // transfer from committee account to Sam account
       transfer( MUSE_INIT_MINER_NAME, "sam", 100000 );
 
@@ -731,7 +768,6 @@ BOOST_FIXTURE_TEST_CASE( skip_block, clean_database_fixture )
       BOOST_REQUIRE( db.head_block_num() == 1 );
 
       int init_block_num = db.head_block_num();
-      fc::time_point_sec init_block_time = db.head_block_time();
       int miss_blocks = fc::minutes( 1 ).to_seconds() / MUSE_BLOCK_INTERVAL;
       auto witness = db.get_scheduled_witness( miss_blocks );
       auto block_time = db.get_slot_time( miss_blocks );
@@ -748,230 +784,6 @@ BOOST_FIXTURE_TEST_CASE( skip_block, clean_database_fixture )
    }
    FC_LOG_AND_RETHROW();
 }
-
-/***
- *  This test is designed to queue up 10 POW workers who should each get a turn
- *  once per round.  The difficulty should increase by 2x after each POW operation and
- *  decrease by half every time a POW witness produces a block.
- *
- *  After a POW witness has produced a block and their round is over, they become
- *  a regular witness scheduled based upon votes. Currently this test does nothing
- *  to set up votes. Further more the total non pow witnesses is less than the MAX
- *  witnesses which means after a POW witness produces they get included in the next
- *  round too.
- *
- *  Under normal conditions the top 19 will have more votes than any POW witness so
- *  this wouldn't happen.
- */
-/*
-BOOST_FIXTURE_TEST_CASE( pow_blocks, clean_database_fixture ) {
-try {
-   ACTOR(bob1);
-   ACTOR(bob2);
-   ACTOR(bob3);
-   ACTOR(bob4);
-   ACTOR(bob5);
-   ACTOR(bob6);
-   ACTOR(bob7);
-   ACTOR(bob8);
-   ACTOR(bob9);
-   ACTOR(bob10);
-   vector<string> names = {"bob1",
-                           "bob2",
-                           "bob3",
-                           "bob4",
-                           "bob5",
-                           "bob6",
-                           "bob7",
-                           "bob8",
-                           "bob9",
-                           "bob10"};
-
-   vector<private_key_type> keys = { bob1_private_key,
-                                     bob2_private_key,
-                                     bob3_private_key,
-                                     bob4_private_key,
-                                     bob5_private_key,
-                                     bob6_private_key,
-                                     bob7_private_key,
-                                     bob8_private_key,
-                                     bob9_private_key,
-                                     bob10_private_key };
-
-   generate_block();
-   generate_block();
-   generate_block();
-
-   pow_operation op;
-
-   op.block_id = db.head_block_id();
-
-   for( uint32_t i = 0; i < 10; ++i ) {
-      op.worker_account = names[i];
-      op.work.worker = keys[i].get_public_key();
-      do {
-         op.nonce++;
-         op.work.create( keys[i], op.work_input() );
-      } while ( db.get_pow_target() < op.work.work  );
-
-      trx.operations.clear();
-      trx.operations.push_back(op);
-      trx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      db.push_transaction( trx );
-   }
-
-   /// TODO: actually add checks to detect when this is failing
-   for( uint32_t i = 0; i < 200; ++i ) {
-      auto next_witness = db.get_scheduled_witness(0);
-    //  wdump((i)(next_witness)(db.get_pow_target()));
-      generate_block(database::skip_witness_signature);
-   }
-
-
-} FC_LOG_AND_RETHROW() }
-*/
-/*
-BOOST_FIXTURE_TEST_CASE( pow_block, clean_database_fixture )
-{
-   try
-   {
-      ACTOR( alice )
-
-      auto init_miner_balance = db.get_account( MUSE_INIT_MINER_NAME ).balance;
-      auto target = db.get_pow_target();
-
-      signed_transaction tx;
-      pow_operation pow;
-      pow.block_id = db.head_block_id();
-      pow.worker_account = "alice";
-
-      do
-      {
-         pow.nonce++;
-         pow.work.create( alice_private_key, pow.work_input() );
-      } while ( db.get_pow_target() < pow.work.work );
-
-      tx.operations.push_back( pow );
-      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      db.push_transaction( tx, 0 );
-      generate_block();
-
-      init_miner_balance += asset( MUSE_MIN_POW_REWARD.amount * MUSE_MAX_MINERS, MUSE_SYMBOL ) + MUSE_MIN_PRODUCER_REWARD;
-      auto alice_balance = db.get_account( "alice" ).balance;
-      auto alice_vesting_shares = db.get_account( "alice" ).vesting_shares;
-
-      BOOST_REQUIRE_EQUAL( db.get_account( MUSE_INIT_MINER_NAME ).balance.amount.value, init_miner_balance.amount.value );
-      BOOST_REQUIRE_EQUAL( db.get_pow_target(), target );
-      init_miner_balance.amount += ( MUSE_MAX_MINERS - ( db.head_block_num() % MUSE_MAX_MINERS ) ) * MUSE_MIN_PRODUCER_REWARD.amount;
-      generate_blocks( MUSE_MAX_MINERS - ( db.head_block_num() % MUSE_MAX_MINERS ) );
-
-      for (int i = 1; i <= MUSE_MAX_MINERS + 1; i++ )
-      {
-         BOOST_REQUIRE_EQUAL( db.get_scheduled_witness( 1 ), "alice" );
-         generate_block( 0, alice_private_key, 0 );
-         if ( alice_vesting_shares.amount.value == 0 )
-         {
-            alice_vesting_shares += MUSE_MIN_PRODUCER_REWARD * db.get_dynamic_global_properties().get_vesting_share_price();
-         }
-         else
-         {
-            alice_balance += MUSE_MIN_PRODUCER_REWARD;
-         }
-
-         BOOST_REQUIRE( db.get_account( "alice" ).vesting_shares == alice_vesting_shares );
-         BOOST_REQUIRE( db.get_account( "alice" ).balance == alice_balance );
-      }
-
-      pow.block_id = db.head_block_id();
-
-      private_key_type bob_private_key = fc::ecc::private_key::regenerate( fc::sha256::hash( string( "bob" ) ) );
-      private_key_type sam_private_key = fc::ecc::private_key::regenerate( fc::sha256::hash( string( "sam" ) ) );
-
-      pow.worker_account = "bob";
-
-      do
-      {
-         pow.nonce++;
-         pow.work.create( bob_private_key, pow.work_input() );
-      } while ( db.get_pow_target() < pow.work.work );
-
-      tx.operations.clear();
-      tx.operations.push_back( pow );
-      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      db.push_transaction( tx, 0 );
-
-      pow.worker_account = "sam";
-
-      do
-      {
-         pow.nonce++;
-         pow.work.create( sam_private_key, pow.work_input() );
-      } while ( db.get_pow_target() < pow.work.work );
-
-      tx.operations.clear();
-      tx.operations.push_back( pow );
-      db.push_transaction( tx, 0 );
-
-      init_miner_balance.amount += 3 * asset( MUSE_MIN_POW_REWARD.amount * MUSE_MAX_MINERS, MUSE_SYMBOL ).amount;
-
-   } FC_LOG_AND_RETHROW()
-}
-
-/*
-BOOST_FIXTURE_TEST_CASE( overproduction_test )
-{
-   try {
-      fc::temp_directory dir1( graphene::utilities::temp_directory_path() ),
-                         dir2( graphene::utilities::temp_directory_path() );
-      database db1,
-               db2;
-      db1.open( dir1.path(), INITIAL_TEST_SUPPLY );
-      db2.open( dir2.path(), INITIAL_TEST_SUPPLY );
-
-      auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
-      public_key_type init_account_pub_key  = init_account_priv_key.get_public_key();
-      const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
-
-      //*
-      signed_transaction trx;
-      account_id_type alice_id = account_idx.get_next_id();
-      account_create_operation cop;
-      cop.new_account_name = "alice";
-      cop.creator = MUSE_INIT_MINER_NAME;
-      cop.owner = authority(1, init_account_pub_key, 1);
-      cop.active = cop.owner;
-      trx.operations.push_back(cop);
-      trx.set_expiration( db1.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      trx.sign( init_account_priv_key, db1.get_chain_id() );
-      PUSH_TX( db1, trx );
-      // generate blocks
-      // db1 : A
-      // db2 : B C D
-
-      auto b = db1.generate_block(db1.get_slot_time(1), db1.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
-
-      BOOST_CHECK( alice_id == db1.get_account( "alice" ).id );
-      //BOOST_CHECK(alice_id(db1).name == "alice");
-
-      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
-      db1.push_block(b);
-      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
-      db1.push_block(b);
-      MUSE_REQUIRE_THROW(alice_id(db2), fc::exception);
-      alice_id(db1); /// it should be included in the pending state
-      db1.clear_pending(); // clear it so that we can verify it was properly removed from pending state.
-      MUSE_REQUIRE_THROW(alice_id(db1), fc::exception);
-
-      PUSH_TX( db2, trx );
-
-      b = db2.generate_block(db2.get_slot_time(1), db2.get_scheduled_witness(1), init_account_priv_key, database::skip_nothing);
-      db1.push_block(b);
-
-      BOOST_CHECK(alice_id(db1).name == "alice");
-      BOOST_CHECK(alice_id(db2).name == "alice");
-   } FC_LOG_AND_RETHROW()
-}
-//*/
 
 BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 {
@@ -996,6 +808,17 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 
          open_database();
 
+         {
+            const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
+            db.modify( init_acct, [&]( account_object& acct ) {
+               acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
+            });
+            const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
+            db.modify( init_witness, [&]( witness_object& witness ) {
+               witness.signing_key = init_account_pub_key;
+            });
+         }
+
          // app.initialize();
          ahplugin->plugin_set_app( &app );
          ahplugin->plugin_initialize( options );
@@ -1010,6 +833,8 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
             fund( MUSE_INIT_MINER_NAME + fc::to_string( i ), MUSE_MIN_PRODUCER_REWARD.amount.value );
             witness_create( MUSE_INIT_MINER_NAME + fc::to_string( i ), init_account_priv_key, "foo.bar", init_account_pub_key, MUSE_MIN_PRODUCER_REWARD.amount );
          }
+
+         generate_blocks( 2 * MUSE_MAX_MINERS );
 
          validate_database();
       } catch ( const fc::exception& e )
@@ -1031,7 +856,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_TEST_MESSAGE( "Generate a block and check hardfork is applied" );
       generate_block();
 
-      string op_msg = "Testnet: Hardfork applied";
+      string op_msg = "Test: Hardfork applied";
       auto itr = db.get_index_type< account_history_index >().indices().get< by_id >().end();
       itr--;
 
@@ -1050,9 +875,21 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( get_last_operations( 1 )[0].get< custom_operation >().data == vector< char >( op_msg.begin(), op_msg.end() ) );
       BOOST_REQUIRE( itr->op(db).timestamp == db.head_block_time() - MUSE_BLOCK_INTERVAL );
+
+      generate_blocks( MUSE_MAX_MINERS );
+      generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_2_TIME - MUSE_BLOCK_INTERVAL ), true );
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+
+      generate_block();
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
    }
    FC_LOG_AND_RETHROW()
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-#endif

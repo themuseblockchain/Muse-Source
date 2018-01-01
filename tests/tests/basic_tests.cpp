@@ -105,6 +105,46 @@ BOOST_AUTO_TEST_CASE( valid_name_test )
    BOOST_CHECK( !is_valid_account_name( "none.of.these.labels.has.more.than-63.chars--but.still.not.valid" ) );
 }
 
+BOOST_AUTO_TEST_CASE( price_test )
+{
+    auto price_max = []( uint32_t a, uint32_t b )
+    {   return price::max( asset_id_type(a), asset_id_type(b) );   };
+    auto price_min = []( uint32_t a, uint32_t b )
+    {   return price::min( asset_id_type(a), asset_id_type(b) );   };
+
+    BOOST_CHECK( price_max(0,1) > price_min(0,1) );
+    BOOST_CHECK( price_max(1,0) > price_min(1,0) );
+    BOOST_CHECK( price_max(0,1) >= price_min(0,1) );
+    BOOST_CHECK( price_max(1,0) >= price_min(1,0) );
+    BOOST_CHECK( price_max(0,1) >= price_max(0,1) );
+    BOOST_CHECK( price_max(1,0) >= price_max(1,0) );
+    BOOST_CHECK( price_min(0,1) < price_max(0,1) );
+    BOOST_CHECK( price_min(1,0) < price_max(1,0) );
+    BOOST_CHECK( price_min(0,1) <= price_max(0,1) );
+    BOOST_CHECK( price_min(1,0) <= price_max(1,0) );
+    BOOST_CHECK( price_min(0,1) <= price_min(0,1) );
+    BOOST_CHECK( price_min(1,0) <= price_min(1,0) );
+    BOOST_CHECK( price_min(1,0) != price_max(1,0) );
+    BOOST_CHECK( ~price_max(0,1) != price_min(0,1) );
+    BOOST_CHECK( ~price_min(0,1) != price_max(0,1) );
+    BOOST_CHECK( ~price_max(0,1) == price_min(1,0) );
+    BOOST_CHECK( ~price_min(0,1) == price_max(1,0) );
+    BOOST_CHECK( ~price_max(0,1) < ~price_min(0,1) );
+    BOOST_CHECK( ~price_max(0,1) <= ~price_min(0,1) );
+    price a(asset(1), asset(2,asset_id_type(1)));
+    price b(asset(2), asset(2,asset_id_type(1)));
+    price c(asset(1), asset(2,asset_id_type(1)));
+    BOOST_CHECK(a < b);
+    BOOST_CHECK(b > a);
+    BOOST_CHECK(a == c);
+    BOOST_CHECK(!(b == c));
+}
+
+BOOST_AUTO_TEST_CASE( exceptions )
+{
+   MUSE_CHECK_THROW( FC_THROW_EXCEPTION(fc::timeout_exception, "Etc"), fc::timeout_exception );
+}
+
 BOOST_AUTO_TEST_CASE( merkle_root )
 {
    signed_block block;

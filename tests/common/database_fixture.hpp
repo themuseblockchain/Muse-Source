@@ -1,6 +1,7 @@
 #pragma once
 
 #include <muse/app/application.hpp>
+#include <muse/chain/account_object.hpp>
 #include <muse/chain/database.hpp>
 #include <fc/io/json.hpp>
 #include <fc/smart_ref_impl.hpp>

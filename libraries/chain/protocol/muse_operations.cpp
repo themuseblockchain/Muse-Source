@@ -128,7 +128,7 @@ void content_update_operation::validate() const {
 
 }
 
-void content_remove_operation::validate() const {
+void content_disable_operation::validate() const {
    validate_url(url);
 }
 
@@ -152,6 +152,8 @@ void account_streaming_platform_vote_operation::validate() const {
 void streaming_platform_report_operation::validate() const {
    FC_ASSERT(is_valid_account_name(streaming_platform), "Invalid account");
    FC_ASSERT(is_valid_account_name(consumer), "Invalid account");
+   // FC_ASSERT( play_time > 0, "Reported time must be greater than 0" ); // TODO uncomment after HF_2
+   // FC_ASSERT( play_time <= 86400, "Reported time cannot exceed 1 day" ); // TODO uncomment after HF_2
 }
 
 void friendship_operation::validate() const {
