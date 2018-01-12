@@ -136,7 +136,12 @@ namespace muse { namespace chain {
                member<object, object_id_type, &object::id >
             >
          >,
-         ordered_unique< tag<by_created>, member<report_object, time_point_sec,  &report_object::created> >
+         ordered_unique< tag<by_created>,
+            composite_key< report_object,
+               member<report_object, time_point_sec,  &report_object::created>,
+               member<object, object_id_type, &object::id >
+            >
+         >
       >
    > report_object_multi_index_type;
    typedef generic_index< report_object, report_object_multi_index_type > report_index;

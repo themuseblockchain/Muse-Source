@@ -482,7 +482,19 @@ void database_fixture::validate_database( void )
 
       auto gpo = db.get_dynamic_global_properties();
 
-      total_supply += gpo.total_vesting_fund_muse + gpo.total_reward_fund_muse;
+      if( db.has_hardfork( MUSE_HARDFORK_0_2 ) )
+      {
+         const auto& content_idx = db.get_index_type< content_index >().indices().get< by_id >();
+         for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
+         {
+            total_supply += itr->accumulated_balance_master;
+            total_supply += itr->accumulated_balance_comp;
+         }
+      }
+      else
+         total_supply += gpo.total_reward_fund_muse;
+
+      total_supply += gpo.total_vesting_fund_muse;
 
       FC_ASSERT( gpo.current_supply == total_supply, "", ("gpo.current_supply",gpo.current_supply)("total_supply",total_supply) );
       FC_ASSERT( gpo.current_mbd_supply == total_mbd, "", ("gpo.current_mbd_supply",gpo.current_mbd_supply)("total_mbd",total_mbd) );

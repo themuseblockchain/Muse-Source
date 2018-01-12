@@ -59,6 +59,11 @@ void streaming_platform_update_evaluator::do_apply( const streaming_platform_upd
 void streaming_platform_report_evaluator::do_apply ( const streaming_platform_report_operation& o )
 {
    const auto& consumer = db().get_account( o.consumer );
+   if ( db().has_hardfork(MUSE_HARDFORK_0_2) )
+   {
+      FC_ASSERT( o.play_time > 0, "Reported time must be greater than 0" );
+      FC_ASSERT( o.play_time + consumer.total_listening_time <= 86400, "User cannot cannot listen for more than 86400 seconds per day" );
+   }
    const auto& spidx = db().get_index_type<streaming_platform_index>().indices().get<by_name>();
    auto spitr = spidx.find(o.streaming_platform);
    FC_ASSERT(spitr != spidx.end());
@@ -66,6 +71,15 @@ void streaming_platform_report_evaluator::do_apply ( const streaming_platform_re
 
    FC_ASSERT ( db().is_voted_streaming_platform( o.streaming_platform ));
    const auto& content = db().get_content( o.content );
+   FC_ASSERT( !content.disabled );
+
+   if ( !db().has_hardfork(MUSE_HARDFORK_0_2) )
+   {
+      // TODO: remove after HF date
+      const auto& reports = db().get_index_type<report_index>().indices().get<by_created>();
+      const auto& now = reports.find( db().head_block_time() );
+      FC_ASSERT( now == reports.end() );
+   }
 
    db().create< report_object>( [&](report_object& ro) {
         ro.consumer = consumer.id;
@@ -98,15 +112,15 @@ void account_streaming_platform_vote_evaluator::do_apply( const account_streamin
    const auto& by_account_streaming_platform_idx = db().get_index_type< streaming_platform_vote_index >().indices().get< by_account_streaming_platform >();
    auto itr = by_account_streaming_platform_idx.find( boost::make_tuple( voter.get_id(), streaming_platform.get_id() ) );
 
-   if( itr == by_account_streaming_platform_idx.end() ) {
+   if( itr == by_account_streaming_platform_idx.end() || !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) { // TODO remove check after HF activation
       FC_ASSERT( o.approve, "vote doesn't exist, user must be indicate a desire to approve the streaming_platform" );
       FC_ASSERT( voter.streaming_platforms_voted_for < MUSE_MAX_ACCOUNT_WITNESS_VOTES, "account has voted for too many streaming_platforms");
-      db().create<streaming_platform_vote_object> ( [&](streaming_platform_vote_object v) {
+      db().create<streaming_platform_vote_object> ( [&streaming_platform,&voter](streaming_platform_vote_object& v) {
            v.streaming_platform = streaming_platform.id;
            v.account = voter.id;
       });
       db().adjust_streaming_platform_vote( streaming_platform,  voter.witness_vote_weight());
-      db().modify( voter, [&]( account_object& a ) {
+      db().modify( voter, []( account_object& a ) {
            a.streaming_platforms_voted_for++;
       });
 
@@ -277,6 +291,9 @@ void content_evaluator::do_apply( const content_operation& o )
 
       FC_ASSERT( !(auth.owner_challenged || auth.active_challenged ) );
 
+      if( o.track_meta.json_metadata && db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+         FC_ASSERT( fc::is_utf8(*o.track_meta.json_metadata) && fc::json::is_valid(*o.track_meta.json_metadata), "JSON Metadata not valid JSON" );
+
       auto now = db().head_block_time();
       for( const distribution& d : o.distributions )
          const auto& payee = db().get_account( d.payee );
@@ -294,7 +311,7 @@ void content_evaluator::do_apply( const content_operation& o )
             const auto& voter = db().get_account(m.voter);
       }
 
-      const auto& new_content = db().create< content_object >( [&]( content_object& con ) {
+      db().create< content_object >( [&o,this]( content_object& con ) {
            //validate_url
            con.uploader = o.uploader;
            con.url = o.url;
@@ -322,49 +339,52 @@ void content_evaluator::do_apply( const content_operation& o )
               if( o.distributions_comp )
                  con.distributions_comp = *(o.distributions_comp);
 
+              if( db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+                 con.publishers_share = o.publishers_share;
            }
+           else if( db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+               con.publishers_share = 0;
            con.accumulated_balance_master = asset(0);
            con.accumulated_balance_comp = asset(0);
            con.created = db().head_block_time();
            con.last_update = con.created;
            con.last_played = time_point_sec(0);
            con.times_played = 0;
+           if( db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+              con.playing_reward = o.playing_reward;
       });
-
-
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void content_update_evaluator::do_apply( const content_update_operation& o )
 { try {
+      const auto& content = db().get_content( o.url );
+      FC_ASSERT( !content.disabled );
+      const content_object* itr = &content;
 
-      const auto& by_url_idx = db().get_index_type< content_index >().indices().get< by_url >();
-      auto itr = by_url_idx.find( o.url );
-
-      FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
       bool two_sides = itr->comp_meta.third_party_publishers;
-      if(db().has_hardfork(MUSE_HARDFORK_0_1))
+      if( db().has_hardfork(MUSE_HARDFORK_0_2) )
          FC_ASSERT( two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
       else
          FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
 
+      if( o.track_meta && o.track_meta->json_metadata && db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+         FC_ASSERT( fc::is_utf8(*o.track_meta->json_metadata) && fc::json::is_valid(*o.track_meta->json_metadata), "JSON Metadata not valid JSON" );
+
       for( const distribution& d : o.new_distributions )
-      {
-         const auto& payee = db().get_account( d.payee );
-      }
+         db().get_account( d.payee ); // just to ensure that d.payee account exists
 
       for( const management_vote& m : o.new_management )
-      {
-         const auto& voter = db().get_account(m.voter);
-      }
+         db().get_account(m.voter); // just to ensure that m.voter account exists
 
       bool redistribute_master = ( o.side == o.master && o.new_distributions.size() > 0
                                    && itr->distributions_master.size() == 0 );
       bool redistribute_comp = ( o.side == o.publisher && o.new_distributions.size() > 0
                                  && itr->distributions_comp.size() == 0 );
 
-      auto now = db().head_block_time();
       asset accumulated_balances = (o.side==content_update_operation::side_t::master)?itr->accumulated_balance_master : itr->accumulated_balance_comp;
-      db().modify< content_object >( *itr, [&]( content_object& con ) {
+      db().modify< content_object >( *itr, [&o,this]( content_object& con ) {
+           //the third_party_publishers flag cannot be changed. EVER.
+           bool third_party_flag = con.comp_meta.third_party_publishers;
            if( o.side == o.master ) {
               if( o.album_meta )
                  con.album_meta = *o.album_meta;
@@ -372,15 +392,19 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.track_meta = *o.track_meta;
                  con.track_title = o.track_meta->track_title;
               }
-              if( !two_sides && o.comp_meta )
+              if( !third_party_flag && o.comp_meta ) {
                  con.comp_meta = *o.comp_meta;
+                 if(!db().has_hardfork(MUSE_HARDFORK_0_2)) {
+                    third_party_flag = con.comp_meta.third_party_publishers;
+                 }
+              }
 
               if( o.new_distributions.size() > 0 ) {
                  con.distributions_master = o.new_distributions;
-                 con.accumulated_balance_master.amount = 0;
+                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+                    con.accumulated_balance_master.amount = 0;
               }
 
-              con.last_update = now;
               if( o.new_management.size() > 0 ) {
                  con.manage_master.account_auths.clear();
                  for( const management_vote &m : o.new_management ) {
@@ -390,16 +414,13 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               }
            }else{
               if( o.comp_meta ) {
-                 //the third_party_publishers flag cannot be changed. EVER.
-                 bool third_party_flag = con.comp_meta.third_party_publishers;
                  con.comp_meta = *o.comp_meta;
-                 con.comp_meta.third_party_publishers = third_party_flag;
               }
               if( o.new_distributions.size() > 0 ) {
                  con.distributions_comp = o.new_distributions;
-                 con.accumulated_balance_comp.amount = 0;
+                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
+                    con.accumulated_balance_comp.amount = 0;
               }
-              con.last_update = now;
               if( o.new_management.size() > 0 ) {
                  con.manage_comp.account_auths.clear();
                  for( const management_vote &m : o.new_management ) {
@@ -408,7 +429,8 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.manage_comp.weight_threshold = o.new_threshold;
               }
            }
-           if(db().has_hardfork(MUSE_HARDFORK_0_1)) {
+           con.comp_meta.third_party_publishers = third_party_flag;
+           if( db().has_hardfork(MUSE_HARDFORK_0_2) ) {
               if( o.new_playing_reward > 0 )
                  con.playing_reward = o.new_playing_reward;
               if( o.new_publishers_share > 0 )
@@ -420,39 +442,45 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               if( o.new_publishers_share != con.publishers_share )
                  con.publishers_share = o.new_publishers_share;
            }
+           con.last_update = db().head_block_time();
       });
-      //TODO_MUSE - the redistribute shall affect only the respective side... delete the accumulated balance afterwards
-      if( redistribute_master )
-         db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
-      if( redistribute_comp )
-         db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
+      if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) {
+         if( redistribute_master )
+            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
+         if( redistribute_comp )
+            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
+      } else if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
+         if( o.side == o.master )
+            db().pay_to_content_master( *itr, asset( 0, MUSE_SYMBOL ) );
+         else
+            db().pay_to_content_comp( *itr, asset( 0, MUSE_SYMBOL ) );
+      }
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
-void content_remove_evaluator::do_apply( const content_remove_operation& o )
+void content_disable_evaluator::do_apply( const content_disable_operation& o )
 { try{
-      const auto& by_url_idx = db().get_index_type< content_index >().indices().get< by_url >();
-      auto itr = by_url_idx.find( o.url );
+   FC_ASSERT( db().has_hardfork( MUSE_HARDFORK_0_2 ) ); // TODO remove after HF time
 
-      FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
+   const auto& content = db().get_content( o.url );
 
-      //FC_ASSERT( o.force || itr->accumulated_balance_master.amount == share_type(0), "There is still accumulated balance associated to the object");
+   FC_ASSERT( !content.disabled );
 
-      db().remove( *itr );
+   db().modify( content, []( content_object& co ) {
+       co.disabled = true;
+   });
 
-   }  FC_CAPTURE_AND_RETHROW( (o) ) }
+}  FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void content_approve_evaluator::do_apply( const content_approve_operation& o )
 {try{
-      const auto& by_url_idx = db().get_index_type< content_index >().indices().get< by_url >();
-      auto itr = by_url_idx.find( o.url );
-
-      FC_ASSERT( itr != by_url_idx.end(), "Content does not exist" );
+      const auto& content = db().get_content( o.url );
+      FC_ASSERT( !content.disabled );
 
       const auto& appr = db().get_account( o.approver );
 
-      db().create <content_approve_object> ( [&](content_approve_object& con){
+      db().create <content_approve_object> ( [&appr,&o](content_approve_object& con){
            con.approver=appr.id;
-           con.content=itr->url;
+           con.content=o.url;
       });
    } FC_CAPTURE_AND_RETHROW( (o) ) }
 
@@ -504,6 +532,7 @@ void vote_evaluator::do_apply( const vote_operation& o )
       if( o.url.length() > 0 ) //vote for content
       {
          const auto&content = db().get_content( o.url );
+         FC_ASSERT( !content.disabled );
          if( o.weight > 0 ) FC_ASSERT( content.allow_votes );
          const auto& content_vote_idx = db().get_index_type< content_vote_index >().indices().get< by_content_voter >();
          auto itr = content_vote_idx.find( std::make_tuple( content.id, voter.id ) );

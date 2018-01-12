@@ -35,9 +35,10 @@ namespace muse { namespace chain {
          asset       confidential_supply        = asset( 0, MUSE_SYMBOL ); ///< total asset held in confidential balances
          asset       current_mbd_supply         = asset( 0, MBD_SYMBOL );
          asset       confidential_mbd_supply    = asset( 0, MBD_SYMBOL ); ///< total asset held in confidential balances
-         asset       total_vesting_fund_muse   = asset( 0, MUSE_SYMBOL );
+         asset       total_vesting_fund_muse    = asset( 0, MUSE_SYMBOL );
          asset       total_vesting_shares       = asset( 0, VESTS_SYMBOL );
-         asset       total_reward_fund_muse    = asset( 0, MUSE_SYMBOL );
+         asset       total_reward_fund_muse     = asset( 0, MUSE_SYMBOL );
+         asset       supply_delta               = asset( 0, MUSE_SYMBOL );
 
 
          uint32_t    maximum_proposal_lifetime = 86400;
@@ -125,6 +126,7 @@ FC_REFLECT_DERIVED( muse::chain::dynamic_global_property_object, (graphene::db::
                     (total_vesting_fund_muse)
                     (total_vesting_shares)
                     (total_reward_fund_muse)
+                    (supply_delta)
                     (mbd_interest_rate)
                     (average_block_size)
                     (maximum_block_size)

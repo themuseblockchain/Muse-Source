@@ -6,7 +6,7 @@ require("console");
 var MUSE_100_PCT = 10000;
 
 //var TOTAL_INFLATION = 1;
-var TOTAL_INFLATION = .095;
+var TOTAL_INFLATION = .0475;
 
 var MAX_MULT = Math.pow(2,64) / MUSE_100_PCT;
 

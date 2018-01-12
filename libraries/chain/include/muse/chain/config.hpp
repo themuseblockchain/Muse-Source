@@ -3,7 +3,7 @@
  */
 #pragma once
 
-#define MUSE_BLOCKCHAIN_VERSION              ( version(0, 0, 1) )
+#define MUSE_BLOCKCHAIN_VERSION              ( version(0, 2, 0) )
 #define MUSE_BLOCKCHAIN_HARDFORK_VERSION     ( hardfork_version( MUSE_BLOCKCHAIN_VERSION ) )
 
 #ifdef IS_TEST_NET // This is the muse test net mode. Some feature may behave differently
@@ -93,7 +93,6 @@
 #define MUSE_OWNER_AUTH_RECOVERY_PERIOD                  fc::days(30)
 #define MUSE_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD  fc::days(1)
 #define MUSE_OWNER_UPDATE_LIMIT                          fc::minutes(60)
-#define MUSE_OWNER_AUTH_HISTORY_TRACKING_START_BLOCK_NUM 3186477
 
 #endif
 
@@ -154,15 +153,9 @@
 
 #define MUSE_MINING_REWARD                   asset( 100, MUSE_SYMBOL )
 
-#define MUSE_LIQUIDITY_TIMEOUT_SEC           (fc::seconds(60*60*24*7)) // After one week volume is set to 0
-#define MUSE_MIN_LIQUIDITY_REWARD_PERIOD_SEC (fc::seconds(60)) // 1 minute required on books to receive volume
-#define MUSE_LIQUIDITY_REWARD_PERIOD_SEC     (60*60)
-#define MUSE_LIQUIDITY_REWARD_BLOCKS         (MUSE_LIQUIDITY_REWARD_PERIOD_SEC/MUSE_BLOCK_INTERVAL)
-#define MUSE_MIN_LIQUIDITY_REWARD            (asset( 1000000*MUSE_LIQUIDITY_REWARD_BLOCKS, MUSE_SYMBOL )) // Minumum reward to be paid out to liquidity providers
 #define MUSE_MIN_CONTENT_REWARD              MUSE_MINING_REWARD
 #define MUSE_MIN_CURATE_REWARD               MUSE_MINING_REWARD
 #define MUSE_MIN_PRODUCER_REWARD             MUSE_MINING_REWARD
-#define MUSE_MIN_POW_REWARD                  MUSE_MINING_REWARD
 
 #define MUSE_ACTIVE_CHALLENGE_FEE            asset( 20000, MUSE_SYMBOL )
 #define MUSE_OWNER_CHALLENGE_FEE             asset( 300000, MUSE_SYMBOL )
@@ -172,6 +165,9 @@
 #define MUSE_ASSET_PRECISION                    6
 #define MUSE_PAYOUT_TIME_OF_DAY                 2
 #define MUSE_MAX_LISTENING_PERIOD               3600
+
+// For the following constants, see comments in compound.hpp and the
+// script programs/util/calc_inflation_constants.js
 
 // 5ccc e802 de5f
 // int(expm1( log1p( 1 ) / BLOCKS_PER_YEAR ) * 2**MUSE_APR_PERCENT_SHIFT_PER_BLOCK / 100000 + 0.5)
@@ -183,52 +179,24 @@
 // chosen to be the maximal value such that MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK * 2**64 * 100000 < 2**128
 #define MUSE_APR_PERCENT_SHIFT_PER_BLOCK             87
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_N          ( (uint64_t( 0x1E60 ) << 0x20) \
-                                                        | (uint64_t( 0x47E3 ) << 0x10) \
-                                                        | (uint64_t( 0x17B2 )        ) \
-                                                        )
-#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_N             85
-
-
-
-#define MUSE_APR_PERCENT_MULTIPLY_PER_ROUND          ( (uint64_t( 0x79cc ) << 0x20 ) \
-                                                        | (uint64_t( 0xf5c7 ) << 0x10 ) \
-                                                        | (uint64_t( 0x3480 )         ) \
-                                                        )
-
-#define MUSE_APR_PERCENT_SHIFT_PER_ROUND             83
-
-// We have different constants for hourly rewards
-// i.e. hex(int(math.expm1( math.log1p( 1 ) / HOURS_PER_YEAR ) * 2**MUSE_APR_PERCENT_SHIFT_PER_HOUR / 100000 + 0.5))
-#define MUSE_APR_PERCENT_MULTIPLY_PER_HOUR           ( (uint64_t( 0x6cc1 ) << 0x20) \
-                                                        | (uint64_t( 0x39a1 ) << 0x10) \
-                                                        | (uint64_t( 0x5cbd )        ) \
-                                                        )
-
-// chosen to be the maximal value such that MUSE_APR_PERCENT_MULTIPLY_PER_HOUR * 2**64 * 100000 < 2**128
-#define MUSE_APR_PERCENT_SHIFT_PER_HOUR              77
-
+#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_0_2      (0x3e214e64a7380ULL)
+#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_0_2         91
 
 #define MUSE_APR_PERCENT_MULTIPLY_PER_DAY            ( (uint64_t( 0x1347 ) << 20 ) \
                                                         | (uint64_t( 0xdcd1 ) << 10 ) \
                                                         | (uint64_t( 0x906D )       ) )
-
 #define MUSE_APR_PERCENT_SHIFT_PER_DAY               73
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_N             (uint64_t( 0x1AB378B55670 )  )
-
-
-#define MUSE_APR_PERCENT_SHIFT_PER_DAY_N               70
-
+#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_0_2        (0x369c2966a19c8ULL)
+#define MUSE_APR_PERCENT_SHIFT_PER_DAY_0_2           76
 
 #define MUSE_CURATE_APR_PERCENT_RESERVE           10
-#define MUSE_CONTENT_APR_PERCENT                712
-#define MUSE_CONTENT_APR_PERCENT_N              7500
-#define MUSE_LIQUIDITY_APR_PERCENT                0
+#define MUSE_CONTENT_APR_PERCENT                 712
+#define MUSE_CONTENT_APR_PERCENT_0_2            5000
 #define MUSE_VESTING_ARP_PERCENT                 143
-#define MUSE_VESTING_ARP_PERCENT_N              1500
+#define MUSE_VESTING_ARP_PERCENT_0_2            3000
 #define MUSE_PRODUCER_APR_PERCENT                 95
-#define MUSE_PRODUCER_APR_PERCENT_N             1000
+#define MUSE_PRODUCER_APR_PERCENT_0_2           2000
 
 #define MUSE_CURATION_THRESHOLD1                1000
 #define MUSE_CURATION_THRESHOLD2                2000
@@ -274,7 +242,7 @@
 #define MUSE_MAX_ASSET_WHITELIST_AUTHORITIES 10
 #define MUSE_MAX_URL_LENGTH                  127
 
-#define GRAPHENE_CURRENT_DB_VERSION             "GPH2.4"
+#define GRAPHENE_CURRENT_DB_VERSION             "MUSE_0_2"
 
 #define MUSE_IRREVERSIBLE_THRESHOLD          (51 * MUSE_1_PERCENT)
 

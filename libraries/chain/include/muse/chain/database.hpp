@@ -260,7 +260,6 @@ namespace muse { namespace chain {
 
          void update_witness_schedule();
 
-         void        adjust_liquidity_reward( const account_object& owner, const asset& volume, bool is_bid );
          string      to_pretty_string( const asset& a )const;
          void        adjust_balance( const account_object& a, const asset& delta );
          void        adjust_supply( const asset& delta, bool adjust_vesting = false );
@@ -306,29 +305,21 @@ namespace muse { namespace chain {
          void process_vesting_withdrawals();
 
          asset pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform);
-         void pay_to_content_master(const content_object &content, asset payout);
-         void pay_to_content_comp(const content_object &content, asset payout);
-         void pay_to_platform( streaming_platform_id_type platform, asset payout, string url );
-         void pay_to_curator(const content_object &co, account_id_type cur, asset pay);
+         void pay_to_content_master(const content_object &content, const asset& payout);
+         void pay_to_content_comp(const content_object &content, const asset& payout);
 
-         asset process_content_cashout();
-         void process_funds();
-         void adjust_funds(asset paid_to_content);
+         asset process_content_cashout(const asset& content_reward);
+         void process_funds(const asset& content_reward, const asset& witness_pay, const asset& vesting_reward);
+         void adjust_funds(const asset& content_reward, const asset& paid_to_content);
          void process_conversions();
          void account_recovery_processing();
          void update_median_feed();
          share_type claim_rshare_reward( share_type rshares, uint16_t reward_weight, asset max_muse );
 
-         asset get_liquidity_reward()const;
          asset get_content_reward()const;
-         asset get_producer_reward();
-         asset get_vesting_reward()const;
          asset get_curation_reward()const;
-         asset get_pow_reward()const;
 
       uint16_t get_curation_rewards_percent() const;
-
-      void  pay_liquidity_reward();
 
 
          //////////////////// db_getter.cpp ////////////////////
@@ -398,10 +389,6 @@ namespace muse { namespace chain {
           * @}
           */
 
-#ifdef IS_TEST_NET
-         bool liquidity_rewards_enabled = true;
-#endif
-
    protected:
          //Mark pop_undo() as protected -- we do not want outside calling pop_undo(); it should call pop_block() instead
          void pop_undo() { object_database::pop_undo(); }
@@ -442,6 +429,11 @@ namespace muse { namespace chain {
          void process_hardforks();
          void apply_hardfork( uint32_t hardfork );
 
+         asset get_producer_reward();
+         asset get_vesting_reward()const;
+
+         void pay_to_platform( streaming_platform_id_type platform, const asset& payout, const string& url );
+         void pay_to_curator(const content_object &co, account_id_type cur, const asset& pay);
          ///@}
 
          vector< signed_transaction >  _pending_tx;
@@ -469,9 +461,5 @@ namespace muse { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
-
-
    };
-
-
 } }
