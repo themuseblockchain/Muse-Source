@@ -1442,8 +1442,7 @@ void database::clear_streaming_platform_votes( const account_object& a )
 
 void database::update_owner_authority( const account_object& account, const authority& owner_authority )
 {
-   if( head_block_num() >= 3186477 // remove check after this block has passed
-           || has_hardfork(MUSE_HARDFORK_0_2) )
+   if( head_block_num() >= 3186477 ) // FIXME: needs to be removed, but usage must be HF-protected
    {
       create< owner_authority_history_object >( [&]( owner_authority_history_object& hist )
       {
@@ -1636,6 +1635,7 @@ asset database::process_content_cashout( const asset& content_reward )
       }
       ++itr;
    }
+   flat_map<account_id_type, uint32_t> listening_times;
    itr = ridx.begin();
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
@@ -1650,11 +1650,27 @@ asset database::process_content_cashout( const asset& content_reward )
          pay_reserve = pay_reserve * std::min( consumer.total_listening_time, uint32_t(3600) ) / full_time;
       pay_reserve = pay_reserve / consumer.total_listening_time;
       paid += pay_to_content(itr->content, pay_reserve, itr->streaming_platform );
-      modify<account_object>(consumer, [&itr](account_object & a){
-         a.total_listening_time -= itr->play_time;
-      });
+      auto listened = listening_times.find(consumer.id);
+      if( listened == listening_times.end() )
+         listening_times[consumer.id] = itr->play_time;
+      else
+         listened->second += itr->play_time;
+      if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
+         modify<account_object>(consumer, [&itr](account_object & a){
+            a.total_listening_time -= itr->play_time;
+         });
       remove(*itr);
       itr = ridx.begin();
+   }
+   if( has_hardfork( MUSE_HARDFORK_0_2 ) )
+   {
+      for ( const auto& listened : listening_times )
+      {
+         const account_object& consumer = get<account_object>( listened.first );
+         modify<account_object>(consumer, [&listened](account_object & a){
+            a.total_listening_time -= listened.second;
+         });
+      }
    }
    return paid;
 } FC_LOG_AND_RETHROW() }
@@ -3058,8 +3074,8 @@ void database::clear_expired_transactions()
    //Transactions must have expired by at least two forking windows in order to be removed.
    auto& transaction_idx = static_cast<transaction_index&>(get_mutable_index(implementation_ids, impl_transaction_object_type));
    const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
-   while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.rbegin()->trx.expiration) )
-      transaction_idx.remove(*dedupe_index.rbegin());
+   while( (!dedupe_index.empty()) && (head_block_time() > dedupe_index.begin()->trx.expiration) )
+      transaction_idx.remove(*dedupe_index.begin());
 }
 
 void database::clear_expired_orders()
@@ -3279,6 +3295,17 @@ void database::apply_hardfork( uint32_t hardfork )
          }
          break;
 
+      case MUSE_HARDFORK_0_2:
+         {
+            const auto& gpo = get_dynamic_global_properties();
+            modify( gpo, []( dynamic_global_property_object& dgpo ) {
+               dgpo.current_supply += dgpo.supply_delta;
+               dgpo.virtual_supply += dgpo.supply_delta;
+               dgpo.supply_delta = asset();
+            } );
+         }
+         break;
+
       default:
          break;
    }
@@ -3308,7 +3335,7 @@ void database::retally_liquidity_weight() {
  */
 void database::validate_invariants()const
 {
-//TODO_MUSE - rework!
+   if( !has_hardfork(MUSE_HARDFORK_0_2) ) return; // total_supply tracking is incorrect before HF2
    try
    {
       const auto& account_idx = get_index_type<account_index>().indices().get<by_name>();
@@ -3361,6 +3388,10 @@ void database::validate_invariants()const
             total_mbd += asset( itr->for_sale, MBD_SYMBOL );
          }
       }
+
+      const auto& balances = get_index_type< balance_index >().indices();
+      for( auto itr = balances.begin(); itr != balances.end(); itr++ )
+         total_supply += itr->balance;
 
       if( has_hardfork( MUSE_HARDFORK_0_2 ) )
       {
