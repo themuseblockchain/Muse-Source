@@ -3,6 +3,7 @@
 #include <fc/exception/exception.hpp>
 #include <fc/io/raw_variant.hpp>
 #include <fc/network/ip.hpp>
+#include <fc/network/resolve.hpp>
 #include <fc/thread/future.hpp>
 #include <fstream>
 #include <iostream>
@@ -190,7 +191,17 @@ int main(int argc, char** argv)
   }
 
   for (int i = 1; i < argc; i++)
-     nodes_to_visit.push(fc::ip::endpoint::from_string(argv[i]));
+  {
+     std::string ep(argv[i]);
+     uint16_t port;
+     auto pos = ep.find(':');
+     if (pos > 0)
+        port = boost::lexical_cast<uint16_t>( ep.substr( pos+1, ep.size() ) );
+     else
+        port = 33333;
+     for (const auto& addr : fc::resolve( ep.substr( 0, pos > 0 ? pos : ep.size() ), port ))
+        nodes_to_visit.push( addr );
+  }
   fc::ip::endpoint seed_node1 = nodes_to_visit.front();
 
   fc::path data_dir = fc::temp_directory_path() / "map_muse_network";
@@ -201,7 +212,6 @@ int main(int argc, char** argv)
 
   std::map<graphene::net::node_id_t, graphene::net::address_info> address_info_by_node_id;
   std::map<graphene::net::node_id_t, std::vector<graphene::net::address_info> > connections_by_node_id;
-  //std::map<graphene::net::node_id_t, fc::ip::endpoint> all_known_nodes;
 
   while (!nodes_to_visit.empty())
   {
