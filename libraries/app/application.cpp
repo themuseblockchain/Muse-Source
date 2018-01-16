@@ -93,14 +93,29 @@ namespace detail {
          _p2p_network->load_configuration(data_dir / "p2p");
          _p2p_network->set_node_delegate(this);
 
+         vector<string> seeds;
          if( _options->count("seed-node") )
+            seeds = _options->at("seed-node").as<vector<string>>();
+#ifndef IS_TEST_NET
+#ifndef IS_MUSE_TEST
+         else
          {
-            auto seeds = _options->at("seed-node").as<vector<string>>();
-            for( const string& endpoint_string : seeds )
+             seeds.push_back("138.197.68.175:33333"); // main seed
+             seeds.push_back("muse.seeds.quisquis.de:33333"); // pc's DNS seeder, http://seeds.quisquis.de/muse.html
+             seeds.push_back("94.130.250.18:33333"); // educatedwarrior
+             seeds.push_back("seed.muse.dgazek.tk:33333"); // witness dgazek
+         }
+#endif
+#endif
+         std::set<fc::ip::endpoint> seen;
+         for( const string& endpoint_string : seeds )
+         {
+            std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
+            for (const fc::ip::endpoint& endpoint : endpoints)
             {
-               std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
-               for (const fc::ip::endpoint& endpoint : endpoints)
+               if (seen.find(endpoint) == seen.end())
                {
+                  seen.insert(endpoint);
                   ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
                   _p2p_network->add_node(endpoint);
                   _p2p_network->connect_to_endpoint(endpoint);
@@ -854,7 +869,6 @@ application::~application()
    }
 }
 
-static const string DEFAULT_SEED       = "138.197.68.175:33333";
 static const string DEFAULT_CHECKPOINT = "[3900000,\"003b8260970ee1d4e97f7a18aac40d51d0882365\"]";
 
 void application::set_program_options(boost::program_options::options_description& command_line_options,
@@ -873,7 +887,7 @@ void application::set_program_options(boost::program_options::options_descriptio
    configuration_file_options.add_options()
          ("p2p-endpoint", bpo::value<string>(), "Endpoint for P2P node to listen on")
          ("p2p-max-connections", bpo::value<uint32_t>(), "Maxmimum number of incoming connections on P2P endpoint")
-         ("seed-node,s", bpo::value<vector<string>>()->composing()->default_value(vector<string>(1,DEFAULT_SEED), DEFAULT_SEED), "P2P nodes to connect to on startup (may specify multiple times)")
+         ("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)")
          ("checkpoint,c", bpo::value<vector<string>>()->composing()->default_value(vector<string>(1,DEFAULT_CHECKPOINT), DEFAULT_CHECKPOINT), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")
          ("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on")
          ("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on")
