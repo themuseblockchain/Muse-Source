@@ -22,6 +22,7 @@ public:
   graphene::net::peer_connection_ptr _connection;
   std::vector<graphene::net::address_info> _peers;
   fc::ecc::public_key _node_id;
+  fc::ip::endpoint _remote;
   bool _connection_was_rejected;
   bool _done;
   fc::promise<void>::ptr _probe_complete_promise;
@@ -40,7 +41,8 @@ public:
              const fc::ecc::private_key& my_node_id,
              const muse::chain::digest_type& chain_id)
   {
-    fc::future<void> connect_task = fc::async([=](){ _connection->connect_to(endpoint_to_probe); }, "connect_task");
+    _remote = endpoint_to_probe;
+    fc::future<void> connect_task = fc::async([this](){ _connection->connect_to(_remote); }, "connect_task");
     try
     {
       connect_task.wait(fc::seconds(10));
@@ -172,9 +174,9 @@ public:
     return graphene::net::item_not_available_message(item);
   }
 
-  void wait()
+  void wait( const fc::microseconds& timeout_us )
   {
-    _probe_complete_promise->wait();
+    _probe_complete_promise->wait( timeout_us );
   }
 };
 
@@ -212,49 +214,76 @@ int main(int argc, char** argv)
 
   std::map<graphene::net::node_id_t, graphene::net::address_info> address_info_by_node_id;
   std::map<graphene::net::node_id_t, std::vector<graphene::net::address_info> > connections_by_node_id;
+  std::vector<std::shared_ptr<peer_probe>> probes;
 
-  while (!nodes_to_visit.empty())
+  while (!nodes_to_visit.empty() || !probes.empty())
   {
-    graphene::net::address_info this_node_info;
-    this_node_info.direction = graphene::net::peer_connection_direction::outbound;
-    this_node_info.firewalled = graphene::net::firewalled_state::not_firewalled;
-
-    this_node_info.remote_endpoint = nodes_to_visit.front();;
-    nodes_to_visit.pop();
-    nodes_to_visit_set.erase(this_node_info.remote_endpoint);
-    nodes_already_visited.insert(this_node_info.remote_endpoint);
-
-    peer_probe probe;
-    try
+    while (!nodes_to_visit.empty())
     {
-      probe.start(this_node_info.remote_endpoint,
-                  my_node_id,
-                  chain_db.get_chain_id());
-      probe.wait();
+       fc::ip::endpoint remote = nodes_to_visit.front();
+       nodes_to_visit.pop();
+       nodes_to_visit_set.erase( remote );
+       nodes_already_visited.insert( remote );
 
-      this_node_info.node_id = probe._node_id;
-
-      connections_by_node_id[this_node_info.node_id] = probe._peers;
-      if (address_info_by_node_id.find(probe._node_id) == address_info_by_node_id.end())
-        address_info_by_node_id[probe._node_id] = this_node_info;
-
-      for (const graphene::net::address_info& info : probe._peers)
-      {
-        if (nodes_already_visited.find(info.remote_endpoint) == nodes_already_visited.end() &&
-            info.firewalled == graphene::net::firewalled_state::not_firewalled &&
-            nodes_to_visit_set.find(info.remote_endpoint) == nodes_to_visit_set.end())
-        {
-          nodes_to_visit.push(info.remote_endpoint);
-          nodes_to_visit_set.insert(info.remote_endpoint);
-        }
-        if (address_info_by_node_id.find(info.node_id) == address_info_by_node_id.end())
-          address_info_by_node_id[info.node_id] = info;
-      }
+       try
+       {
+          std::shared_ptr<peer_probe> probe(new peer_probe());
+          probe->start(remote, my_node_id, chain_db.get_chain_id());
+          probes.push_back( probe );
+       }
+       catch (const fc::exception&)
+       {
+           std::cerr << "Failed to connect " << fc::string(remote) << " - skipping!" << std::endl;
+       }
     }
-    catch (const fc::exception&)
+
+    if (!probes.empty())
     {
+       try {
+          probes[0]->wait( fc::microseconds(10000) );
+       } catch ( fc::timeout_exception& ignore ) {}
+
+       std::vector<std::shared_ptr<peer_probe>> running;
+       for ( auto& probe : probes ) {
+          if (probe->_probe_complete_promise->error())
+          {
+             std::cerr << fc::string(probe->_remote) << " ran into an error!\n";
+             continue;
+          }
+          if (!probe->_probe_complete_promise->ready())
+          {
+             running.push_back( probe );
+             continue;
+          }
+
+          graphene::net::address_info this_node_info;
+          this_node_info.direction = graphene::net::peer_connection_direction::outbound;
+          this_node_info.firewalled = graphene::net::firewalled_state::not_firewalled;
+          this_node_info.remote_endpoint = probe->_remote;
+          this_node_info.node_id = probe->_node_id;
+
+          connections_by_node_id[this_node_info.node_id] = probe->_peers;
+          if (address_info_by_node_id.find(probe->_node_id) == address_info_by_node_id.end())
+             address_info_by_node_id[probe->_node_id] = this_node_info;
+
+          for (const graphene::net::address_info& info : probe->_peers)
+          {
+             if (nodes_already_visited.find(info.remote_endpoint) == nodes_already_visited.end() &&
+                 info.firewalled == graphene::net::firewalled_state::not_firewalled &&
+                 nodes_to_visit_set.find(info.remote_endpoint) == nodes_to_visit_set.end())
+             {
+                nodes_to_visit.push(info.remote_endpoint);
+                nodes_to_visit_set.insert(info.remote_endpoint);
+             }
+             if (address_info_by_node_id.find(info.node_id) == address_info_by_node_id.end())
+                address_info_by_node_id[info.node_id] = info;
+          }
+       }
+       probes = std::move( running );
+       std::cout << address_info_by_node_id.size() << " checked, "
+                 << probes.size() << " active, "
+                 << nodes_to_visit.size() << " to do\n";
     }
-    std::cout << "Traversed " << nodes_already_visited.size() << " of " << (nodes_already_visited.size() + nodes_to_visit.size()) << " known nodes\n";
   }
 
   graphene::net::node_id_t seed_node_id;
