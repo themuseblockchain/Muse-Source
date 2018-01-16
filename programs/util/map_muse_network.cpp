@@ -56,12 +56,14 @@ public:
     shared_secret_encoder.write(shared_secret.data(), sizeof(shared_secret));
     fc::ecc::compact_signature signature = my_node_id.sign_compact(shared_secret_encoder.result());
 
+    fc::mutable_variant_object user_data;
+    user_data["chain_id"] = MUSE_CHAIN_ID;
     graphene::net::hello_message hello("map_muse_network",
                                   GRAPHENE_NET_PROTOCOL_VERSION,
                                   fc::ip::address(), 0, 0,
                                   my_node_id.get_public_key(),
                                   signature,
-                                  fc::variant_object());
+                                  user_data);
 
     _connection->send_message(hello);
   }
