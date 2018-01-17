@@ -1846,6 +1846,8 @@ namespace graphene { namespace net { namespace detail {
       if (!_hard_fork_block_numbers.empty())
         user_data["last_known_fork_block_number"] = _hard_fork_block_numbers.back();
 
+      user_data["chain_id"] = MUSE_CHAIN_ID;
+
       return user_data;
     }
     void node_impl::parse_hello_user_data_for_peer(peer_connection* originating_peer, const fc::variant_object& user_data)
