@@ -473,7 +473,7 @@ namespace detail {
             // leave that peer connected so that they can get sync blocks from us
             bool result = _chain_db->push_block(blk_msg.block, (_is_block_producer | _force_validate) ? database::skip_nothing : database::skip_transaction_signatures);
 
-            if( !sync_mode && blk_msg.block.transactions.size() )
+            if( !sync_mode )
             {
                ilog( "Got ${t} transactions from network on block ${b}",
                   ("t", blk_msg.block.transactions.size())
