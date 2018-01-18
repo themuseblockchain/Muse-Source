@@ -136,6 +136,7 @@ namespace graphene { namespace db {
          void undo();
          void merge();
          void commit();
+         void rollback_state();
 
          uint32_t                _active_sessions = 0;
          bool                    _disabled = true;

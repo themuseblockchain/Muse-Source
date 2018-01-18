@@ -92,16 +92,12 @@ void undo_database::on_remove( const object& obj )
    state.removed[obj.id] = obj.clone();
 }
 
-void undo_database::undo()
+void undo_database::rollback_state()
 { try {
-   FC_ASSERT( !_disabled );
-   FC_ASSERT( _active_sessions > 0 );
-   disable();
-
    auto& state = _stack.back();
    for( auto& item : state.old_values )
    {
-      _db.modify( _db.get_object( item.second->id ), [&]( object& obj ){ obj.move_from( *item.second ); } );
+      _db.modify( _db.get_object( item.second->id ), [&item]( object& obj ){ obj.move_from( *item.second ); } );
    }
 
    for( auto ritr = state.new_ids.begin(); ritr != state.new_ids.end(); ++ritr  )
@@ -118,6 +114,14 @@ void undo_database::undo()
       _db.insert( std::move(*item.second) );
 
    _stack.pop_back();
+} FC_CAPTURE_AND_RETHROW() }
+
+void undo_database::undo()
+{ try {
+   FC_ASSERT( !_disabled );
+   FC_ASSERT( _active_sessions > 0 );
+   disable();
+   rollback_state();
    enable();
    --_active_sessions;
 } FC_CAPTURE_AND_RETHROW() }
@@ -255,27 +259,7 @@ void undo_database::pop_commit()
 
    disable();
    try {
-      auto& state = _stack.back();
-
-      for( auto& item : state.old_values )
-      {
-         _db.modify( _db.get_object( item.second->id ), [&]( object& obj ){ obj.move_from( *item.second ); } );
-      }
-
-      for( auto ritr = state.new_ids.begin(); ritr != state.new_ids.end(); ++ritr  )
-      {
-         _db.remove( _db.get_object(*ritr) );
-      }
-
-      for( auto& item : state.old_index_next_ids )
-      {
-         _db.get_mutable_index( item.first.space(), item.first.type() ).set_next_id( item.second );
-      }
-
-      for( auto& item : state.removed )
-         _db.insert( std::move(*item.second) );
-
-      _stack.pop_back();
+      rollback_state();
    }
    catch ( const fc::exception& e )
    {
