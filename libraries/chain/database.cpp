@@ -132,6 +132,49 @@ void database::open( const fc::path& data_dir, const genesis_state_type& initial
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )
 }
 
+/** Cuts blocks from the end of the block database.
+ *
+ * @param blocks the block database from which to remove blocks
+ * @param until the last block number to keep in the database
+ */
+static void cutoff_blocks( block_database& blocks, uint32_t until )
+{
+   uint32_t count = 0;
+   fc::optional< block_id_type > last_id = blocks.last_id();
+   while( last_id.valid() && block_header::num_from_id( *last_id ) > until )
+   {
+      blocks.remove( *last_id );
+      count++;
+      last_id = blocks.last_id();
+   }
+   wlog( "Dropped ${n} blocks from after the gap", ("n", count) );
+}
+
+/** Reads blocks number from start_block_num until last_block_num (inclusive)
+ *  from the blocks database and pushes/applies them. Returns early if a block
+ *  cannot be read from blocks.
+ *  @return the number of the block following the last successfully read,
+ *          usually last_block_num+1
+ */
+static uint32_t reindex_range( block_database& blocks, uint32_t start_block_num, uint32_t last_block_num,
+        std::function<void( const signed_block& )> push_or_apply )
+{
+   for( uint32_t i = start_block_num; i <= last_block_num; ++i )
+   {
+      if( i % 100000 == 0 )
+         ilog( "${pct}%   ${i} of ${n}", ("pct",double(i*100)/last_block_num)("i",i)("n",last_block_num) );
+      fc::optional< signed_block > block = blocks.fetch_by_number(i);
+      if( !block.valid() )
+      {
+         wlog( "Reindexing terminated due to gap:  Block ${i} does not exist!", ("i", i) );
+         cutoff_blocks( blocks, i );
+         return i;
+      }
+      push_or_apply( *block );
+   }
+   return last_block_num + 1;
+};
+
 void database::reindex( fc::path data_dir )
 {
    try
@@ -148,40 +191,6 @@ void database::reindex( fc::path data_dir )
       ilog( "Replaying blocks..." );
       _undo_db.disable();
 
-      auto reindex_range = [this]( uint32_t start_block_num, uint32_t last_block_num, uint32_t skip, bool do_push )
-      {
-         for( uint32_t i = start_block_num; i <= last_block_num; ++i )
-         {
-            if( i % 100000 == 0 )
-               std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
-            fc::optional< signed_block > block = _block_id_to_block.fetch_by_number(i);
-            if( !block.valid() )
-            {
-               wlog( "Reindexing terminated due to gap:  Block ${i} does not exist!", ("i", i) );
-               uint32_t dropped_count = 0;
-               while( true )
-               {
-                  fc::optional< block_id_type > last_id = _block_id_to_block.last_id();
-                  // this can trigger if we attempt to e.g. read a file that has block #2 but no block #1
-                  if( !last_id.valid() )
-                     break;
-                  // we've caught up to the gap
-                  if( block_header::num_from_id( *last_id ) <= i )
-                     break;
-                  _block_id_to_block.remove( *last_id );
-                  dropped_count++;
-               }
-               wlog( "Dropped ${n} blocks from after the gap", ("n", dropped_count) );
-               return i;
-            }
-            if( do_push )
-               push_block( *block, skip );
-            else
-               apply_block( *block, skip );
-         }
-         return last_block_num + 1;
-      };
-
       auto start = fc::time_point::now();
       const uint32_t last_block_num_in_file = last_block->block_num();
       const uint32_t initial_undo_blocks = MUSE_MAX_UNDO_HISTORY;
@@ -190,15 +199,17 @@ void database::reindex( fc::path data_dir )
       if( last_block_num_in_file > 2 * initial_undo_blocks
           && first < last_block_num_in_file - 2 * initial_undo_blocks )
       {
-         first = reindex_range( first, last_block_num_in_file - 2 * initial_undo_blocks,
-            skip_witness_signature |
-            skip_transaction_signatures |
-            skip_transaction_dupe_check |
-            skip_tapos_check |
-            skip_witness_schedule_check |
-            skip_authority_check |
-            skip_validate | /// no need to validate operations
-            skip_validate_invariants, false );
+         first = reindex_range( _block_id_to_block, first, last_block_num_in_file - 2 * initial_undo_blocks,
+            [this]( const signed_block& block ) {
+                apply_block( block, skip_witness_signature |
+                                    skip_transaction_signatures |
+                                    skip_transaction_dupe_check |
+                                    skip_tapos_check |
+                                    skip_witness_schedule_check |
+                                    skip_authority_check |
+                                    skip_validate | /// no need to validate operations
+                                    skip_validate_invariants );
+            } );
          if( first > last_block_num_in_file - 2 * initial_undo_blocks )
          {
             ilog( "Writing database to disk at block ${i}", ("i",first-1) );
@@ -209,21 +220,26 @@ void database::reindex( fc::path data_dir )
       if( last_block_num_in_file > initial_undo_blocks
           && first < last_block_num_in_file - initial_undo_blocks )
       {
-         first = reindex_range( first, last_block_num_in_file - initial_undo_blocks,
-            skip_witness_signature |
-            skip_transaction_signatures |
-            skip_transaction_dupe_check |
-            skip_tapos_check |
-            skip_witness_schedule_check |
-            skip_authority_check |
-            skip_validate | /// no need to validate operations
-            skip_validate_invariants, false );
+         first = reindex_range( _block_id_to_block, first, last_block_num_in_file - initial_undo_blocks,
+            [this]( const signed_block& block ) {
+                apply_block( block, skip_witness_signature |
+                                    skip_transaction_signatures |
+                                    skip_transaction_dupe_check |
+                                    skip_tapos_check |
+                                    skip_witness_schedule_check |
+                                    skip_authority_check |
+                                    skip_validate | /// no need to validate operations
+                                    skip_validate_invariants );
+            } );
       }
       if( first > 1 )
          _fork_db.start_block( *_block_id_to_block.fetch_by_number( first - 1 ) );
       _undo_db.enable();
 
-      reindex_range( first, last_block_num_in_file, skip_nothing, true );
+      reindex_range( _block_id_to_block, first, last_block_num_in_file,
+            [this]( const signed_block& block ) {
+                push_block( block, skip_nothing );
+            } );
 
       auto end = fc::time_point::now();
       ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
