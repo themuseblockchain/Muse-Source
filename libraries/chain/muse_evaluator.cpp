@@ -59,11 +59,7 @@ void streaming_platform_update_evaluator::do_apply( const streaming_platform_upd
 void streaming_platform_report_evaluator::do_apply ( const streaming_platform_report_operation& o )
 {
    const auto& consumer = db().get_account( o.consumer );
-   if ( db().has_hardfork(MUSE_HARDFORK_0_2) )
-   {
-      FC_ASSERT( o.play_time > 0, "Reported time must be greater than 0" );
-      FC_ASSERT( o.play_time + consumer.total_listening_time <= 86400, "User cannot cannot listen for more than 86400 seconds per day" );
-   }
+   FC_ASSERT( o.play_time + consumer.total_listening_time <= 86400, "User cannot cannot listen for more than 86400 seconds per day" );
    const auto& spidx = db().get_index_type<streaming_platform_index>().indices().get<by_name>();
    auto spitr = spidx.find(o.streaming_platform);
    FC_ASSERT(spitr != spidx.end());
@@ -72,14 +68,6 @@ void streaming_platform_report_evaluator::do_apply ( const streaming_platform_re
    FC_ASSERT ( db().is_voted_streaming_platform( o.streaming_platform ));
    const auto& content = db().get_content( o.content );
    FC_ASSERT( !content.disabled );
-
-   if ( !db().has_hardfork(MUSE_HARDFORK_0_2) )
-   {
-      // TODO: remove after HF date
-      const auto& reports = db().get_index_type<report_index>().indices().get<by_created>();
-      const auto& now = reports.find( db().head_block_time() );
-      FC_ASSERT( now == reports.end() );
-   }
 
    db().create< report_object>( [&](report_object& ro) {
         ro.consumer = consumer.id;
@@ -112,7 +100,7 @@ void account_streaming_platform_vote_evaluator::do_apply( const account_streamin
    const auto& by_account_streaming_platform_idx = db().get_index_type< streaming_platform_vote_index >().indices().get< by_account_streaming_platform >();
    auto itr = by_account_streaming_platform_idx.find( boost::make_tuple( voter.get_id(), streaming_platform.get_id() ) );
 
-   if( itr == by_account_streaming_platform_idx.end() || !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) { // TODO remove check after HF activation
+   if( itr == by_account_streaming_platform_idx.end() ) {
       FC_ASSERT( o.approve, "vote doesn't exist, user must be indicate a desire to approve the streaming_platform" );
       FC_ASSERT( voter.streaming_platforms_voted_for < MUSE_MAX_ACCOUNT_WITNESS_VOTES, "account has voted for too many streaming_platforms");
       db().create<streaming_platform_vote_object> ( [&streaming_platform,&voter](streaming_platform_vote_object& v) {
@@ -128,7 +116,7 @@ void account_streaming_platform_vote_evaluator::do_apply( const account_streamin
       FC_ASSERT( !o.approve, "vote currently exists, user must indicate a desire to reject the streaming_platform" );
 
       db().adjust_streaming_platform_vote( streaming_platform,  -voter.witness_vote_weight());
-      db().modify( voter, [&]( account_object& a ) {
+      db().modify( voter, []( account_object& a ) {
            a.streaming_platforms_voted_for--;
       });
       db().remove( *itr );
@@ -459,8 +447,6 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
 
 void content_disable_evaluator::do_apply( const content_disable_operation& o )
 { try{
-   FC_ASSERT( db().has_hardfork( MUSE_HARDFORK_0_2 ) ); // TODO remove after HF time
-
    const auto& content = db().get_content( o.url );
 
    FC_ASSERT( !content.disabled );
