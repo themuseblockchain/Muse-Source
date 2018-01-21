@@ -136,9 +136,10 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
 
       // TODO:  Don't generate this here
       signed_block cutoff_block;
+      uint32_t last_block;
       {
          database db;
-         db.open(data_dir.path(), genesis );
+         db.open(data_dir.path(), genesis, "TEST" );
          init_witness_keys( db );
          b = db.generate_block(db.get_slot_time(1), db.get_scheduled_witness(1), init_account_priv_key(), database::skip_nothing);
 
@@ -156,6 +157,7 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
             if( cutoff_height >= 200 )
             {
                cutoff_block = *(db.fetch_block_by_number( cutoff_height ));
+               last_block = db.head_block_num();
                break;
             }
          }
@@ -163,9 +165,10 @@ BOOST_AUTO_TEST_CASE( generate_empty_blocks )
       }
       {
          database db;
-         db.open(data_dir.path(), genesis );
-         init_witness_keys( db );
-         BOOST_CHECK_EQUAL( db.head_block_num(), cutoff_block.block_num() );
+         db.open(data_dir.path(), genesis, "TEST" );
+         BOOST_CHECK_EQUAL( db.head_block_num(), last_block );
+         while( db.head_block_num() > cutoff_block.block_num() )
+            db.pop_block();
          b = cutoff_block;
          for( uint32_t i = 0; i < 200; ++i )
          {
@@ -192,7 +195,7 @@ BOOST_AUTO_TEST_CASE( undo_block )
       fc::temp_directory data_dir( graphene::utilities::temp_directory_path() );
       {
          database db;
-         db.open(data_dir.path(), genesis );
+         db.open(data_dir.path(), genesis, "TEST" );
          init_witness_keys( db );
          fc::time_point_sec now( MUSE_TESTING_GENESIS_TIMESTAMP );
          std::vector< time_point_sec > time_stack;
@@ -246,10 +249,10 @@ BOOST_AUTO_TEST_CASE( fork_blocks )
       //TODO This test needs 6-7 ish witnesses prior to fork
 
       database db1;
-      db1.open( data_dir1.path(), genesis );
+      db1.open( data_dir1.path(), genesis, "TEST" );
       init_witness_keys( db1 );
       database db2;
-      db2.open( data_dir2.path(), genesis );
+      db2.open( data_dir2.path(), genesis, "TEST" );
       init_witness_keys( db2 );
 
       for( uint32_t i = 0; i < 10; ++i )
@@ -314,9 +317,9 @@ BOOST_AUTO_TEST_CASE( switch_forks_undo_create )
 
       database db1,
                db2;
-      db1.open( dir1.path(), genesis );
+      db1.open( dir1.path(), genesis, "TEST" );
       init_witness_keys( db1 );
-      db2.open( dir2.path(), genesis );
+      db2.open( dir2.path(), genesis, "TEST" );
       init_witness_keys( db2 );
 
       const graphene::db::index& account_idx = db1.get_index(implementation_ids, impl_account_object_type);
@@ -375,9 +378,9 @@ BOOST_AUTO_TEST_CASE( duplicate_transactions )
 
       database db1,
                db2;
-      db1.open(dir1.path(), genesis );
+      db1.open(dir1.path(), genesis, "TEST" );
       init_witness_keys( db1 );
-      db2.open(dir2.path(), genesis );
+      db2.open(dir2.path(), genesis, "TEST" );
       init_witness_keys( db2 );
       BOOST_CHECK( db1.get_chain_id() == db2.get_chain_id() );
 
@@ -428,7 +431,7 @@ BOOST_AUTO_TEST_CASE( tapos )
       genesis.init_supply = INITIAL_TEST_SUPPLY;
 
       database db1;
-      db1.open(dir1.path(), genesis );
+      db1.open(dir1.path(), genesis, "TEST" );
       init_witness_keys( db1 );
 
       auto b = db1.generate_block( db1.get_slot_time(1), db1.get_scheduled_witness( 1 ), init_account_priv_key(), database::skip_nothing);

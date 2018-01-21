@@ -3,6 +3,8 @@
 #include <muse/chain/protocol/block.hpp>
 
 namespace muse { namespace chain {
+   class index_entry;
+
    class block_database
    {
       public:
@@ -21,6 +23,8 @@ namespace muse { namespace chain {
          optional<signed_block> last()const;
          optional<block_id_type> last_id()const;
       private:
+         optional<index_entry> last_index_entry()const;
+         fc::path _index_filename;
          mutable std::fstream _blocks;
          mutable std::fstream _block_num_to_pos;
    };

@@ -235,7 +235,6 @@ namespace detail {
 
       ~application_impl()
       {
-         fc::remove_all(_data_dir / "blockchain/dblock");
       }
 
       void register_builtin_apis()
@@ -248,29 +247,23 @@ namespace detail {
 
       void startup()
       { try {
-         bool clean = !fc::exists(_data_dir / "blockchain/dblock");
-         fc::create_directories(_data_dir / "blockchain/dblock");
+         fc::create_directories(_data_dir / "blockchain");
          fc::create_directories(_data_dir / "node/transaction_history");
-         
-         
 
-         auto initial_state = [&] {
+         auto initial_state = [this] {
             ilog("Initializing database...");
-            if(  _options->count("genesis-json") ){
-               //FC_ASSERT( egenesis_json != "" );
-               //FC_ASSERT( muse::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
+            if( _options->count("genesis-json") )
+            {
                fc::path genesis_path(_options->at("genesis-json").as<boost::filesystem::path>());
                auto genesis = fc::json::from_file( genesis_path ).as<genesis_state_type>();
-               genesis.initial_chain_id = MUSE_CHAIN_ID; //fc::sha256::hash( egenesis_json );
+               genesis.initial_chain_id = MUSE_CHAIN_ID;
                return genesis;
 
             } else {
                std::string egenesis_json;
                muse::egenesis::compute_egenesis_json(egenesis_json);
-               //FC_ASSERT( egenesis_json != "" );
-               //FC_ASSERT( muse::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
                auto genesis = fc::json::from_string(egenesis_json).as<genesis_state_type>();
-               genesis.initial_chain_id = MUSE_CHAIN_ID; //fc::sha256::hash( egenesis_json );
+               genesis.initial_chain_id = MUSE_CHAIN_ID;
                return genesis;
             }
          };
@@ -295,53 +288,18 @@ namespace detail {
          _chain_db->add_checkpoints( loaded_checkpoints );
 
          if( _options->count("replay-blockchain") )
+            _chain_db->wipe( _data_dir / "blockchain", false );
+
+         try
          {
-            ilog("Replaying blockchain on user request.");
-            _chain_db->reindex(_data_dir/"blockchain", initial_state() );
-         } else if( clean ) {
-
-            auto is_new = [&]() -> bool
-            {
-               // directory doesn't exist
-               if( !fc::exists( _data_dir ) )
-                  return true;
-               // if directory exists but is empty, return true; else false.
-               return ( fc::directory_iterator( _data_dir ) == fc::directory_iterator() );
-            };
-
-            auto is_outdated = [&]() -> bool
-            {
-               if( !fc::exists( _data_dir / "db_version" ) )
-                  return true;
-               std::string version_str;
-               fc::read_file_contents( _data_dir / "db_version", version_str );
-               return (version_str != GRAPHENE_CURRENT_DB_VERSION);
-            };
-            if( !is_new() && is_outdated() )
-            {
-               ilog("Replaying blockchain due to version upgrade");
-
-               fc::remove_all( _data_dir / "db_version" );
-               _chain_db->reindex(_data_dir / "blockchain", initial_state() );
-
-               // doing this down here helps ensure that DB will be wiped
-               // if any of the above steps were interrupted on a previous run
-               if( !fc::exists( _data_dir / "db_version" ) )
-               {
-                  std::ofstream db_version(
-                     (_data_dir / "db_version").generic_string().c_str(),
-                     std::ios::out | std::ios::binary | std::ios::trunc );
-                  std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
-                  db_version.write( version_string.c_str(), version_string.size() );
-                  db_version.close();
-               }
-            } else {
-              _chain_db->open(_data_dir / "blockchain", initial_state() );
-            }
-         } else {
-            wlog("Detected unclean shutdown. Replaying blockchain...");
-            _chain_db->reindex(_data_dir / "blockchain", initial_state() );
+            _chain_db->open( _data_dir / "blockchain", initial_state(), GRAPHENE_CURRENT_DB_VERSION );
          }
+         catch( const fc::exception& e )
+         {
+            elog( "Caught exception ${e} in open(), you might want to force a replay", ("e", e.to_detail_string()) );
+            throw;
+         }
+
          _pending_trx_db->open(_data_dir / "node/transaction_history" );
 
          if( _options->count("force-validate") )
