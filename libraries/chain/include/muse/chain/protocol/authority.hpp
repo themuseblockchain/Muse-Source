@@ -113,5 +113,4 @@ bool is_valid_account_name( const string& name );
 } } // namespace muse::chain
 
 FC_REFLECT( muse::chain::authority, (weight_threshold)(account_auths)(key_auths) )
-FC_REFLECT_TYPENAME( muse::chain::authority::classification )
 FC_REFLECT_ENUM( muse::chain::authority::classification, (owner)(active)(key)(basic) )

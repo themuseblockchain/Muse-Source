@@ -237,7 +237,7 @@ public:
          plain_keys data;
          data.keys = _keys;
          data.checksum = _checksum;
-         auto plain_txt = fc::raw::pack(data);
+         auto plain_txt = fc::raw::pack_to_vector(data);
          _wallet.cipher_keys = fc::aes_encrypt( data.checksum, plain_txt );
       }
    }
@@ -1292,7 +1292,7 @@ brain_key_info wallet_api::suggest_brain_key()const
 
 string wallet_api::serialize_transaction( signed_transaction tx )const
 {
-   return fc::to_hex(fc::raw::pack(tx));
+   return fc::to_hex(fc::raw::pack_to_vector(tx));
 }
 
 string wallet_api::get_wallet_filename() const
@@ -1463,7 +1463,7 @@ void wallet_api::unlock(string password)
    FC_ASSERT(password.size() > 0);
    auto pw = fc::sha512::hash(password.c_str(), password.size());
    vector<char> decrypted = fc::aes_decrypt(pw, my->_wallet.cipher_keys);
-   auto pk = fc::raw::unpack<plain_keys>(decrypted);
+   auto pk = fc::raw::unpack_from_vector<plain_keys>(decrypted);
    FC_ASSERT(pk.checksum == pw);
    my->_keys = std::move(pk.keys);
    my->_checksum = pk.checksum;
@@ -1983,7 +1983,7 @@ annotated_signed_transaction wallet_api::transfer(string from, string to, asset 
        fc::raw::pack( enc, shared_secret );
        auto encrypt_key = enc.result();
 
-       m.encrypted = fc::aes_encrypt( encrypt_key, fc::raw::pack(memo.substr(1)) );
+       m.encrypted = fc::aes_encrypt( encrypt_key, fc::raw::pack_to_vector(memo.substr(1)) );
        m.check = fc::sha256::hash( encrypt_key )._hash[0];
        op.memo = m;
     } else {
@@ -2103,7 +2103,7 @@ map<uint32_t,operation_object> wallet_api::get_account_history( string account, 
 
                   try {
                      vector<char> decrypted = fc::aes_decrypt( encryption_key, m->encrypted );
-                     top.memo = fc::raw::unpack<std::string>( decrypted );
+                     top.memo = fc::raw::unpack_from_vector<std::string>( decrypted );
                   } catch ( ... ){}
                }
             }
@@ -2518,7 +2518,7 @@ annotated_signed_transaction      wallet_api::send_private_message( string from,
    auto hash_encrypt_key = fc::sha256::hash( encrypt_key );
    pmo.checksum = hash_encrypt_key._hash[0];
 
-   vector<char> plain_text = fc::raw::pack( message );
+   vector<char> plain_text = fc::raw::pack_to_vector( message );
    pmo.encrypted_message = fc::aes_encrypt( encrypt_key, plain_text );
 
    message_object obj;
@@ -2529,7 +2529,7 @@ annotated_signed_transaction      wallet_api::send_private_message( string from,
    obj.encrypted_message = pmo.encrypted_message;
    auto decrypted = try_decrypt_message(obj);
 
-   op.data = fc::raw::pack( pmo );
+   op.data = fc::raw::pack_to_vector( pmo );
 
    signed_transaction tx;
    tx.operations.push_back( op );
@@ -2573,7 +2573,7 @@ message_body wallet_api::try_decrypt_message( const message_object& mo ) {
 
    auto decrypt_data = fc::aes_decrypt( encrypt_key, mo.encrypted_message );
    try {
-      return fc::raw::unpack<message_body>( decrypt_data );
+      return fc::raw::unpack_from_vector<message_body>( decrypt_data );
    } catch ( ... ) {
       return result;
    }

@@ -62,7 +62,7 @@ void block_database::store( const block_id_type& _id, const signed_block& b )
    _block_num_to_pos.seekp( sizeof( index_entry ) * num );
    index_entry e;
    _blocks.seekp( 0, _blocks.end );
-   auto vec = fc::raw::pack( b );
+   auto vec = fc::raw::pack_to_vector( b );
    e.block_pos  = _blocks.tellp();
    e.block_size = vec.size();
    e.block_id   = id;
@@ -140,7 +140,7 @@ optional<signed_block> block_database::fetch_optional( const block_id_type& id )
       _blocks.seekg( e.block_pos );
       if (e.block_size)
          _blocks.read( data.data(), e.block_size );
-      auto result = fc::raw::unpack<signed_block>(data);
+      auto result = fc::raw::unpack_from_vector<signed_block>(data);
       FC_ASSERT( result.id() == e.block_id );
       return result;
    }
@@ -169,7 +169,7 @@ optional<signed_block> block_database::fetch_by_number( uint32_t block_num )cons
       vector<char> data( e.block_size );
       _blocks.seekg( e.block_pos );
       _blocks.read( data.data(), e.block_size );
-      auto result = fc::raw::unpack<signed_block>(data);
+      auto result = fc::raw::unpack_from_vector<signed_block>(data);
       FC_ASSERT( result.id() == e.block_id );
       return result;
    }
@@ -210,7 +210,7 @@ optional<index_entry> block_database::last_index_entry()const {
                _blocks.read( data.data(), e.block_size );
                if( _blocks.gcount() == e.block_size )
                {
-                  const signed_block block = fc::raw::unpack<signed_block>(data);
+                  const signed_block block = fc::raw::unpack_from_vector<signed_block>(data);
                   if( block.id() == e.block_id )
                      return e;
                }
