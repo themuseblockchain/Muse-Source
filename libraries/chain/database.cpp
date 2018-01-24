@@ -2758,13 +2758,10 @@ void database::apply_operation(transaction_evaluation_state& eval_state, const o
 { try {
    int i_which = op.which();
    uint64_t u_which = uint64_t( i_which );
-   if( i_which < 0 )
-      assert( "Negative operation tag" && false );
-   if( u_which >= _operation_evaluators.size() )
-      assert( "No registered evaluator for this operation" && false );
+   FC_ASSERT( i_which >= 0, "Negative operation tag in operation ${op}", ("op",op) );
+   FC_ASSERT( u_which < _operation_evaluators.size(), "No registered evaluator for operation ${op}", ("op",op) );
    unique_ptr<op_evaluator>& eval = _operation_evaluators[ u_which ];
-   if( !eval )
-      assert( "No registered evaluator for this operation" && false );
+   FC_ASSERT( eval, "No registered evaluator for operation ${op}", ("op",op) );
    push_applied_operation( op );
    eval->evaluate( eval_state, op, true );
    notify_post_apply_operation( op );
