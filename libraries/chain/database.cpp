@@ -1113,6 +1113,8 @@ void database::update_witness_schedule4()
         itr != widx.end() && selected_voted.size() <  MUSE_MAX_VOTED_WITNESSES;
         ++itr )
    {
+      if( has_hardfork( MUSE_HARDFORK_0_3 ) && (itr->signing_key == public_key_type()) )
+         continue; // skip witnesses without a valid block signing key
       selected_voted.insert(itr->get_id());
       active_witnesses.push_back(itr->owner);
    }
@@ -1129,6 +1131,8 @@ void database::update_witness_schedule4()
    {
       new_virtual_time = sitr->virtual_scheduled_time; /// everyone advances to at least this time
       processed_witnesses.push_back(sitr);
+      if( has_hardfork( MUSE_HARDFORK_0_3 ) && sitr->signing_key == public_key_type() )
+         continue; // skip witnesses without a valid block signing key
       if( selected_voted.find(sitr->get_id()) == selected_voted.end() )
       {
          active_witnesses.push_back(sitr->owner);
@@ -2813,11 +2817,14 @@ void database::update_global_dynamic_data( const signed_block& b )
       for( uint32_t i = 0; i < missed_blocks; ++i )
       {
          const auto& witness_missed = get_witness( get_scheduled_witness( i+1 ) );
-         if(  witness_missed.owner != b.witness )
+         if( witness_missed.owner != b.witness )
          {
-            modify( witness_missed, [&]( witness_object& w )
+            modify( witness_missed, [this]( witness_object& w )
             {
                w.total_missed++;
+               if( has_hardfork( MUSE_HARDFORK_0_3 )
+                   && head_block_num() - w.last_confirmed_block_num  > MUSE_BLOCKS_PER_DAY )
+                  w.signing_key = public_key_type();
             } );
          }
       }
