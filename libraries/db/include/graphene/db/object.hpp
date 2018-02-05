@@ -99,7 +99,7 @@ namespace graphene { namespace db {
             static_cast<DerivedClass&>(*this) = std::move( static_cast<DerivedClass&>(obj) );
          }
          virtual variant to_variant()const { return variant( static_cast<const DerivedClass&>(*this) ); }
-         virtual vector<char> pack()const  { return fc::raw::pack( static_cast<const DerivedClass&>(*this) ); }
+         virtual vector<char> pack()const  { return fc::raw::pack_to_vector( static_cast<const DerivedClass&>(*this) ); }
          virtual fc::uint128  hash()const  {  
              auto tmp = this->pack();
              return fc::city_hash_crc_128( tmp.data(), tmp.size() );

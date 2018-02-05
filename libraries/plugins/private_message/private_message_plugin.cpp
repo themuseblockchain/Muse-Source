@@ -71,7 +71,7 @@ void private_message_plugin_impl::on_operation( const operation_object& op_obj )
       if( op_obj.op.which() == operation::tag<custom_operation>::value ) {
          const custom_operation& cop = op_obj.op.get<custom_operation>();
          if( cop.id == MUSE_PRIVATE_MESSAGE_COP_ID )  {
-            opm = fc::raw::unpack<private_message_operation>( cop.data );
+            opm = fc::raw::unpack_from_vector<private_message_operation>( cop.data );
             FC_ASSERT( cop.required_auths.find( opm->from ) != cop.required_auths.end(), "sender didn't sign message" );
          }
       } else if( op_obj.op.which() == operation::tag<custom_json_operation>::value ) {
