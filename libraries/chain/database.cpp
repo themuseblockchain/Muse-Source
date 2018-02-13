@@ -88,10 +88,29 @@ database::~database()
    clear_pending();
 }
 
-void database::open( const fc::path& data_dir, const genesis_state_type& initial_allocation )
+void database::open( const fc::path& data_dir, const genesis_state_type& initial_allocation,
+                     const std::string& db_version )
 {
    try
    {
+      bool wipe_object_db = false;
+      if( !fc::exists( data_dir / "db_version" ) )
+         wipe_object_db = true;
+      else
+      {
+         std::string version_string;
+         fc::read_file_contents( data_dir / "db_version", version_string );
+         wipe_object_db = ( version_string != db_version );
+      }
+      if( wipe_object_db ) {
+         ilog("Wiping object_database due to missing or wrong version");
+         object_database::wipe( data_dir );
+         std::ofstream version_file( (data_dir / "db_version").generic_string().c_str(),
+                                     std::ios::out | std::ios::binary | std::ios::trunc );
+         version_file.write( db_version.c_str(), db_version.size() );
+         version_file.close();
+      }
+
       object_database::open(data_dir);
 
       _block_id_to_block.open(data_dir / "database" / "block_num_to_block");
@@ -101,31 +120,65 @@ void database::open( const fc::path& data_dir, const genesis_state_type& initial
 
       init_hardforks();
 
-      fc::optional<signed_block> last_block = _block_id_to_block.last();
+      fc::optional<block_id_type> last_block = _block_id_to_block.last_id();
       if( last_block.valid() )
       {
-         _fork_db.start_block( *last_block );
-         idump((last_block->id())(last_block->block_num()));
-         if( last_block->id() != head_block_id() )
-         {
-              FC_ASSERT( head_block_num() == 0, "last block ID does not match current chain state",
-                         ("last_block->block_num()",last_block->block_num())( "head_block_num", head_block_num()) );
-         }
+         FC_ASSERT( *last_block >= head_block_id(),
+                    "last block ID does not match current chain state",
+                    ("last_block->id", last_block)("head_block_id",head_block_num()) );
+         reindex( data_dir );
       }
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir) )
 }
 
-void database::reindex(fc::path data_dir, const genesis_state_type& initial_allocation )
+/** Cuts blocks from the end of the block database.
+ *
+ * @param blocks the block database from which to remove blocks
+ * @param until the last block number to keep in the database
+ */
+static void cutoff_blocks( block_database& blocks, uint32_t until )
+{
+   uint32_t count = 0;
+   fc::optional< block_id_type > last_id = blocks.last_id();
+   while( last_id.valid() && block_header::num_from_id( *last_id ) > until )
+   {
+      blocks.remove( *last_id );
+      count++;
+      last_id = blocks.last_id();
+   }
+   wlog( "Dropped ${n} blocks from after the gap", ("n", count) );
+}
+
+/** Reads blocks number from start_block_num until last_block_num (inclusive)
+ *  from the blocks database and pushes/applies them. Returns early if a block
+ *  cannot be read from blocks.
+ *  @return the number of the block following the last successfully read,
+ *          usually last_block_num+1
+ */
+static uint32_t reindex_range( block_database& blocks, uint32_t start_block_num, uint32_t last_block_num,
+        std::function<void( const signed_block& )> push_or_apply )
+{
+   for( uint32_t i = start_block_num; i <= last_block_num; ++i )
+   {
+      if( i % 100000 == 0 )
+         ilog( "${pct}%   ${i} of ${n}", ("pct",double(i*100)/last_block_num)("i",i)("n",last_block_num) );
+      fc::optional< signed_block > block = blocks.fetch_by_number(i);
+      if( !block.valid() )
+      {
+         wlog( "Reindexing terminated due to gap:  Block ${i} does not exist!", ("i", i) );
+         cutoff_blocks( blocks, i );
+         return i;
+      }
+      push_or_apply( *block );
+   }
+   return last_block_num + 1;
+};
+
+void database::reindex( fc::path data_dir )
 {
    try
    {
-      ilog( "reindexing blockchain" );
-      wipe(data_dir, false);
-      open(data_dir, initial_allocation);
-      _fork_db.reset();    // override effect of _fork_db.start_block() call in open()
-
-      auto start = fc::time_point::now();
       auto last_block = _block_id_to_block.last();
       if( !last_block )
       {
@@ -133,71 +186,60 @@ void database::reindex(fc::path data_dir, const genesis_state_type& initial_allo
          edump((last_block));
          return;
       }
+      if( last_block->block_num() <= head_block_num()) return;
 
       ilog( "Replaying blocks..." );
       _undo_db.disable();
 
-      auto reindex_range = [&]( uint32_t start_block_num, uint32_t last_block_num, uint32_t skip, bool do_push )
-      {
-         for( uint32_t i = start_block_num; i <= last_block_num; ++i )
-         {
-            if( i % 100000 == 0 )
-               std::cerr << "   " << double(i*100)/last_block_num << "%   "<<i << " of " <<last_block_num<<"   \n";
-            fc::optional< signed_block > block = _block_id_to_block.fetch_by_number(i);
-            if( !block.valid() )
-            {
-               // TODO gap handling may not properly init fork db
-               wlog( "Reindexing terminated due to gap:  Block ${i} does not exist!", ("i", i) );
-               uint32_t dropped_count = 0;
-               while( true )
-               {
-                  fc::optional< block_id_type > last_id = _block_id_to_block.last_id();
-                  // this can trigger if we attempt to e.g. read a file that has block #2 but no block #1
-                  if( !last_id.valid() )
-                     break;
-                  // we've caught up to the gap
-                  if( block_header::num_from_id( *last_id ) <= i )
-                     break;
-                  _block_id_to_block.remove( *last_id );
-                  dropped_count++;
-               }
-               wlog( "Dropped ${n} blocks from after the gap", ("n", dropped_count) );
-               break;
-            }
-            if( do_push )
-               push_block( *block, skip );
-            else
-               apply_block( *block, skip );
-         }
-      };
-
+      auto start = fc::time_point::now();
       const uint32_t last_block_num_in_file = last_block->block_num();
-      const uint32_t initial_undo_blocks = 100;
+      const uint32_t initial_undo_blocks = MUSE_MAX_UNDO_HISTORY;
 
-      uint32_t first = 1;
-
-      if( last_block_num_in_file > initial_undo_blocks )
+      uint32_t first = head_block_num() + 1;
+      if( last_block_num_in_file > 2 * initial_undo_blocks
+          && first < last_block_num_in_file - 2 * initial_undo_blocks )
       {
-         uint32_t last = last_block_num_in_file - initial_undo_blocks;
-         reindex_range( 1, last,
-            skip_witness_signature |
-            skip_transaction_signatures |
-            skip_transaction_dupe_check |
-            skip_tapos_check |
-            skip_witness_schedule_check |
-            skip_authority_check |
-            skip_validate | /// no need to validate operations
-            skip_validate_invariants, false );
-         first = last+1;
-         _fork_db.start_block( *_block_id_to_block.fetch_by_number( last ) );
+         first = reindex_range( _block_id_to_block, first, last_block_num_in_file - 2 * initial_undo_blocks,
+            [this]( const signed_block& block ) {
+                apply_block( block, skip_witness_signature |
+                                    skip_transaction_signatures |
+                                    skip_transaction_dupe_check |
+                                    skip_tapos_check |
+                                    skip_witness_schedule_check |
+                                    skip_authority_check |
+                                    skip_validate | /// no need to validate operations
+                                    skip_validate_invariants );
+            } );
+         if( first > last_block_num_in_file - 2 * initial_undo_blocks )
+         {
+            ilog( "Writing database to disk at block ${i}", ("i",first-1) );
+            flush();
+            ilog( "Done" );
+         }
       }
-      else
+      if( last_block_num_in_file > initial_undo_blocks
+          && first < last_block_num_in_file - initial_undo_blocks )
       {
-         _fork_db.start_block( *_block_id_to_block.fetch_by_number( last_block_num_in_file ) );
+         first = reindex_range( _block_id_to_block, first, last_block_num_in_file - initial_undo_blocks,
+            [this]( const signed_block& block ) {
+                apply_block( block, skip_witness_signature |
+                                    skip_transaction_signatures |
+                                    skip_transaction_dupe_check |
+                                    skip_tapos_check |
+                                    skip_witness_schedule_check |
+                                    skip_authority_check |
+                                    skip_validate | /// no need to validate operations
+                                    skip_validate_invariants );
+            } );
       }
+      if( first > 1 )
+         _fork_db.start_block( *_block_id_to_block.fetch_by_number( first - 1 ) );
       _undo_db.enable();
 
-      reindex_range( first, last_block_num_in_file, skip_nothing, true );
+      reindex_range( _block_id_to_block, first, last_block_num_in_file,
+            [this]( const signed_block& block ) {
+                push_block( block, skip_nothing );
+            } );
 
       auto end = fc::time_point::now();
       ilog( "Done reindexing, elapsed time: ${t} sec", ("t",double((end-start).count())/1000000.0 ) );
@@ -220,7 +262,7 @@ void database::close(bool rewind)
    try
    {
       if( !_block_id_to_block.is_open() ) return;
-      //ilog( "Closing database" );
+      ilog( "Closing database" );
 
       // pop all of the blocks that we can given our undo history, this should
       // throw when there is no more undo history to pop
@@ -229,7 +271,6 @@ void database::close(bool rewind)
          try
          {
             uint32_t cutoff = get_dynamic_global_properties().last_irreversible_block_num;
-            //ilog( "rewinding to last irreversible block number ${c}", ("c",cutoff) );
 
             clear_pending();
             while( head_block_num() > cutoff )
@@ -237,24 +278,14 @@ void database::close(bool rewind)
                block_id_type popped_block_id = head_block_id();
                pop_block();
                _fork_db.remove(popped_block_id); // doesn't throw on missing
-               try
-               {
-                  _block_id_to_block.remove(popped_block_id);
-               }
-               catch (const fc::key_not_found_exception&)
-               {
-                  ilog( "key not found" );
-               }
             }
-            //idump((head_block_num())(get_dynamic_global_properties().last_irreversible_block_num));
          }
          catch ( const fc::exception& e )
          {
-            // ilog( "exception on rewind ${e}", ("e",e.to_detail_string()) );
+            ilog( "exception on rewind ${e}", ("e",e.to_detail_string()) );
          }
       }
 
-      //ilog( "Clearing pending state" );
       // Since pop_block() will move tx's in the popped blocks into pending,
       // we have to clear_pending() after we're done popping to get a clean
       // DB state (issue #336).
@@ -864,7 +895,6 @@ void database::pop_block()
       MUSE_ASSERT( head_block.valid(), pop_empty_chain, "there are no blocks to pop" );
 
       _fork_db.pop_block();
-      _block_id_to_block.remove( head_id );
       pop_undo();
 
       _popped_tx.insert( _popped_tx.begin(), head_block->transactions.begin(), head_block->transactions.end() );
@@ -2728,13 +2758,10 @@ void database::apply_operation(transaction_evaluation_state& eval_state, const o
 { try {
    int i_which = op.which();
    uint64_t u_which = uint64_t( i_which );
-   if( i_which < 0 )
-      assert( "Negative operation tag" && false );
-   if( u_which >= _operation_evaluators.size() )
-      assert( "No registered evaluator for this operation" && false );
+   FC_ASSERT( i_which >= 0, "Negative operation tag in operation ${op}", ("op",op) );
+   FC_ASSERT( u_which < _operation_evaluators.size(), "No registered evaluator for operation ${op}", ("op",op) );
    unique_ptr<op_evaluator>& eval = _operation_evaluators[ u_which ];
-   if( !eval )
-      assert( "No registered evaluator for this operation" && false );
+   FC_ASSERT( eval, "No registered evaluator for operation ${op}", ("op",op) );
    push_applied_operation( op );
    eval->evaluate( eval_state, op, true );
    notify_post_apply_operation( op );

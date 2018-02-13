@@ -93,14 +93,29 @@ namespace detail {
          _p2p_network->load_configuration(data_dir / "p2p");
          _p2p_network->set_node_delegate(this);
 
+         vector<string> seeds;
          if( _options->count("seed-node") )
+            seeds = _options->at("seed-node").as<vector<string>>();
+#ifndef IS_TEST_NET
+#ifndef IS_MUSE_TEST
+         else
          {
-            auto seeds = _options->at("seed-node").as<vector<string>>();
-            for( const string& endpoint_string : seeds )
+             seeds.push_back("138.197.68.175:33333"); // main seed
+             seeds.push_back("muse.seeds.quisquis.de:33333"); // pc's DNS seeder, http://seeds.quisquis.de/muse.html
+             seeds.push_back("94.130.250.18:33333"); // educatedwarrior
+             seeds.push_back("seed.muse.dgazek.tk:33333"); // witness dgazek
+         }
+#endif
+#endif
+         std::set<fc::ip::endpoint> seen;
+         for( const string& endpoint_string : seeds )
+         {
+            std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
+            for (const fc::ip::endpoint& endpoint : endpoints)
             {
-               std::vector<fc::ip::endpoint> endpoints = resolve_string_to_ip_endpoints(endpoint_string);
-               for (const fc::ip::endpoint& endpoint : endpoints)
+               if (seen.find(endpoint) == seen.end())
                {
+                  seen.insert(endpoint);
                   ilog("Adding seed node ${endpoint}", ("endpoint", endpoint));
                   _p2p_network->add_node(endpoint);
                   _p2p_network->connect_to_endpoint(endpoint);
@@ -220,7 +235,6 @@ namespace detail {
 
       ~application_impl()
       {
-         fc::remove_all(_data_dir / "blockchain/dblock");
       }
 
       void register_builtin_apis()
@@ -233,29 +247,23 @@ namespace detail {
 
       void startup()
       { try {
-         bool clean = !fc::exists(_data_dir / "blockchain/dblock");
-         fc::create_directories(_data_dir / "blockchain/dblock");
+         fc::create_directories(_data_dir / "blockchain");
          fc::create_directories(_data_dir / "node/transaction_history");
-         
-         
 
-         auto initial_state = [&] {
+         auto initial_state = [this] {
             ilog("Initializing database...");
-            if(  _options->count("genesis-json") ){
-               //FC_ASSERT( egenesis_json != "" );
-               //FC_ASSERT( muse::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
+            if( _options->count("genesis-json") )
+            {
                fc::path genesis_path(_options->at("genesis-json").as<boost::filesystem::path>());
                auto genesis = fc::json::from_file( genesis_path ).as<genesis_state_type>();
-               genesis.initial_chain_id = MUSE_CHAIN_ID; //fc::sha256::hash( egenesis_json );
+               genesis.initial_chain_id = MUSE_CHAIN_ID;
                return genesis;
 
             } else {
                std::string egenesis_json;
                muse::egenesis::compute_egenesis_json(egenesis_json);
-               //FC_ASSERT( egenesis_json != "" );
-               //FC_ASSERT( muse::egenesis::get_egenesis_json_hash() == fc::sha256::hash( egenesis_json ) );
                auto genesis = fc::json::from_string(egenesis_json).as<genesis_state_type>();
-               genesis.initial_chain_id = MUSE_CHAIN_ID; //fc::sha256::hash( egenesis_json );
+               genesis.initial_chain_id = MUSE_CHAIN_ID;
                return genesis;
             }
          };
@@ -280,53 +288,18 @@ namespace detail {
          _chain_db->add_checkpoints( loaded_checkpoints );
 
          if( _options->count("replay-blockchain") )
+            _chain_db->wipe( _data_dir / "blockchain", false );
+
+         try
          {
-            ilog("Replaying blockchain on user request.");
-            _chain_db->reindex(_data_dir/"blockchain", initial_state() );
-         } else if( clean ) {
-
-            auto is_new = [&]() -> bool
-            {
-               // directory doesn't exist
-               if( !fc::exists( _data_dir ) )
-                  return true;
-               // if directory exists but is empty, return true; else false.
-               return ( fc::directory_iterator( _data_dir ) == fc::directory_iterator() );
-            };
-
-            auto is_outdated = [&]() -> bool
-            {
-               if( !fc::exists( _data_dir / "db_version" ) )
-                  return true;
-               std::string version_str;
-               fc::read_file_contents( _data_dir / "db_version", version_str );
-               return (version_str != GRAPHENE_CURRENT_DB_VERSION);
-            };
-            if( !is_new() && is_outdated() )
-            {
-               ilog("Replaying blockchain due to version upgrade");
-
-               fc::remove_all( _data_dir / "db_version" );
-               _chain_db->reindex(_data_dir / "blockchain", initial_state() );
-
-               // doing this down here helps ensure that DB will be wiped
-               // if any of the above steps were interrupted on a previous run
-               if( !fc::exists( _data_dir / "db_version" ) )
-               {
-                  std::ofstream db_version(
-                     (_data_dir / "db_version").generic_string().c_str(),
-                     std::ios::out | std::ios::binary | std::ios::trunc );
-                  std::string version_string = GRAPHENE_CURRENT_DB_VERSION;
-                  db_version.write( version_string.c_str(), version_string.size() );
-                  db_version.close();
-               }
-            } else {
-              _chain_db->open(_data_dir / "blockchain", initial_state() );
-            }
-         } else {
-            wlog("Detected unclean shutdown. Replaying blockchain...");
-            _chain_db->reindex(_data_dir / "blockchain", initial_state() );
+            _chain_db->open( _data_dir / "blockchain", initial_state(), GRAPHENE_CURRENT_DB_VERSION );
          }
+         catch( const fc::exception& e )
+         {
+            elog( "Caught exception ${e} in open(), you might want to force a replay", ("e", e.to_detail_string()) );
+            throw;
+         }
+
          _pending_trx_db->open(_data_dir / "node/transaction_history" );
 
          if( _options->count("force-validate") )
@@ -458,7 +431,7 @@ namespace detail {
             // leave that peer connected so that they can get sync blocks from us
             bool result = _chain_db->push_block(blk_msg.block, (_is_block_producer | _force_validate) ? database::skip_nothing : database::skip_transaction_signatures);
 
-            if( !sync_mode && blk_msg.block.transactions.size() )
+            if( !sync_mode )
             {
                ilog( "Got ${t} transactions from network on block ${b}",
                   ("t", blk_msg.block.transactions.size())
@@ -854,7 +827,6 @@ application::~application()
    }
 }
 
-static const string DEFAULT_SEED       = "138.197.68.175:33333";
 static const string DEFAULT_CHECKPOINT = "[3900000,\"003b8260970ee1d4e97f7a18aac40d51d0882365\"]";
 
 void application::set_program_options(boost::program_options::options_description& command_line_options,
@@ -873,7 +845,7 @@ void application::set_program_options(boost::program_options::options_descriptio
    configuration_file_options.add_options()
          ("p2p-endpoint", bpo::value<string>(), "Endpoint for P2P node to listen on")
          ("p2p-max-connections", bpo::value<uint32_t>(), "Maxmimum number of incoming connections on P2P endpoint")
-         ("seed-node,s", bpo::value<vector<string>>()->composing()->default_value(vector<string>(1,DEFAULT_SEED), DEFAULT_SEED), "P2P nodes to connect to on startup (may specify multiple times)")
+         ("seed-node,s", bpo::value<vector<string>>()->composing(), "P2P nodes to connect to on startup (may specify multiple times)")
          ("checkpoint,c", bpo::value<vector<string>>()->composing()->default_value(vector<string>(1,DEFAULT_CHECKPOINT), DEFAULT_CHECKPOINT), "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.")
          ("rpc-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8090"), "Endpoint for websocket RPC to listen on")
          ("rpc-tls-endpoint", bpo::value<string>()->implicit_value("127.0.0.1:8089"), "Endpoint for TLS websocket RPC to listen on")

@@ -48,8 +48,8 @@ BOOST_AUTO_TEST_CASE( serialization_raw_test )
       op.amount = asset(100,MUSE_SYMBOL);
 
       trx.operations.push_back( op );
-      auto packed = fc::raw::pack( trx );
-      signed_transaction unpacked = fc::raw::unpack<signed_transaction>(packed);
+      auto packed = fc::raw::pack_to_vector( trx );
+      signed_transaction unpacked = fc::raw::unpack_from_vector<signed_transaction>(packed);
       unpacked.validate();
       BOOST_CHECK( trx.digest() == unpacked.digest() );
    } catch (fc::exception& e) {
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE( serialization_json_test )
 
 
       fc::variant test(op.amount);
-      auto tmp = test.as<asset>();
+      auto tmp = test.as<asset>(); FC_UNUSED(tmp);
 
       trx.operations.push_back( op );
       fc::variant packed(trx);

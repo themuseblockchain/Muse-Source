@@ -1043,7 +1043,7 @@ std::string database_api::get_transaction_hex(const signed_transaction& trx)cons
 
 std::string database_api_impl::get_transaction_hex(const signed_transaction& trx)const
 {
-   return fc::to_hex(fc::raw::pack(trx));
+   return fc::to_hex(fc::raw::pack_to_vector(trx));
 }
 
 set<public_key_type> database_api::get_required_signatures( const signed_transaction& trx, const flat_set<public_key_type>& available_keys )const

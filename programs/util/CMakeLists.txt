@@ -37,12 +37,24 @@ install( TARGETS
    ARCHIVE DESTINATION lib
 )
 
-add_executable( inflation_model inflation_model.cpp )
-target_link_libraries( inflation_model
-                       PRIVATE muse_chain muse_egenesis_full fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
+#add_executable( inflation_model inflation_model.cpp )
+#target_link_libraries( inflation_model
+#                       PRIVATE muse_chain muse_egenesis_full fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
+#
+#install( TARGETS
+#   inflation_model
+#
+#   RUNTIME DESTINATION bin
+#   LIBRARY DESTINATION lib
+#   ARCHIVE DESTINATION lib
+#)
+
+add_executable( map_muse_network map_muse_network.cpp )
+target_link_libraries( map_muse_network
+                       PRIVATE muse_chain graphene_net graphene_utilities fc ${CMAKE_DL_LIBS} ${PLATFORM_SPECIFIC_LIBS} )
 
 install( TARGETS
-   inflation_model
+   map_muse_network
 
    RUNTIME DESTINATION bin
    LIBRARY DESTINATION lib

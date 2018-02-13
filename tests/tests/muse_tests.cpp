@@ -1540,7 +1540,7 @@ BOOST_AUTO_TEST_CASE( balance_object_test )
    auto _sign = [&]( signed_transaction& tx, const private_key_type& key )
    {  tx.sign( key, db.get_chain_id() );   };
 
-   db.open( td.path(), genesis_state );
+   db.open( td.path(), genesis_state, "TEST" );
    const balance_object& balance = balance_id_type()(db);
    BOOST_CHECK_EQUAL(1, balance.balance.amount.value);
    BOOST_CHECK_EQUAL(10, balance_id_type(1)(db).balance.amount.value);

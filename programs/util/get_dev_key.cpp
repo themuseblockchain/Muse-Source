@@ -72,7 +72,7 @@ int main( int argc, char** argv )
 
       bool comma = false;
 
-      auto show_key = [&]( const fc::ecc::private_key& priv_key )
+      auto show_key = [&comma]( const fc::ecc::private_key& priv_key )
       {
          fc::mutable_variant_object mvo;
          muse::chain::public_key_type pub_key = priv_key.get_public_key();

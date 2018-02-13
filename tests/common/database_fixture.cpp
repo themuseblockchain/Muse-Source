@@ -109,7 +109,7 @@ live_database_fixture::live_database_fixture()
       _chain_dir = fc::current_path() / "test_blockchain";
       FC_ASSERT( fc::exists( _chain_dir ), "Requires blockchain to test on in ./test_blockchain" );
 
-      db.open( _chain_dir );
+      db.open( _chain_dir, genesis_state_type(), "TEST" );
       graphene::time::now();
 
       auto ahplugin = app.register_plugin< muse::account_history::account_history_plugin >();
@@ -168,7 +168,7 @@ void database_fixture::open_database()
    if( !data_dir ) {
       data_dir = fc::temp_directory( graphene::utilities::temp_directory_path() );
       const genesis_state_type genesis = prepare_genesis();
-      db.open( data_dir->path(), genesis );
+      db.open( data_dir->path(), genesis, "test" );
    }
 }
 

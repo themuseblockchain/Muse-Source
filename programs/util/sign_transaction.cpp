@@ -35,7 +35,7 @@ struct tx_signing_result
 FC_REFLECT( tx_signing_request, (tx)(wif) )
 FC_REFLECT( tx_signing_result, (digest)(sig_digest)(key)(sig) )
 
-int main(int argc, char** argv, char** envp)
+int main()
 {
    // hash key pairs on stdin
    std::string chain_id, hash, wif;

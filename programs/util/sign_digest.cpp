@@ -30,7 +30,7 @@ struct signing_result
 FC_REFLECT( signing_request, (dig)(wif) )
 FC_REFLECT( signing_result, (dig)(key)(sig) )
 
-int main(int argc, char** argv, char** envp)
+int main()
 {
    // hash key pairs on stdin
    std::string chain_id, hash, wif;
