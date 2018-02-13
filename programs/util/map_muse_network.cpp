@@ -97,11 +97,7 @@ public:
     case graphene::net::core_message_type_enum::closing_connection_message_type:
       on_closing_connection_message( originating_peer, received_message.as<graphene::net::closing_connection_message>() );
       break;
-    case graphene::net::core_message_type_enum::current_time_request_message_type:
-      on_current_time_request_message( originating_peer, received_message.as<graphene::net::current_time_request_message>() );
-      break;
-    case graphene::net::core_message_type_enum::current_time_reply_message_type:
-      on_current_time_reply_message( originating_peer, received_message.as<graphene::net::current_time_reply_message>() );
+    default:
       break;
     }
   }
@@ -151,16 +147,6 @@ public:
       _connection->close_connection();
     else
       _peer_closed_connection = true;
-  }
-
-  void on_current_time_request_message(graphene::net::peer_connection* originating_peer,
-                                       const graphene::net::current_time_request_message& current_time_request_message_received)
-  {
-  }
-
-  void on_current_time_reply_message(graphene::net::peer_connection* originating_peer,
-                                     const graphene::net::current_time_reply_message& current_time_reply_message_received)
-  {
   }
 
   void on_connection_closed(graphene::net::peer_connection* originating_peer) override
@@ -241,7 +227,7 @@ int main(int argc, char** argv)
     {
        try {
           probes[0]->wait( fc::microseconds(10000) );
-       } catch ( fc::timeout_exception& ignore ) {}
+       } catch ( fc::timeout_exception& e ) { /* ignore */ }
 
        std::vector<std::shared_ptr<peer_probe>> running;
        for ( auto& probe : probes ) {
@@ -305,7 +291,6 @@ int main(int argc, char** argv)
   seed_node_missing_connections.erase(seed_node_id);
 
   std::ofstream dot_stream((data_dir / "network_graph.dot").string().c_str());
-  std::map<graphene::net::node_id_t, fc::ip::endpoint> all_known_nodes;
 
   dot_stream << "graph G {\n";
   dot_stream << "  // Total " << address_info_by_node_id.size() << " nodes, firewalled: " << (address_info_by_node_id.size() - non_firewalled_nodes_set.size())
@@ -317,8 +302,6 @@ int main(int argc, char** argv)
     dot_stream << "  //           " << (std::string)address_info_by_node_id[id].remote_endpoint << "\n";
 
   dot_stream << "  layout=\"circo\";\n";
-  //for (const auto& node_and_connections : connections_by_node_id)
-  //  all_known_nodes[node_and_connections.first] = address_info_by_node_id[node_and_connections.first].remote_endpoint;
 
   for (const auto& address_info_for_node : address_info_by_node_id)
   {
@@ -332,14 +315,6 @@ int main(int argc, char** argv)
       dot_stream << "  \"" << fc::variant(node_and_connections.first).as_string() << "\" -- \"" << fc::variant(this_connection.node_id).as_string() << "\";\n";
 
   dot_stream << "}\n";
-
-#if 0
-  for (auto& node_and_connections : connections_by_node_id)
-  {
-    out << "  " << (std::string)node_and_connections.first.node_id.data << "[label=\"" << (std::string)node_and_connections.first.remote_endpoint << "\"];\n";
-    //node_and_connections.first.node_id
-  }
-#endif
 
   return 0;
 }
