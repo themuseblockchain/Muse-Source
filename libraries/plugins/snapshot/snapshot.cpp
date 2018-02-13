@@ -66,7 +66,7 @@ void snapshot_plugin::plugin_initialize(const boost::program_options::variables_
          snapshot_block = options[OPT_BLOCK_NUM].as<uint32_t>();
       if( options.count(OPT_BLOCK_TIME) )
          snapshot_time = fc::time_point_sec::from_iso_string( options[OPT_BLOCK_TIME].as<std::string>() );
-      database().applied_block.connect( [&]( const muse::chain::signed_block& b ) {
+      database().applied_block.connect( [this]( const muse::chain::signed_block& b ) {
          check_snapshot( b );
       });
    }
@@ -75,9 +75,9 @@ void snapshot_plugin::plugin_initialize(const boost::program_options::variables_
    ilog("snapshot plugin: plugin_initialize() end");
 } FC_LOG_AND_RETHROW() }
 
-void snapshot_plugin::plugin_startup() {}
+void snapshot_plugin::plugin_startup() { /* Must override pure virtual method */ }
 
-void snapshot_plugin::plugin_shutdown() {}
+void snapshot_plugin::plugin_shutdown() { /* Must override pure virtual method */ }
 
 static void create_snapshot( const muse::chain::database& db, const fc::path& dest )
 {
@@ -87,7 +87,7 @@ static void create_snapshot( const muse::chain::database& db, const fc::path& de
    {
       out.open( dest );
    }
-   catch ( fc::exception e )
+   catch ( fc::exception& e )
    {
       wlog( "Failed to open snapshot destination: ${ex}", ("ex",e) );
       return;
@@ -99,7 +99,7 @@ static void create_snapshot( const muse::chain::database& db, const fc::path& de
          {
             db.get_index( (uint8_t)space_id, (uint8_t)type_id );
          }
-         catch (fc::assert_exception e)
+         catch (fc::assert_exception& e)
          {
             continue;
          }

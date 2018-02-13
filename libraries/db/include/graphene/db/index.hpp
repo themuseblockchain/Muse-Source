@@ -252,15 +252,15 @@ namespace graphene { namespace db {
             fc::raw::pack( out, _next_id );
             fc::raw::pack( out, ver );
             this->inspect_all_objects( [&]( const object& o ) {
-                auto vec = fc::raw::pack( static_cast<const object_type&>(o) );
-                auto packed_vec = fc::raw::pack( vec );
+                auto vec = fc::raw::pack_to_vector( static_cast<const object_type&>(o) );
+                auto packed_vec = fc::raw::pack_to_vector( vec );
                 out.write( packed_vec.data(), packed_vec.size() );
             });
          }
 
          virtual const object&  load( const std::vector<char>& data )override
          {
-            const auto& result = DerivedIndex::insert( fc::raw::unpack<object_type>( data ) );
+            const auto& result = DerivedIndex::insert( fc::raw::unpack_from_vector<object_type>( data ) );
             for( const auto& item : _sindex )
                item->object_inserted( result );
             return result;

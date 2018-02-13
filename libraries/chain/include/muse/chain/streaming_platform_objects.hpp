@@ -74,6 +74,7 @@ namespace muse { namespace chain {
     * @ingroup object_index
     */
    struct by_name;
+   struct by_vote_name;
    typedef multi_index_container<
       streaming_platform_object,
       indexed_by<

@@ -634,9 +634,6 @@ namespace muse { namespace chain {
 } } // muse::chain
 
 
-FC_REFLECT_TYPENAME( muse::chain::content_update_operation::side_t )
-FC_REFLECT_ENUM( muse::chain::content_update_operation::side_t,(master)(publisher) )
-
 FC_REFLECT( muse::chain::report_over_production_operation, (reporter)(first_block)(second_block) )
 FC_REFLECT( muse::chain::convert_operation, (owner)(requestid)(amount) )
 FC_REFLECT( muse::chain::feed_publish_operation, (publisher)(exchange_rate) )
