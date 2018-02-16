@@ -3,7 +3,7 @@
  */
 #pragma once
 
-#define MUSE_BLOCKCHAIN_VERSION              ( version(0, 2, 0) )
+#define MUSE_BLOCKCHAIN_VERSION              ( version(0, 2, 2) )
 #define MUSE_BLOCKCHAIN_HARDFORK_VERSION     ( hardfork_version( MUSE_BLOCKCHAIN_VERSION ) )
 
 #ifdef IS_TEST_NET // This is the muse test net mode. Some feature may behave differently
