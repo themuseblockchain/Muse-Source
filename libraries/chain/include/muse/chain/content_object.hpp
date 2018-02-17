@@ -10,8 +10,6 @@
 #include <graphene/db/generic_index.hpp>
 
 #include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/ranked_index_fwd.hpp>
-#include <boost/multi_index/ranked_index.hpp>
 
 namespace muse { namespace chain {
 
