@@ -26,9 +26,7 @@ bool sign_state::check_authority( const authority* au, uint32_t depth )
 {
    if( au == nullptr ) return false;
    const authority& auth = *au;
-   wdump((auth));
 
-   wdump((approved_by));
    uint32_t total_weight = 0;
    for( const auto& k : auth.key_auths )
       if( signed_by( k.first ) )
