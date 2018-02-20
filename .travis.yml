@@ -14,6 +14,13 @@ install:
 
 script:
  - cmake -DCMAKE_BUILD_TYPE=Debug -DBoost_USE_STATIC_LIBS=OFF .
- - make -j 2 all_tests chain_test mused cli_wallet
+ - make -j 2
  - tests/chain_test
- - libraries/fc/tests/all_tests
+ - tests/plugin_test
+ - cd libraries/fc
+ - tests/all_tests
+ - tests/api
+ - tests/bip_lock
+ - tests/ecc_test README.md
+ - tests/log_test
+ - tests/sha_test
