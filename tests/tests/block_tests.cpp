@@ -916,4 +916,81 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
    FC_LOG_AND_RETHROW()
 }
 
+BOOST_FIXTURE_TEST_CASE( skip_witness_on_empty_key, clean_database_fixture )
+{ try {
+
+   const auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
+
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+
+   const witness_schedule_object& wso = witness_schedule_id_type()(db);
+
+   std::set<string> witnesses( wso.current_shuffled_witnesses.begin(), wso.current_shuffled_witnesses.end() );
+   BOOST_CHECK_EQUAL( MUSE_MAX_MINERS, witnesses.size() );
+
+   {
+      witness_update_operation wup;
+      wup.block_signing_key = public_key_type();
+      wup.url = "http://peertracks.com";
+      wup.owner = MUSE_INIT_MINER_NAME;
+      wup.fee = asset( MUSE_MIN_ACCOUNT_CREATION_FEE, MUSE_SYMBOL );
+      trx.operations.push_back( wup );
+      trx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+      PUSH_TX( db, trx, skip_sigs );
+   }
+
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+
+   witnesses.clear();
+   witnesses.insert( wso.current_shuffled_witnesses.begin(), wso.current_shuffled_witnesses.end() );
+   BOOST_CHECK_EQUAL( MUSE_MAX_MINERS, witnesses.size() );
+
+   generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME ), true );
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+    
+   std::set<string> fewer_witnesses( wso.current_shuffled_witnesses.begin(), wso.current_shuffled_witnesses.end() );
+   BOOST_CHECK_EQUAL( MUSE_MAX_MINERS - 1, fewer_witnesses.size() );
+
+   for( const string& w : fewer_witnesses )
+      witnesses.erase( w );
+
+   BOOST_CHECK_EQUAL( 1, witnesses.size() );
+
+   BOOST_CHECK_EQUAL( 1, witnesses.count( MUSE_INIT_MINER_NAME ) );
+
+} FC_LOG_AND_RETHROW() }
+
+static void generate_1_day_of_misses( database& db, const string& witness_to_skip )
+{
+   for( int blocks = 0; blocks < MUSE_BLOCKS_PER_DAY + 2 * MUSE_MAX_MINERS; blocks++ )
+   {
+      int next = 0;
+      string next_witness;
+      do
+      {
+         next_witness = db.get_scheduled_witness( ++next );
+      } while( next_witness == witness_to_skip );
+      db.generate_block(db.get_slot_time( next ), next_witness, init_account_priv_key(), 0);
+   }
+}
+
+BOOST_FIXTURE_TEST_CASE( clear_witness_key, clean_database_fixture )
+{ try {
+
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+
+   auto witness = db.get_witness( MUSE_INIT_MINER_NAME );
+
+   BOOST_CHECK_NE( std::string(public_key_type()), std::string(witness.signing_key) );
+
+   generate_1_day_of_misses( db, MUSE_INIT_MINER_NAME );
+
+   witness = db.get_witness( MUSE_INIT_MINER_NAME );
+
+   BOOST_CHECK_GT( witness.total_missed, MUSE_BLOCKS_PER_DAY / MUSE_MAX_MINERS - 5 );
+   BOOST_CHECK_LT( witness.last_confirmed_block_num, db.head_block_num() - MUSE_BLOCKS_PER_DAY );
+   BOOST_CHECK_EQUAL( std::string(public_key_type()), std::string(witness.signing_key) );
+
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_SUITE_END()
