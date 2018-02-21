@@ -15,16 +15,16 @@ if [ "${NODE_TYPE}" = "test" ]; then
 	  then
 	    echo "Starting muse daemon in TEST"
 	  	exec mused -s ${TEST_SEED} \
-		--rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${DATADIR}/genesis-test.json \
-		-d ${DATADIR}/
+		    --rpc-endpoint=0.0.0.0:8090 \
+		    --genesis-json ${DATADIR}/genesis-test.json \
+		    -d ${DATADIR}/
 	  else
 	  	echo "Starting muse daemon in TEST.  Replaying blockchain"
 	    cp /genesis-test.json ${DATADIR}
 	    exec mused -s ${TEST_SEED} \
-		--replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
-		--genesis-json ${DATADIR}/genesis-test.json \
-		-d ${DATADIR}/
+		    --replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
+		    --genesis-json ${DATADIR}/genesis-test.json \
+		    -d ${DATADIR}/
 	fi
 
 fi
@@ -33,18 +33,15 @@ if [ "${NODE_TYPE}" = "prod" ]; then
 	if [ -f "${DATADIR}/genesis.json" ]
 	  then
 	    echo "Starting daemon in PROD"
-	    exec mused -s ${PROD_SEED} \
-		--rpc-endpoint=0.0.0.0:8090 \
-		-d ${DATADIR}/
+	    exec mused \
+		    --rpc-endpoint=0.0.0.0:8090 \
+		    -d ${DATADIR}/
 	  else
 	  	echo "Starting daemon in PROD.  Replaying blockchain"
 	    cp /genesis.json ${DATADIR}
-		exec mused -s ${PROD_SEED} \
-		--replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
-		-d ${DATADIR}/
+		  exec mused \
+		    --replay-blockchain --rpc-endpoint=0.0.0.0:8090 \
+		    -d ${DATADIR}/
 	fi
 
 fi
-
-
-

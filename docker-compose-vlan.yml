@@ -1,0 +1,18 @@
+version: "3.3"
+
+services:
+  muse_wtns:
+    image: educatedwarrior/muse-source:HF_1 
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+      - "33333:33333"
+    volumes:
+      - /data/store/muse/witness_node_data_dir:/opt/muse/bin/witness_node_data_dir
+    networks:
+      - ew_lan 
+networks:
+  ew_lan:
+    external:
+      name: ew_lan
+

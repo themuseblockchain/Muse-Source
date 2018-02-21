@@ -5,8 +5,9 @@ MAINTAINER educatedwarrior
 #test or prod for NODE_TYPE
 ENV NODE_TYPE prod
 ENV LANG en_US.UTF-8
-ENV REPOLINK https://github.com/educatedwarrior/Muse-Source.git
+ENV REPOLINK https://github.com/themuseblockchain/Muse-Source.git
 ENV REPOBRANCH master
+ENV REPOTAG HF_1
 ENV WORKDIR /opt/muse/bin
 ENV DATADIR /opt/muse/bin/witness_node_data_dir
 ENV USEGENSISJSON false 
@@ -50,9 +51,10 @@ LABEL org.freenas.interactive="false"       \
 RUN \
 	cd /tmp && git clone "$REPOLINK" && \
 	cd Muse-Source && \
+  git checkout tags/"$REPOTAG" && \
 	git submodule update --init --recursive && \
-	cmake -j 8 -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
-	make mused cli_wallet
+	cmake -G "Unix Makefiles" -DBOOST_ROOT="$BOOST_ROOT" -DBUILD_MUSE_TEST=OFF -DCMAKE_BUILD_TYPE=Debug . && \
+	make -j$(nproc) mused cli_wallet
 
 # Make binary builds available for general-system wide use 
 RUN \
