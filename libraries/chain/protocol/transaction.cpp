@@ -168,14 +168,12 @@ void verify_authority( const vector<operation>& ops, const flat_set<public_key_t
 
    for( auto con : required_master_content )
    {
-      wlog("Now checing content authority");
       MUSE_ASSERT( s.check_authority(get_master_content(con)),
                        tx_missing_active_auth, "Missing Content Authority for content ${con}", ("con", con)("auth",*get_master_content(con)));
    }
 
    for( auto con : required_comp_content )
    {
-      wlog("Now checing content authority");
       MUSE_ASSERT( s.check_authority(get_comp_content(con)),
                        tx_missing_active_auth, "Missing Content Authority for content ${con}", ("con", con)("auth",*get_comp_content(con)));
    }
@@ -186,13 +184,6 @@ void verify_authority( const vector<operation>& ops, const flat_set<public_key_t
                        s.check_authority(get_owner(id)),
                        tx_missing_owner_auth, "Missing Owner Authority ${id}", ("id",id)("auth",*get_owner(id)) );
    }
-   wlog("check successful...");
-   /* Removed since this is potential security issue in case of proposals - if uninvolved 3pp approves a proposal, this assert fails
-    * MUSE_ASSERT(
-      !s.remove_unused_signatures(),
-      tx_irrelevant_sig,
-      "Unnecessary signature(s) detected"
-      );*/
 } FC_CAPTURE_AND_RETHROW( (ops)(sigs) ) }
 
 
