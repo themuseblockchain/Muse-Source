@@ -937,4 +937,108 @@ BOOST_AUTO_TEST_CASE( parent_owner_test )
    trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp );
 } FC_LOG_AND_RETHROW() }
 
+BOOST_AUTO_TEST_CASE( proposal_expires )
+{ try {
+   generate_block();
+
+   ACTORS( (alice)(bob) );
+   fund("alice");
+   const asset_object& core = asset_id_type()(db);
+   const auto& original_balance = alice.balance.amount.value;
+
+   BOOST_TEST_MESSAGE( "Alice creates a proposal and lets it expire" );
+
+   transfer_operation transfer_op;
+   transfer_op.from = "alice";
+   transfer_op.to  = "bob";
+   transfer_op.amount = core.amount(100);
+
+   proposal_create_operation op;
+   op.proposed_ops.emplace_back( transfer_op );
+   op.expiration_time = db.head_block_time() + fc::minutes(1);
+   trx.operations.push_back(op);
+   PUSH_TX( db, trx );
+
+   const auto& pidx = db.get_index_type<proposal_index>().indices().get<by_id>();
+   BOOST_CHECK_EQUAL( 1, pidx.size() );
+   const proposal_object& proposal = *pidx.begin();
+   const proposal_id_type pid = proposal.id;
+
+   BOOST_CHECK_EQUAL(proposal.required_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal.available_active_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal.required_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal.available_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL("alice", *proposal.required_active_approvals.begin());
+
+   generate_blocks( op.expiration_time );
+   generate_block();
+
+   // Proposal didn't execute
+   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, original_balance);
+   // Proposal was deleted
+   BOOST_CHECK_EQUAL( 0, pidx.size() );
+   BOOST_CHECK_THROW( db.get( pid ), fc::assert_exception );
+} FC_LOG_AND_RETHROW() }
+
+BOOST_AUTO_TEST_CASE( proposal_executes_at_expiry )
+{ try {
+   generate_block();
+
+   ACTORS( (alice)(bob) );
+   const asset_object& core = asset_id_type()(db);
+   const auto& original_balance = alice.balance.amount.value;
+
+   BOOST_TEST_MESSAGE( "Alice creates a proposal and lets it expire" );
+
+   transfer_operation transfer_op;
+   transfer_op.from = "alice";
+   transfer_op.to  = "bob";
+   transfer_op.amount = core.amount(100);
+
+   proposal_create_operation op;
+   op.proposed_ops.emplace_back( transfer_op );
+   op.expiration_time = db.head_block_time() + fc::minutes(1);
+   trx.operations.push_back(op);
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   const auto& pidx = db.get_index_type<proposal_index>().indices().get<by_id>();
+   BOOST_CHECK_EQUAL( 1, pidx.size() );
+   const proposal_id_type pid = pidx.begin()->id;
+
+   proposal_update_operation uop;
+   uop.proposal = pid;
+   uop.active_approvals_to_add.insert("alice");
+   trx.operations.push_back(uop);
+   sign( trx, alice_private_key );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   // Proposal failed to execute
+   BOOST_CHECK_EQUAL( 1, pidx.size() );
+
+   const proposal_object& proposal = pid(db);
+   BOOST_CHECK_EQUAL(proposal.required_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal.available_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal.required_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal.available_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL("alice", *proposal.required_active_approvals.begin());
+
+   fund("alice");
+
+   // Proposal didn't execute yet
+   BOOST_CHECK_EQUAL( 1, pidx.size() );
+   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, original_balance);
+
+   generate_blocks( op.expiration_time );
+   generate_block();
+
+   // Proposal did execute now
+   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, original_balance - transfer_op.amount.amount.value);
+
+   // Proposal was deleted
+   BOOST_CHECK_EQUAL( 0, pidx.size() );
+   BOOST_CHECK_THROW( db.get( pid ), fc::assert_exception );
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_SUITE_END()
