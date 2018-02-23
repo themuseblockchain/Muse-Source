@@ -29,7 +29,11 @@ using std::cerr;
 
 clean_database_fixture::clean_database_fixture()
 {
-   try {
+   initialize_clean( MUSE_NUM_HARDFORKS );
+}
+
+void database_fixture::initialize_clean( uint32_t num_hardforks )
+{ try {
    int argc = boost::unit_test::framework::master_test_suite().argc;
    char** argv = boost::unit_test::framework::master_test_suite().argv;
    for( int i=1; i<argc; i++ )
@@ -66,7 +70,8 @@ clean_database_fixture::clean_database_fixture()
       });
    }
 
-   db.set_hardfork( MUSE_NUM_HARDFORKS );
+   if( num_hardforks > 0 )
+      db.set_hardfork( num_hardforks );
    vest( MUSE_INIT_MINER_NAME, 10000 );
 
    // Fill up the rest of the required miners
@@ -78,14 +83,7 @@ clean_database_fixture::clean_database_fixture()
    }
 
    validate_database();
-   } catch ( const fc::exception& e )
-   {
-      edump( (e.to_detail_string()) );
-      throw;
-   }
-
-   return;
-}
+} FC_LOG_AND_RETHROW() }
 
 clean_database_fixture::~clean_database_fixture()
 { try {
