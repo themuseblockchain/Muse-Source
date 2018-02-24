@@ -2549,6 +2549,7 @@ void database::_apply_block( const signed_block& next_block )
 
    create_block_summary(next_block);
    clear_expired_transactions();
+   clear_expired_proposals();
    clear_expired_orders();
    update_witness_schedule();
 
@@ -3124,6 +3125,29 @@ void database::clear_expired_orders()
    }
 }
 
+void database::clear_expired_proposals()
+{
+   if ( !has_hardfork(MUSE_HARDFORK_0_3) ) return;
+
+   const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();
+   while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
+   {
+      const proposal_object& proposal = *proposal_expiration_index.begin();
+      processed_transaction result;
+      try {
+         if( proposal.is_authorized_to_execute(*this) )
+         {
+            push_proposal(proposal);
+            continue;
+         }
+      } catch( const fc::exception& e ) {
+         elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
+              ("proposal", proposal)("error", e.to_detail_string()));
+      }
+      remove(proposal);
+   }
+}
+
 string database::to_pretty_string( const asset& a )const
 {
    return a.asset_id(*this).amount_to_pretty_string(a.amount);
@@ -3340,6 +3364,14 @@ void database::apply_hardfork( uint32_t hardfork )
                dgpo.virtual_supply += dgpo.supply_delta;
                dgpo.supply_delta = asset();
             } );
+         }
+         break;
+
+      case MUSE_HARDFORK_0_3:
+         {
+            const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();
+            while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
+               remove( *proposal_expiration_index.begin() );
          }
          break;
 
