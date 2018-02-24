@@ -911,6 +911,87 @@ BOOST_FIXTURE_TEST_CASE( skip_witness_on_empty_key, database_fixture )
 
 } FC_LOG_AND_RETHROW() }
 
+BOOST_FIXTURE_TEST_CASE( expire_proposals_on_hf3, database_fixture )
+{ try {
+
+   initialize_clean(2);
+
+   ACTORS( (alice)(bob) );
+   const asset_object& core = asset_id_type()(db);
+
+   generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME - 5 * 60 ) );
+
+   transfer_operation transfer_op;
+   transfer_op.from = "alice";
+   transfer_op.to  = "bob";
+   transfer_op.amount = core.amount(100);
+
+   proposal_create_operation op;
+   op.proposed_ops.emplace_back( transfer_op );
+   op.expiration_time = db.head_block_time() + fc::minutes(1);
+   trx.operations.push_back(op);
+   trx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   op.proposed_ops.clear();
+   transfer_op.amount = core.amount(50);
+   op.proposed_ops.emplace_back( transfer_op );
+   op.expiration_time = db.head_block_time() + fc::minutes(2);
+   trx.operations.push_back(op);
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   const auto& pidx = db.get_index_type<proposal_index>().indices().get<by_id>();
+   BOOST_CHECK_EQUAL( 2, pidx.size() );
+   const proposal_id_type pid1 = pidx.begin()->id;
+   const proposal_id_type pid2 = std::next( pidx.begin() )->id;
+
+   proposal_update_operation uop;
+   uop.proposal = pid1;
+   uop.active_approvals_to_add.insert("alice");
+   trx.operations.push_back(uop);
+   sign( trx, alice_private_key );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   // Proposals failed to execute
+   BOOST_CHECK_EQUAL( 2, pidx.size() );
+
+   fund( "alice" );
+   const auto original_balance = get_balance("alice").amount.value;
+
+   generate_block();
+
+   // Proposals failed to execute
+   BOOST_CHECK_EQUAL( 2, pidx.size() );
+   BOOST_CHECK_EQUAL( original_balance, get_balance("alice").amount.value );
+
+   const proposal_object& proposal1 = pid1(db);
+   BOOST_CHECK_EQUAL(proposal1.required_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal1.available_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal1.required_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal1.available_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL("alice", *proposal1.required_active_approvals.begin());
+
+   const proposal_object& proposal2 = pid2(db);
+   BOOST_CHECK_EQUAL(proposal2.required_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal2.available_active_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal2.required_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal2.available_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL("alice", *proposal2.required_active_approvals.begin());
+
+   generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME ) );
+   generate_blocks( 2*MUSE_MAX_MINERS );
+
+   // Proposals were removed
+   BOOST_CHECK_EQUAL( 0, pidx.size() );
+
+   // ...and did not execute
+   BOOST_CHECK_EQUAL( original_balance, get_balance("alice").amount.value );
+
+} FC_LOG_AND_RETHROW() }
+
 static void generate_1_day_of_misses( database& db, const string& witness_to_skip )
 {
    for( int blocks = 0; blocks < MUSE_BLOCKS_PER_DAY + 2 * MUSE_MAX_MINERS; blocks++ )
