@@ -131,6 +131,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 void proposal_delete_evaluator::do_apply(const proposal_delete_operation& o)
 { try {
+   FC_ASSERT( db().has_hardfork(MUSE_HARDFORK_0_3) ); // TODO: remove after HF
    auto _proposal = &o.proposal(db());
    db().remove(*_proposal);
 

@@ -2152,6 +2152,7 @@ void database::initialize_evaluators()
     register_evaluator<balance_claim_evaluator>();
 
     register_evaluator<proposal_create_evaluator>();
+    register_evaluator<proposal_delete_evaluator>();
     register_evaluator<proposal_update_evaluator>();
 
     register_evaluator<feed_publish_evaluator>();
