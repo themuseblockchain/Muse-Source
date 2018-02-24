@@ -986,7 +986,6 @@ BOOST_AUTO_TEST_CASE( proposal_executes_at_expiry )
 
    ACTORS( (alice)(bob) );
    const asset_object& core = asset_id_type()(db);
-   const auto& original_balance = alice.balance.amount.value;
 
    BOOST_TEST_MESSAGE( "Alice creates a proposal and lets it expire" );
 
@@ -1024,17 +1023,17 @@ BOOST_AUTO_TEST_CASE( proposal_executes_at_expiry )
    BOOST_CHECK_EQUAL(proposal.available_owner_approvals.size(), 0);
    BOOST_CHECK_EQUAL("alice", *proposal.required_active_approvals.begin());
 
-   fund("alice");
+   fund( "alice", 1000 );
 
    // Proposal didn't execute yet
    BOOST_CHECK_EQUAL( 1, pidx.size() );
-   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, original_balance);
+   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, 1000);
 
    generate_blocks( op.expiration_time );
    generate_block();
 
    // Proposal did execute now
-   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, original_balance - transfer_op.amount.amount.value);
+   BOOST_CHECK_EQUAL(get_balance("alice").amount.value, 1000 - transfer_op.amount.amount.value);
 
    // Proposal was deleted
    BOOST_CHECK_EQUAL( 0, pidx.size() );
