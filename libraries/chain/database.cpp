@@ -2906,6 +2906,8 @@ void database::update_virtual_supply()
 
 void database::push_proposal(const proposal_object& proposal)
 { try {
+   ilog( "Proposal: executing ${p}", ("p",proposal) );
+
    auto session = _undo_db.start_undo_session(true);
    _current_op_in_trx = 0;
    transaction_evaluation_state eval_state(this);

@@ -98,6 +98,8 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
    }
    _proposed_trx.validate();
 
+   ilog( "Proposal: ${op}", ("op",o) );
+
    d.create<proposal_object>([&o, &_proposed_trx, &d](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
       proposal.proposed_transaction = _proposed_trx;
@@ -139,6 +141,8 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
       std::set_difference(required_active.begin(), required_active.end(),
                           proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end(),
                           std::inserter(proposal.required_active_approvals, proposal.required_active_approvals.begin()));
+
+      ilog( "Proposal: ${p}", ("p",proposal) );
    });
 
 } FC_CAPTURE_AND_RETHROW( (o) ) }
@@ -161,6 +165,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
                  "", ("id", id)("available", _proposal->available_owner_approvals) );
    }
 
+   ilog( "Proposal: ${op}", ("op",o) );
 
    // Potential optimization: if _executed_proposal is true, we can skip the modify step and make push_proposal skip
    // signature checks. This isn't done now because I just wrote all the proposals code, and I'm not yet 100% sure the
@@ -176,6 +181,8 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
          p.available_key_approvals.insert(id);
       for( const auto& id : o.key_approvals_to_remove )
          p.available_key_approvals.erase(id);
+
+      ilog( "Proposal: ${p}", ("p",p) );
    });
 
    // If the proposal has a review period, don't bother attempting to authorize/execute it.
