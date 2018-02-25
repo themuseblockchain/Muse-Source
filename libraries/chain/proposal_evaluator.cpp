@@ -119,17 +119,20 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
       proposal.can_veto.insert( proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end() );
       proposal.can_veto.insert( proposal.required_basic_approvals.begin(), proposal.required_basic_approvals.end() );
 
-      // Active or owner authorities also cover basic authority
-      for( const string& a : required_active )
-         proposal.required_basic_approvals.erase( a );
-      for( const string& o : proposal.required_owner_approvals )
-         proposal.required_basic_approvals.erase( o );
+      if( d.has_hardfork( MUSE_HARDFORK_0_3 ) ) // TODO: attempt to remove after HF 3
+      {
+         // Active or owner authorities also cover basic authority
+         for( const string& a : required_active )
+            proposal.required_basic_approvals.erase( a );
+         for( const string& o : proposal.required_owner_approvals )
+            proposal.required_basic_approvals.erase( o );
 
-      authority_collector collector( d, required_active );
-      for( const string& url : proposal.required_master_content_approvals )
-         collector.collect( d.get_content(url).manage_master );
-      for( const string& url : proposal.required_comp_content_approvals )
-         collector.collect( d.get_content(url).manage_comp );
+         authority_collector collector( d, required_active );
+         for( const string& url : proposal.required_master_content_approvals )
+            collector.collect( d.get_content(url).manage_master );
+         for( const string& url : proposal.required_comp_content_approvals )
+            collector.collect( d.get_content(url).manage_comp );
+      }
 
       //All accounts which must provide both owner and active authority should be omitted from the active authority set
       //owner authority approval implies active authority approval.
