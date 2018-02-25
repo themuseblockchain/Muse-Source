@@ -470,6 +470,7 @@ BOOST_AUTO_TEST_CASE( proposal_delete )
       proposal_id_type pid = prop.id;
       proposal_delete_operation dop;
       dop.proposal = pid;
+      dop.vetoer = "nathan";
       trx.operations.push_back(dop);
       sign( trx, nathan_private_key );
       PUSH_TX( db, trx );
@@ -539,7 +540,8 @@ BOOST_AUTO_TEST_CASE( proposal_owner_authority_delete )
       proposal_id_type pid = prop.id;
       proposal_delete_operation dop;
       dop.proposal = pid;
-      dop.using_owner_authority = true;
+      dop.type = proposal_delete_operation::authority_type::owner;
+      dop.vetoer = "nathan";
       trx.operations.push_back(dop);
       sign( trx, nathan_private_key );
       PUSH_TX( db, trx );

@@ -24,7 +24,7 @@
 #pragma once
 #include <muse/chain/protocol/base.hpp>
 
-namespace muse { namespace chain { 
+namespace muse { namespace chain {
    /**
      * @defgroup proposed_transactions  The Muse Transaction Proposal Protocol
      * @ingroup operations
@@ -98,15 +98,15 @@ namespace muse { namespace chain {
    struct proposal_update_operation : public base_operation
    {
       proposal_id_type           proposal;
-      flat_set<string>  active_approvals_to_add;
-      flat_set<string>  active_approvals_to_remove;
-      flat_set<string>  owner_approvals_to_add;
-      flat_set<string>  owner_approvals_to_remove;
+      flat_set<string>           active_approvals_to_add;
+      flat_set<string>           active_approvals_to_remove;
+      flat_set<string>           owner_approvals_to_add;
+      flat_set<string>           owner_approvals_to_remove;
       flat_set<public_key_type>  key_approvals_to_add;
       flat_set<public_key_type>  key_approvals_to_remove;
       extensions_type            extensions;
 
-      void            validate()const;
+      void validate()const;
       void get_required_authorities( vector<authority>& )const;
       void get_required_active_authorities( flat_set<string>& )const;
       void get_required_owner_authorities( flat_set<string>& )const;
@@ -125,20 +125,31 @@ namespace muse { namespace chain {
     */
    struct proposal_delete_operation : public base_operation
    {
-      bool              using_owner_authority = false;
+      enum authority_type {
+          owner,
+          active,
+          basic
+      };
+
+      authority_type    type = active;
       proposal_id_type  proposal;
+      string            vetoer;
       extensions_type   extensions;
 
-      void       validate()const;
+      void validate()const;
+      void get_required_active_authorities( flat_set<string>& )const;
+      void get_required_basic_authorities( flat_set<string>& )const;
+      void get_required_owner_authorities( flat_set<string>& )const;
    };
    ///@}
-   
+
 }} // muse::chain
 
-
+FC_REFLECT_ENUM( muse::chain::proposal_delete_operation::authority_type,
+                 (owner)(active)(basic) );
 FC_REFLECT( muse::chain::proposal_create_operation, (expiration_time)
             (proposed_ops)(review_period_seconds)(extensions) )
 FC_REFLECT( muse::chain::proposal_update_operation, (proposal)
             (active_approvals_to_add)(active_approvals_to_remove)(owner_approvals_to_add)(owner_approvals_to_remove)
             (key_approvals_to_add)(key_approvals_to_remove)(extensions) )
-FC_REFLECT( muse::chain::proposal_delete_operation, (using_owner_authority)(proposal)(extensions) )
+FC_REFLECT( muse::chain::proposal_delete_operation, (type)(proposal)(vetoer)(extensions) )

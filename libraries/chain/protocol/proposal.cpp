@@ -55,11 +55,6 @@ void proposal_update_operation::validate() const
    }
 }
 
-void proposal_delete_operation::validate() const
-{
-}
-
-
 void proposal_update_operation::get_required_authorities( vector<authority>& o )const
 {
    authority auth;
@@ -82,6 +77,29 @@ void proposal_update_operation::get_required_owner_authorities( flat_set<string>
 {
    for( const auto& i : owner_approvals_to_add )    a.insert(i);
    for( const auto& i : owner_approvals_to_remove ) a.insert(i);
+}
+
+void proposal_delete_operation::validate() const
+{
+    FC_ASSERT( !vetoer.empty() );
+}
+
+void proposal_delete_operation::get_required_active_authorities( flat_set<string>& a )const
+{
+    if( type == active )
+       a.insert( vetoer );
+}
+
+void proposal_delete_operation::get_required_owner_authorities( flat_set<string>& a )const
+{
+    if( type == owner )
+       a.insert( vetoer );
+}
+
+void proposal_delete_operation::get_required_basic_authorities( flat_set<string>& a )const
+{
+    if( type == basic )
+       a.insert( vetoer );
 }
 
 } } // muse::chain

@@ -56,6 +56,7 @@ class proposal_object : public abstract_object<proposal_object>
       flat_set<string>     required_master_content_approvals;
       flat_set<string>     required_comp_content_approvals;
       flat_set<public_key_type>     available_key_approvals;
+      set<string>               can_veto;
 
       bool is_authorized_to_execute(database& db)const;
 };
@@ -79,6 +80,7 @@ class required_approval_index : public secondary_index
       virtual void about_to_modify( const object& before ) override{};
       virtual void object_modified( const object& after  ) override{};
 
+   private:
       void remove( string a, proposal_id_type p );
 
       map<string, set<proposal_id_type> > _account_to_proposals;

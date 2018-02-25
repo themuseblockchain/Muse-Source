@@ -30,16 +30,14 @@ namespace muse { namespace chain {
 
 bool proposal_object::is_authorized_to_execute(database& db) const
 {
-   transaction_evaluation_state dry_run_eval(&db);
-
    try {
       verify_authority( proposed_transaction.operations, 
                         available_key_approvals,
-                        [&]( string id ){ return &db.get_account(id).active; },
-                        [&]( string id ){ return &db.get_account(id).owner;  },
-                        [&]( string id ){ return &db.get_account(id).basic; },
-                        [&]( string id ){ return &db.get_content(id).manage_master; },
-                        [&]( string id ){ return &db.get_content(id).manage_comp; },
+                        [&db]( string id ){ return &db.get_account(id).active; },
+                        [&db]( string id ){ return &db.get_account(id).owner;  },
+                        [&db]( string id ){ return &db.get_account(id).basic; },
+                        [&db]( string id ){ return &db.get_content(id).manage_master; },
+                        [&db]( string id ){ return &db.get_content(id).manage_comp; },
                         MUSE_MAX_SIG_CHECK_DEPTH,
                         true, /* allow committeee */
                         available_active_approvals,
@@ -49,8 +47,6 @@ bool proposal_object::is_authorized_to_execute(database& db) const
    } 
    catch ( const fc::exception& e )
    {
-      //idump((available_active_approvals));
-      //wlog((e.to_detail_string()));
       return false;
    }
    return true;
@@ -66,9 +62,7 @@ void required_approval_index::object_inserted( const object& obj )
       _account_to_proposals[a].insert( p.id );
    for( const auto& a : p.required_owner_approvals )
       _account_to_proposals[a].insert( p.id );
-   for( const auto& a : p.available_active_approvals )
-      _account_to_proposals[a].insert( p.id );
-   for( const auto& a : p.available_owner_approvals )
+   for( const auto& a : p.required_basic_approvals )
       _account_to_proposals[a].insert( p.id );
 }
 
@@ -92,9 +86,7 @@ void required_approval_index::object_removed( const object& obj )
        remove( a, p.id );
     for( const auto& a : p.required_owner_approvals )
        remove( a, p.id );
-    for( const auto& a : p.available_active_approvals )
-       remove( a, p.id );
-    for( const auto& a : p.available_owner_approvals )
+    for( const auto& a : p.required_basic_approvals )
        remove( a, p.id );
 }
 

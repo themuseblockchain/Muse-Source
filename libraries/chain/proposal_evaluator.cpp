@@ -22,20 +22,67 @@
  * THE SOFTWARE.
  */
 #include <muse/chain/base_evaluator.hpp>
+#include <muse/chain/content_object.hpp>
 #include <muse/chain/proposal_object.hpp>
 #include <muse/chain/account_object.hpp>
 #include <muse/chain/exceptions.hpp>
 #include <muse/chain/database.hpp>
 #include <fc/smart_ref_impl.hpp>
+#include <boost/container/detail/flat_tree.hpp>
 
 namespace muse { namespace chain {
 using namespace graphene::db;
 
 
+namespace impl { // TODO: remove after HF 3 has passed
+   class hf_3_visitor {
+      public:
+         typedef void result_type;
+
+         template<typename T>
+         void operator()( const T& v )const {}
+
+         void operator()( const muse::chain::proposal_delete_operation& v )const {
+            FC_ASSERT( false, "Not allowed until hardfork 3" );
+         }
+
+         void operator()( const muse::chain::proposal_create_operation& v )const {
+            for( const op_wrapper& op : v.proposed_ops )
+                op.op.visit( *this );
+         }
+   };
+}
+
+struct authority_collector {
+   authority_collector( database& db, flat_set<string>& dest )
+      : _db(db), _dest(dest) {}
+
+   void collect( const authority& auth, uint32_t depth = 0 )
+   {
+      for( const auto& a : auth.account_auths )
+      {
+         const authority& parent = _db.get_account( a.first ).active;
+         if( parent.key_auths.size() > 0 )
+            _dest.emplace( a.first );
+         if( depth < MUSE_MAX_SIG_CHECK_DEPTH )
+            collect( parent, depth + 1 );
+      }
+   }
+
+   database& _db;
+   flat_set<string>& _dest;
+};
 
 void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
 { try {
    database& d = db();
+
+   if( !d.has_hardfork( MUSE_HARDFORK_0_3 ) )
+   { // TODO: remove after HF 3 has been activated
+      muse::chain::impl::hf_3_visitor hf_3;
+      hf_3( o );
+   }
+
    transaction _proposed_trx;
    const auto& global_parameters = d.get_dynamic_global_properties();
 
@@ -51,7 +98,7 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
    }
    _proposed_trx.validate();
 
-   const proposal_object& proposal = d.create<proposal_object>([&](proposal_object& proposal) {
+   d.create<proposal_object>([&o, &_proposed_trx, &d](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
       proposal.proposed_transaction = _proposed_trx;
       proposal.expiration_time = o.expiration_time;
@@ -61,11 +108,30 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
       //Populate the required approval sets
       flat_set<string> required_active;
       vector<authority> other;
-      
+
       for( auto& op : _proposed_trx.operations )
-         operation_get_required_authorities(op, required_active, proposal.required_owner_approvals, proposal.required_basic_approvals, proposal.required_master_content_approvals, proposal.required_comp_content_approvals, other);
-      
-      //All accounts which must provide both owner and active authority should be omitted from the active authority set;
+         operation_get_required_authorities(op, required_active, proposal.required_owner_approvals,
+                                            proposal.required_basic_approvals,
+                                            proposal.required_master_content_approvals,
+                                            proposal.required_comp_content_approvals, other);
+
+      proposal.can_veto.insert( required_active.begin(), required_active.end() );
+      proposal.can_veto.insert( proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end() );
+      proposal.can_veto.insert( proposal.required_basic_approvals.begin(), proposal.required_basic_approvals.end() );
+
+      // Active or owner authorities also cover basic authority
+      for( const string& a : required_active )
+         proposal.required_basic_approvals.erase( a );
+      for( const string& o : proposal.required_owner_approvals )
+         proposal.required_basic_approvals.erase( o );
+
+      authority_collector collector( d, required_active );
+      for( const string& url : proposal.required_master_content_approvals )
+         collector.collect( d.get_content(url).manage_master );
+      for( const string& url : proposal.required_comp_content_approvals )
+         collector.collect( d.get_content(url).manage_comp );
+
+      //All accounts which must provide both owner and active authority should be omitted from the active authority set
       //owner authority approval implies active authority approval.
       std::set_difference(required_active.begin(), required_active.end(),
                           proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end(),
@@ -113,27 +179,26 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
    // Proposals with a review period may never be executed except at their expiration.
    if( _proposal->review_period_time )
       return ;
-   bool _executed_proposal = false;
-   bool _proposal_failed = false;
    if( _proposal->is_authorized_to_execute(d) )
-   {
-      // All required approvals are satisfied. Execute!
-      _executed_proposal = true;
       try {
          d.push_proposal(*_proposal);
       } catch(fc::exception& e) {
          wlog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
               ("id", o.proposal)("reason", e.to_detail_string()));
-         _proposal_failed = true;
       }
-   }
-
 } FC_CAPTURE_AND_RETHROW( (o) ) }
+
 void proposal_delete_evaluator::do_apply(const proposal_delete_operation& o)
 { try {
    FC_ASSERT( db().has_hardfork(MUSE_HARDFORK_0_3) ); // TODO: remove after HF
-   auto _proposal = &o.proposal(db());
-   db().remove(*_proposal);
+
+   const proposal_object& proposal = o.proposal( db() );
+
+   FC_ASSERT( proposal.can_veto.find( o.vetoer ) != proposal.can_veto.end(),
+              "Provided authority '${provided}' can not veto this proposal.",
+              ("provided",o.vetoer));
+
+   db().remove( proposal );
 
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 
