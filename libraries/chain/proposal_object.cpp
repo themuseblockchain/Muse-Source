@@ -39,7 +39,6 @@ bool proposal_object::is_authorized_to_execute(database& db) const
                         [&db]( string id ){ return &db.get_content(id).manage_master; },
                         [&db]( string id ){ return &db.get_content(id).manage_comp; },
                         MUSE_MAX_SIG_CHECK_DEPTH,
-                        true, /* allow committeee */
                         available_active_approvals,
                         available_owner_approvals,
                         available_basic_approvals

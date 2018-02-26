@@ -106,7 +106,6 @@ namespace muse { namespace chain {
                           const authority_getter& get_master_content,
                           const authority_getter& get_comp_content,
                           uint32_t max_recursion = MUSE_MAX_SIG_CHECK_DEPTH,
-                          bool allow_committe = false,
                           const flat_set<string>& active_aprovals = flat_set<string>(),
                           const flat_set<string>& owner_aprovals = flat_set<string>(),
                           const flat_set<string>& basic_approvals = flat_set<string>());

@@ -94,7 +94,6 @@ void verify_authority( const vector<operation>& ops, const flat_set<public_key_t
                        const authority_getter& get_master_content,
                        const authority_getter& get_comp_content,
                        uint32_t max_recursion_depth,
-                       bool  allow_committe,
                        const flat_set<string>& active_aprovals,
                        const flat_set<string>& owner_approvals,
                        const flat_set<string>& basic_approvals
