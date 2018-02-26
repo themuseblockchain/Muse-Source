@@ -946,7 +946,7 @@ BOOST_AUTO_TEST_CASE( proposal_expires )
    ACTORS( (alice)(bob) );
    fund("alice");
    const asset_object& core = asset_id_type()(db);
-   const auto& original_balance = alice.balance.amount.value;
+   const auto original_balance = alice.balance.amount.value;
 
    BOOST_TEST_MESSAGE( "Alice creates a proposal and lets it expire" );
 
