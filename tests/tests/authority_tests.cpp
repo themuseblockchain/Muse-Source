@@ -346,6 +346,13 @@ BOOST_AUTO_TEST_CASE( proposed_single_account )
    // init_miner may not add nathan's approval.
    MUSE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
 
+   pup.active_approvals_to_add.clear();
+   pup.active_approvals_to_add.insert( MUSE_INIT_MINER_NAME );
+   trx.operations = {pup};
+   sign( trx, init_account_priv_key );
+   // init_miner has no stake in the transaction.
+   MUSE_CHECK_THROW(PUSH_TX( db, trx ), fc::exception);
+
    trx.signatures.clear();
    pup.active_approvals_to_add.clear();
    pup.active_approvals_to_add.insert("nathan");
@@ -848,7 +855,7 @@ BOOST_AUTO_TEST_CASE( nonminimal_sig_test )
       {
          set<public_key_type> result_set = tx.minimize_required_signatures( db.get_chain_id(), available_keys,
                                                                             get_active, get_owner, get_basic,
-                                                                            get_master, get_comp );
+                                                                            get_master, get_comp, 2 );
          return result_set == ref_set;
       };
 
@@ -865,9 +872,11 @@ BOOST_AUTO_TEST_CASE( nonminimal_sig_test )
    BOOST_CHECK( chk( trx, { alice_public_key, bob_public_key }, { alice_public_key, bob_public_key } ) );
    BOOST_CHECK( chk_min( trx, { alice_public_key, bob_public_key }, { alice_public_key } ) );
 
-   MUSE_REQUIRE_THROW( trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp ), fc::exception );
+   MUSE_REQUIRE_THROW( trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 1 ), fc::exception );
+   MUSE_REQUIRE_THROW( trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 2 ), fc::exception );
    sign( trx, alice_private_key );
-   trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp );
+   trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 1 );
+   trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 2 );
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_CASE( parent_owner_test )
@@ -932,11 +941,13 @@ BOOST_AUTO_TEST_CASE( parent_owner_test )
    BOOST_CHECK( chk( trx, { alice_owner_pub }, { } ) );
    BOOST_CHECK( chk( trx, { alice_active_pub, alice_owner_pub }, { alice_active_pub } ) );
    sign( trx, alice_owner_key );
-   MUSE_REQUIRE_THROW( trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp ), fc::exception );
+   MUSE_REQUIRE_THROW( trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 1 ), fc::exception );
+   MUSE_REQUIRE_THROW( trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 2 ), fc::exception );
 
    trx.signatures.clear();
    sign( trx, alice_active_key );
-   trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp );
+   trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 1 );
+   trx.verify_authority( db.get_chain_id(), get_active, get_owner, get_basic, get_master, get_comp, 2 );
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_CASE( proposal_expires )

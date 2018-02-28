@@ -2698,7 +2698,8 @@ void database::_apply_transaction(const signed_transaction& trx)
       auto get_master_cont = [&]( const string& url ) { return &get_content(url).manage_master; };
       auto get_comp_cont = [&]( const string& url ) { return &get_content(url).manage_comp; };
 
-      trx.verify_authority( chain_id, get_active, get_owner, get_basic, get_master_cont, get_comp_cont, MUSE_MAX_SIG_CHECK_DEPTH );
+      trx.verify_authority( chain_id, get_active, get_owner, get_basic, get_master_cont, get_comp_cont,
+                            !has_hardfork( MUSE_HARDFORK_0_3 ) ? 1 : 2 );
    }
    flat_set<string> required; vector<authority> other;
    flat_set<string> required_content;

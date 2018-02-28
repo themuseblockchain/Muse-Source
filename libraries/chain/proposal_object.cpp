@@ -31,18 +31,33 @@ namespace muse { namespace chain {
 bool proposal_object::is_authorized_to_execute(database& db) const
 {
    try {
-      verify_authority( proposed_transaction.operations, 
-                        available_key_approvals,
-                        [&db]( string id ){ return &db.get_account(id).active; },
-                        [&db]( string id ){ return &db.get_account(id).owner;  },
-                        [&db]( string id ){ return &db.get_account(id).basic; },
-                        [&db]( string id ){ return &db.get_content(id).manage_master; },
-                        [&db]( string id ){ return &db.get_content(id).manage_comp; },
-                        MUSE_MAX_SIG_CHECK_DEPTH,
-                        available_active_approvals,
-                        available_owner_approvals,
-                        available_basic_approvals
-                        );
+      if( !db.has_hardfork( MUSE_HARDFORK_0_3 ) )
+         verify_authority_v1( proposed_transaction.operations,
+                              available_key_approvals,
+                              [&db]( string id ){ return &db.get_account(id).active; },
+                              [&db]( string id ){ return &db.get_account(id).owner;  },
+                              [&db]( string id ){ return &db.get_account(id).basic; },
+                              [&db]( string id ){ return &db.get_content(id).manage_master; },
+                              [&db]( string id ){ return &db.get_content(id).manage_comp; },
+                              MUSE_MAX_SIG_CHECK_DEPTH,
+                              available_active_approvals,
+                              available_owner_approvals,
+                              available_basic_approvals
+                              );
+      else
+         verify_authority_v2( proposed_transaction.operations,
+                              available_key_approvals,
+                              [&db]( string id ){ return &db.get_account(id).active; },
+                              [&db]( string id ){ return &db.get_account(id).owner;  },
+                              [&db]( string id ){ return &db.get_account(id).basic; },
+                              [&db]( string id ){ return &db.get_content(id).manage_master; },
+                              [&db]( string id ){ return &db.get_content(id).manage_comp; },
+                              true,
+                              MUSE_MAX_SIG_CHECK_DEPTH,
+                              available_active_approvals,
+                              available_owner_approvals,
+                              available_basic_approvals
+                              );
    } 
    catch ( const fc::exception& e )
    {

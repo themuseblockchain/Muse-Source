@@ -129,6 +129,14 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
          for( const string& o : proposal.required_owner_approvals )
             proposal.required_basic_approvals.erase( o );
 
+         FC_ASSERT( proposal.required_basic_approvals.size() == 0
+                    || required_active.size() == 0
+                       && proposal.required_owner_approvals.size() == 0
+                       && proposal.required_master_content_approvals.size() == 0
+                       && proposal.required_comp_content_approvals.size() == 0
+                       && other.size() == 0,
+                    "Cannot combine operations with basic approval and others!" );
+
          authority_collector collector( d, required_active );
          for( const string& url : proposal.required_master_content_approvals )
             collector.collect( d.get_content(url).manage_master );
@@ -163,6 +171,29 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
    {
       FC_ASSERT( _proposal->available_owner_approvals.find(id) != _proposal->available_owner_approvals.end(),
                  "", ("id", id)("available", _proposal->available_owner_approvals) );
+   }
+
+   if( d.has_hardfork( MUSE_HARDFORK_0_3 ) )
+   {
+      for( const string& id : o.active_approvals_to_add )
+      {
+         FC_ASSERT( _proposal->available_active_approvals.find(id) == _proposal->available_active_approvals.end(),
+                    "Already approved by active authority ${id}",
+                    ("id", id)("available", _proposal->available_active_approvals) );
+         FC_ASSERT( _proposal->required_active_approvals.find(id) != _proposal->required_active_approvals.end()
+                    || _proposal->required_basic_approvals.find(id) != _proposal->required_basic_approvals.end(),
+                    "Active approval from ${id} is not required", ("id", id) );
+      }
+      for( const string& id : o.owner_approvals_to_add )
+      {
+         FC_ASSERT( _proposal->available_owner_approvals.find(id) == _proposal->available_owner_approvals.end(),
+                    "Already approved by owner authority ${id}",
+                    ("id", id)("available", _proposal->available_owner_approvals) );
+         FC_ASSERT( _proposal->required_owner_approvals.find(id) != _proposal->required_owner_approvals.end()
+                    || _proposal->required_active_approvals.find(id) != _proposal->required_active_approvals.end()
+                    || _proposal->required_basic_approvals.find(id) != _proposal->required_basic_approvals.end(),
+                    "Owner approval from ${id} is not required", ("id", id) );
+      }
    }
 
    ilog( "Proposal: ${op}", ("op",o) );

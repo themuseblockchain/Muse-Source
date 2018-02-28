@@ -77,7 +77,8 @@ namespace muse { namespace chain {
          const authority_getter& get_basic,
          const authority_getter& get_master_content,
          const authority_getter& get_comp_content,
-         uint32_t max_recursion = MUSE_MAX_SIG_CHECK_DEPTH )const;
+         uint32_t version,
+         uint32_t max_recursion = MUSE_MAX_SIG_CHECK_DEPTH)const;
 
       set<public_key_type> minimize_required_signatures(
          const chain_id_type& chain_id,
@@ -87,6 +88,7 @@ namespace muse { namespace chain {
          const authority_getter& get_basic,
          const authority_getter& get_master_content,
          const authority_getter& get_comp_content,
+         uint32_t version,
          uint32_t max_recursion = MUSE_MAX_SIG_CHECK_DEPTH
          ) const;
 
@@ -99,12 +101,23 @@ namespace muse { namespace chain {
       void clear() { operations.clear(); signatures.clear(); }
    };
 
-   void verify_authority( const vector<operation>& ops, const flat_set<public_key_type>& sigs,
+   void verify_authority_v1( const vector<operation>& ops, const flat_set<public_key_type>& sigs,
                           const authority_getter& get_active,
                           const authority_getter& get_owner,
                           const authority_getter& get_basic,
                           const authority_getter& get_master_content,
                           const authority_getter& get_comp_content,
+                          uint32_t max_recursion = MUSE_MAX_SIG_CHECK_DEPTH,
+                          const flat_set<string>& active_aprovals = flat_set<string>(),
+                          const flat_set<string>& owner_aprovals = flat_set<string>(),
+                          const flat_set<string>& basic_approvals = flat_set<string>());
+   void verify_authority_v2( const vector<operation>& ops, const flat_set<public_key_type>& sigs,
+                          const authority_getter& get_active,
+                          const authority_getter& get_owner,
+                          const authority_getter& get_basic,
+                          const authority_getter& get_master_content,
+                          const authority_getter& get_comp_content,
+                          bool allow_extra_sigs,
                           uint32_t max_recursion = MUSE_MAX_SIG_CHECK_DEPTH,
                           const flat_set<string>& active_aprovals = flat_set<string>(),
                           const flat_set<string>& owner_aprovals = flat_set<string>(),
