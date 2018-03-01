@@ -251,7 +251,9 @@ void database::reindex( fc::path data_dir )
 void database::wipe(const fc::path& data_dir, bool include_blocks)
 {
    ilog("Wiping database", ("include_blocks", include_blocks));
-   close();
+   if (_opened) {
+     close();
+   }
    object_database::wipe(data_dir);
    if( include_blocks )
       fc::remove_all( data_dir / "database" );
@@ -298,6 +300,8 @@ void database::close(bool rewind)
          _block_id_to_block.close();
 
       _fork_db.reset();
+
+      _opened = false;
    }
    FC_CAPTURE_AND_RETHROW()
 }
@@ -664,6 +668,7 @@ bool database::_push_block(const signed_block& new_block)
          else
             return false;
       }
+      _opened = true;
    }
 
    try
