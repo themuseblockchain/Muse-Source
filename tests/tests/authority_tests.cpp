@@ -1053,4 +1053,233 @@ BOOST_AUTO_TEST_CASE( proposal_executes_at_expiry )
    BOOST_CHECK_THROW( db.get( pid ), fc::assert_exception );
 } FC_LOG_AND_RETHROW() }
 
+BOOST_AUTO_TEST_CASE( proposals_with_mixed_authorities )
+{ try {
+   generate_block();
+
+   ACTORS( (alice)(bob)(marge)(miranda)(monica)(muriel)(paula)(penny)(uhura)(vanessa)(veronica) );
+   const asset_object& core = asset_id_type()(db);
+   const auto& pidx = db.get_index_type<proposal_index>().indices().get<by_id>();
+   fund( "alice" );
+
+   {
+      transfer_operation transfer_op; // requires active auth
+      transfer_op.from = "alice";
+      transfer_op.to  = "bob";
+      transfer_op.amount = core.amount(100);
+
+      friendship_operation friend_op; // requires basic auth
+      friend_op.who = "alice";
+      friend_op.whom = "bob";
+      proposal_create_operation op;
+      op.proposed_ops.emplace_back( transfer_op );
+      op.proposed_ops.emplace_back( friend_op );
+      op.expiration_time = db.head_block_time() + fc::minutes(1);
+      trx.operations.push_back( op );
+      PUSH_TX( db, trx ); // works, because active overrides basic
+      trx.clear();
+
+      op.proposed_ops.clear();
+      std::swap( friend_op.who, friend_op.whom );
+      op.proposed_ops.emplace_back( transfer_op );
+      op.proposed_ops.emplace_back( friend_op );
+      trx.operations.push_back( op );
+      // fails: combination of alice's active + bob's basic auth is not allowed
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      trx.clear();
+
+      BOOST_CHECK_EQUAL( 1, pidx.size() );
+      const proposal_id_type pid = pidx.begin()->id;
+      const proposal_object& proposal = pid(db);
+      BOOST_CHECK_EQUAL( 1, proposal.required_active_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal.available_active_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal.required_owner_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal.available_owner_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal.required_basic_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal.available_basic_approvals.size() );
+      BOOST_CHECK_EQUAL( "alice", *proposal.required_active_approvals.begin() );
+
+      proposal_update_operation pup;
+      pup.proposal = pid;
+      pup.active_approvals_to_add.insert( "alice" );
+      trx.operations.push_back( pup );
+      sign( trx, alice_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      BOOST_CHECK( pidx.empty() );
+   }
+
+   {
+      content_operation cop;
+      cop.uploader = "uhura";
+      cop.url = "ipfs://abcdefg1";
+      cop.album_meta.album_title = "Albuquerque";
+      cop.track_meta.track_title = "Tracksonville";
+      cop.comp_meta.third_party_publishers = false;
+      distribution dist;
+      dist.payee = "paula";
+      dist.bp = 10000;
+      cop.distributions.push_back( dist );
+      management_vote mgmt;
+      mgmt.voter = "miranda";
+      mgmt.percentage = 50;
+      cop.management.push_back( mgmt );
+      mgmt.voter = "muriel";
+      cop.management.push_back( mgmt );
+      cop.management_threshold = 40;
+      trx.operations.push_back( cop );
+
+      cop.url = "ipfs://abcdefg2";
+      cop.track_meta.track_title = "Track Stop";
+      cop.comp_meta.third_party_publishers = true;
+      dist.payee = "penny";
+      mgmt.voter = "marge";
+      cop.management_comp = std::move( vector<management_vote>() );
+      cop.management_comp->push_back( mgmt );
+      mgmt.voter = "monica";
+      cop.management_comp->push_back( mgmt );
+      cop.management_threshold_comp = 60;
+      dist.payee = "penny";
+      cop.distributions_comp = std::move( vector<distribution>() );
+      cop.distributions_comp->push_back( dist );
+      trx.operations.push_back( cop );
+      sign( trx, uhura_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      const auto& content1 = db.get_content( "ipfs://abcdefg1" );
+      BOOST_CHECK_EQUAL( 1000, content1.playing_reward );
+
+      const auto& content2 = db.get_content( "ipfs://abcdefg2" );
+      BOOST_CHECK_EQUAL( 60, content2.manage_comp.weight_threshold );
+   }
+
+   {
+      proposal_create_operation pc;
+
+      transfer_operation transfer_op; // requires active auth
+      transfer_op.from = "alice";
+      transfer_op.to  = "bob";
+      transfer_op.amount = core.amount(100);
+      pc.proposed_ops.emplace_back( transfer_op );
+
+      friendship_operation friend_op; // requires basic auth
+      friend_op.who = "paula";
+      friend_op.whom = "bob";
+      pc.proposed_ops.emplace_back( friend_op );
+
+      content_update_operation cup;
+      cup.url = "ipfs://abcdefg1";
+      cup.side = content_update_operation::side_t::master;
+      cup.new_playing_reward = 500;
+      pc.proposed_ops.emplace_back( cup );
+      pc.expiration_time = db.head_block_time() + fc::minutes(1);
+      trx.operations.push_back( pc );
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      trx.clear();
+
+      pc.proposed_ops.clear();
+      pc.proposed_ops.emplace_back( transfer_op );
+      pc.proposed_ops.emplace_back( cup );
+      trx.operations.push_back( pc );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      BOOST_CHECK_EQUAL( 1, pidx.size() );
+      proposal_id_type pid = pidx.begin()->id;
+      const proposal_object& proposal1 = pid(db);
+      BOOST_CHECK_EQUAL( 3, proposal1.required_active_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal1.available_active_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal1.required_owner_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal1.available_owner_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal1.required_basic_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal1.available_basic_approvals.size() );
+      BOOST_CHECK( proposal1.required_active_approvals.find( "alice" ) != proposal1.required_active_approvals.end() );
+      BOOST_CHECK( proposal1.required_active_approvals.find( "miranda" ) != proposal1.required_active_approvals.end() );
+      BOOST_CHECK( proposal1.required_active_approvals.find( "muriel" ) != proposal1.required_active_approvals.end() );
+
+      proposal_update_operation pup;
+      pup.proposal = pid;
+      pup.active_approvals_to_add.insert( "alice" );
+      trx.operations.push_back( pup );
+      sign( trx, alice_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      BOOST_CHECK_EQUAL( 1, pidx.size() );
+      BOOST_CHECK_EQUAL( proposal1.available_active_approvals.size(), 1 );
+
+      pup.active_approvals_to_add.clear();
+      pup.active_approvals_to_add.insert( "muriel" );
+      trx.operations.push_back( pup );
+      sign( trx, muriel_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      // Proposal was executed
+      BOOST_CHECK_EQUAL( 0, pidx.size() );
+      const auto& content1 = db.get_content( "ipfs://abcdefg1" );
+      BOOST_CHECK_EQUAL( 500, content1.playing_reward );
+
+
+      pc.proposed_ops.clear();
+      cup.url = "ipfs://abcdefg2";
+      cup.side = content_update_operation::side_t::publisher;
+      management_vote mgmt;
+      mgmt.voter = "marge";
+      mgmt.percentage = 50;
+      cup.new_management.push_back( mgmt );
+      mgmt.voter = "muriel";
+      cup.new_management.push_back( mgmt );
+      cup.new_threshold = 40;
+      cup.new_playing_reward = 0;
+      cup.new_publishers_share = 0;
+      pc.proposed_ops.emplace_back( cup );
+      trx.operations.push_back( pc );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      BOOST_CHECK_EQUAL( 1, pidx.size() );
+      pid = pidx.begin()->id;
+      const proposal_object& proposal2 = pid(db);
+      BOOST_CHECK_EQUAL( 2, proposal2.required_active_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal2.available_active_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal2.required_owner_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal2.available_owner_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal2.required_basic_approvals.size() );
+      BOOST_CHECK_EQUAL( 0, proposal2.available_basic_approvals.size() );
+      BOOST_CHECK( proposal2.required_active_approvals.find( "marge" ) != proposal2.required_active_approvals.end() );
+      BOOST_CHECK( proposal2.required_active_approvals.find( "monica" ) != proposal2.required_active_approvals.end() );
+
+      pup.proposal = pid;
+      trx.operations.push_back( pup );
+      sign( trx, muriel_private_key );
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      trx.clear();
+
+      pup.active_approvals_to_add.clear();
+      pup.active_approvals_to_add.insert( "marge" );
+      trx.operations.push_back( pup );
+      sign( trx, marge_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      BOOST_CHECK_EQUAL( 1, pidx.size() );
+      BOOST_CHECK_EQUAL( 1, proposal2.available_active_approvals.size() );
+
+      pup.active_approvals_to_add.clear();
+      pup.active_approvals_to_add.insert( "monica" );
+      trx.operations.push_back( pup );
+      sign( trx, monica_private_key );
+      PUSH_TX( db, trx );
+      trx.clear();
+
+      // Proposal was executed
+      BOOST_CHECK_EQUAL( 0, pidx.size() );
+      const auto& content2 = db.get_content( "ipfs://abcdefg2" );
+      BOOST_CHECK_EQUAL( 40, content2.manage_comp.weight_threshold );
+   }
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_SUITE_END()
