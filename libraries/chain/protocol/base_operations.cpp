@@ -6,15 +6,6 @@
 
 namespace muse { namespace chain {
 
-   /// TODO: after the hardfork, we can rename this method validate_permlink because it is strictily less restrictive than before
-   ///  Issue #56 contains the justificiation for allowing any UTF-8 string to serve as a permlink, content will be grouped by tags
-   ///  going forward.
-   inline void validate_permlink( const string& permlink )
-   {
-      FC_ASSERT( permlink.size() < MUSE_MAX_PERMLINK_LENGTH );
-      FC_ASSERT( fc::is_utf8( permlink ), "permlink not formatted in UTF8" );
-   }
-
    inline void validate_url(const string& url )
    {
       FC_ASSERT(url.size() < MUSE_MAX_URL_LENGTH );

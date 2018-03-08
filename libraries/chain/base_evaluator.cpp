@@ -28,28 +28,6 @@ std::string wstring_to_utf8(const std::wstring& str)
 namespace muse { namespace chain {
    using fc::uint128_t;
 
-inline void validate_permlink_0_1( const string& permlink )
-{
-   FC_ASSERT( permlink.size() > MUSE_MIN_PERMLINK_LENGTH && permlink.size() < MUSE_MAX_PERMLINK_LENGTH );
-
-   for( auto c : permlink )
-   {
-      switch( c )
-      {
-         case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': case 'i':
-         case 'j': case 'k': case 'l': case 'm': case 'n': case 'o': case 'p': case 'q': case 'r':
-         case 's': case 't': case 'u': case 'v': case 'w': case 'x': case 'y': case 'z': case '0':
-         case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
-         case '-':
-            break;
-         default:
-            FC_ASSERT( !"Invalid permlink character:", "${s}", ("s", std::string() + c ) );
-      }
-   }
-}
-
-
-
 void witness_update_evaluator::do_apply( const witness_update_operation& o )
 {
    db().get_account( o.owner ); // verify owner exists
@@ -107,7 +85,7 @@ void account_create_evaluator::do_apply( const account_create_operation& o )
       c.balance -= o.fee;
    });
 
-   const auto& new_account = db().create< account_object >( [&]( account_object& acc )
+   const auto& new_account = db().create< account_object >( [&o,&props]( account_object& acc )
    {
       acc.name = o.new_account_name;
       acc.owner = o.owner;
@@ -121,10 +99,9 @@ void account_create_evaluator::do_apply( const account_create_operation& o )
 
       acc.recovery_account = o.creator;
 
-
-      #ifndef IS_LOW_MEM
-         acc.json_metadata = o.json_metadata;
-      #endif
+#ifndef IS_LOW_MEM
+      acc.json_metadata = o.json_metadata;
+#endif
    });
 
    if( o.fee.amount > 0 )
@@ -155,7 +132,7 @@ void account_update_evaluator::do_apply( const account_update_operation& o )
       db().update_owner_authority( account, *o.owner );
    }
 
-   db().modify( account, [&]( account_object& acc )
+   db().modify( account, [this,&o]( account_object& acc )
    {
       if( o.active ) acc.active = *o.active;
       if( o.basic ) acc.basic = *o.basic;
@@ -169,10 +146,10 @@ void account_update_evaluator::do_apply( const account_update_operation& o )
          acc.last_active_proved = db().head_block_time();
       }
 
-      #ifndef IS_LOW_MEM
-        if ( o.json_metadata.size() > 0 )
-            acc.json_metadata = o.json_metadata;
-      #endif
+#ifndef IS_LOW_MEM
+      if ( o.json_metadata.size() > 0 )
+         acc.json_metadata = o.json_metadata;
+#endif
    });
 
 }
