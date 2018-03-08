@@ -42,7 +42,7 @@ int main()
       if( line == "" )
          continue;
 
-      fc::variant v = fc::json::from_string( line, fc::json::strict_parser );
+      fc::variant v = fc::json::from_string( line );
       signing_request sreq;
       fc::from_variant( v, sreq );
       signing_result sres;
