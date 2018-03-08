@@ -37,7 +37,7 @@ namespace muse { namespace chain {
       if ( json_metadata.size() > 0 )
       {
          FC_ASSERT( fc::is_utf8(json_metadata), "JSON Metadata not formatted in UTF8" );
-         FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
+         //FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
       }
       FC_ASSERT( fee >= asset( 0, MUSE_SYMBOL ) );
    }
@@ -53,7 +53,7 @@ namespace muse { namespace chain {
       if ( json_metadata.size() > 0 )
       {
          FC_ASSERT( fc::is_utf8(json_metadata), "JSON Metadata not formatted in UTF8" );
-         FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
+         //FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
       }
    }
 
@@ -134,7 +134,7 @@ namespace muse { namespace chain {
       FC_ASSERT( (required_auths.size() + required_basic_auths.size()) > 0, "at least on account must be specified" );
       FC_ASSERT( id.size() <= 32 );
       FC_ASSERT( fc::is_utf8(json), "JSON Metadata not formatted in UTF8" );
-      FC_ASSERT( fc::json::is_valid(json), "JSON Metadata not valid JSON" );
+      //FC_ASSERT( fc::json::is_valid(json), "JSON Metadata not valid JSON" );
    }
 
    void feed_publish_operation::validate()const

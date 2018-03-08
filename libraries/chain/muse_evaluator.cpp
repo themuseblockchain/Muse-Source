@@ -279,10 +279,15 @@ void content_evaluator::do_apply( const content_operation& o )
 
       FC_ASSERT( !(auth.owner_challenged || auth.active_challenged ) );
 
-      if( o.track_meta.json_metadata && db().has_hardfork( MUSE_HARDFORK_0_2 ) )
-         FC_ASSERT( fc::is_utf8(*o.track_meta.json_metadata) && fc::json::is_valid(*o.track_meta.json_metadata), "JSON Metadata not valid JSON" );
+      if( o.track_meta.json_metadata )
+      {
+         FC_ASSERT( fc::is_utf8(*o.track_meta.json_metadata), "JSON Metadata must be UTF-8-encoded!" );
+         if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
+            FC_ASSERT( fc::json::is_valid( *o.track_meta.json_metadata ), "JSON Metadata not valid JSON" );
+         else
+            FC_ASSERT( fc::json::is_valid( *o.track_meta.json_metadata, fc::json::broken_nul_parser ), "JSON Metadata not valid JSON" );
+      }
 
-      auto now = db().head_block_time();
       for( const distribution& d : o.distributions )
          const auto& payee = db().get_account( d.payee );
 
@@ -355,8 +360,14 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
       else
          FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
 
-      if( o.track_meta && o.track_meta->json_metadata && db().has_hardfork( MUSE_HARDFORK_0_2 ) )
-         FC_ASSERT( fc::is_utf8(*o.track_meta->json_metadata) && fc::json::is_valid(*o.track_meta->json_metadata), "JSON Metadata not valid JSON" );
+      if( o.track_meta && o.track_meta->json_metadata )
+      {
+         FC_ASSERT( fc::is_utf8(*o.track_meta->json_metadata), "JSON Metadata must be UTF-8-encoded!" );
+         if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
+            FC_ASSERT( fc::json::is_valid( *o.track_meta->json_metadata ), "JSON Metadata not valid JSON" );
+         else
+            FC_ASSERT( fc::json::is_valid( *o.track_meta->json_metadata, fc::json::broken_nul_parser ), "JSON Metadata not valid JSON" );
+      }
 
       for( const distribution& d : o.new_distributions )
          db().get_account( d.payee ); // just to ensure that d.payee account exists

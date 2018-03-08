@@ -82,6 +82,14 @@ void witness_update_evaluator::do_apply( const witness_update_operation& o )
 
 void account_create_evaluator::do_apply( const account_create_operation& o )
 {
+   if ( o.json_metadata.size() > 0 )
+   {
+      if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
+         FC_ASSERT( fc::json::is_valid(o.json_metadata), "JSON Metadata not valid JSON" );
+      else
+         FC_ASSERT( fc::json::is_valid(o.json_metadata, fc::json::broken_nul_parser), "JSON Metadata not valid JSON" );
+   }
+
    const auto& creator = db().get_account( o.creator );
 
    const auto& props = db().get_dynamic_global_properties();
@@ -126,6 +134,14 @@ void account_create_evaluator::do_apply( const account_create_operation& o )
 
 void account_update_evaluator::do_apply( const account_update_operation& o )
 {
+   if ( o.json_metadata.size() > 0 )
+   {
+      if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
+         FC_ASSERT( fc::json::is_valid(o.json_metadata), "JSON Metadata not valid JSON" );
+      else
+         FC_ASSERT( fc::json::is_valid(o.json_metadata, fc::json::broken_nul_parser), "JSON Metadata not valid JSON" );
+   }
+
    FC_ASSERT( o.account != MUSE_TEMP_ACCOUNT );
 
    const auto& account = db().get_account( o.account );
@@ -505,6 +521,14 @@ void custom_evaluator::do_apply( const custom_operation& o ){}
 
 void custom_json_evaluator::do_apply( const custom_json_operation& o )
 {
+   if ( o.json.size() > 0 )
+   {
+      if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
+         FC_ASSERT( fc::json::is_valid(o.json), "JSON data not valid JSON" );
+      else
+         FC_ASSERT( fc::json::is_valid(o.json, fc::json::broken_nul_parser), "JSON data not valid JSON" );
+   }
+
    for( const auto& auth : o.required_basic_auths )
    {
       const auto& acnt = db().get_account( auth );
