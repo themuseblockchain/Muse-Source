@@ -16,8 +16,11 @@
 
 #include <cfenv>
 #include <iostream>
+#include <locale>
 
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
+
+static const std::locale& c_locale = std::locale::classic();
 
 namespace muse { namespace app {
 
@@ -575,7 +578,7 @@ uint64_t database_api_impl::get_account_scoring( string account )
 {
    FC_ASSERT( account.size() > 0);
    const account_object* ao = nullptr;
-   if (std::isdigit(account[0]))
+   if (std::isdigit(account[0], c_locale))
       ao = _db.find(fc::variant(account).as<account_id_type>());
    else
    {
@@ -1146,7 +1149,7 @@ bool database_api_impl::verify_account_authority( const string& name_or_id, cons
 {
    FC_ASSERT( name_or_id.size() > 0);
    const account_object* account = nullptr;
-   if (std::isdigit(name_or_id[0]))
+   if (std::isdigit(name_or_id[0], c_locale))
       account = _db.find(fc::variant(name_or_id).as<account_id_type>());
    else
    {
