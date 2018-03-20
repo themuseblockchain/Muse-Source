@@ -3330,17 +3330,12 @@ void database::validate_invariants()const
       for( auto itr = balances.begin(); itr != balances.end(); itr++ )
          total_supply += itr->balance;
 
-      if( has_hardfork( MUSE_HARDFORK_0_2 ) )
+      const auto& content_idx = get_index_type< content_index >().indices();
+      for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
       {
-         const auto& content_idx = get_index_type< content_index >().indices();
-         for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
-         {
-            total_supply += itr->accumulated_balance_master;
-            total_supply += itr->accumulated_balance_comp;
-         }
+         total_supply += itr->accumulated_balance_master;
+         total_supply += itr->accumulated_balance_comp;
       }
-      else
-         total_supply += gpo.total_reward_fund_muse;
 
       total_supply += gpo.total_vesting_fund_muse;
 

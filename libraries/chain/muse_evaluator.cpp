@@ -343,11 +343,6 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
       for( const management_vote& m : o.new_management )
          db().get_account(m.voter); // just to ensure that m.voter account exists
 
-      bool redistribute_master = ( o.side == o.master && o.new_distributions.size() > 0
-                                   && itr->distributions_master.size() == 0 );
-      bool redistribute_comp = ( o.side == o.publisher && o.new_distributions.size() > 0
-                                 && itr->distributions_comp.size() == 0 );
-
       asset accumulated_balances = (o.side==content_update_operation::side_t::master)?itr->accumulated_balance_master : itr->accumulated_balance_comp;
       db().modify< content_object >( *itr, [&o,this]( content_object& con ) {
            //the third_party_publishers flag cannot be changed. EVER.
@@ -359,18 +354,11 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.track_meta = *o.track_meta;
                  con.track_title = o.track_meta->track_title;
               }
-              if( !third_party_flag && o.comp_meta ) {
+              if( !third_party_flag && o.comp_meta )
                  con.comp_meta = *o.comp_meta;
-                 if(!db().has_hardfork(MUSE_HARDFORK_0_2)) {
-                    third_party_flag = con.comp_meta.third_party_publishers;
-                 }
-              }
 
-              if( o.new_distributions.size() > 0 ) {
+              if( o.new_distributions.size() > 0 )
                  con.distributions_master = o.new_distributions;
-                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
-                    con.accumulated_balance_master.amount = 0;
-              }
 
               if( o.new_management.size() > 0 ) {
                  con.manage_master.account_auths.clear();
@@ -383,11 +371,8 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               if( o.comp_meta ) {
                  con.comp_meta = *o.comp_meta;
               }
-              if( o.new_distributions.size() > 0 ) {
+              if( o.new_distributions.size() > 0 )
                  con.distributions_comp = o.new_distributions;
-                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
-                    con.accumulated_balance_comp.amount = 0;
-              }
               if( o.new_management.size() > 0 ) {
                  con.manage_comp.account_auths.clear();
                  for( const management_vote &m : o.new_management ) {
@@ -404,19 +389,13 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.publishers_share = o.new_publishers_share;
            }else
            {
-              if( o.new_playing_reward != con.playing_reward )
-                 con.playing_reward = o.new_playing_reward;
-              if( o.new_publishers_share != con.publishers_share )
-                 con.publishers_share = o.new_publishers_share;
+              con.playing_reward = o.new_playing_reward;
+              con.publishers_share = o.new_publishers_share;
            }
            con.last_update = db().head_block_time();
       });
-      if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) {
-         if( redistribute_master )
-            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
-         if( redistribute_comp )
-            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
-      } else if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
+      if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
+         if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) wlog("HF point 5 triggered");
          if( o.side == o.master )
             db().pay_to_content_master( *itr, asset( 0, MUSE_SYMBOL ) );
          else
