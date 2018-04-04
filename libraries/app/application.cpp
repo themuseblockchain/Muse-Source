@@ -34,8 +34,6 @@
 #include <graphene/net/core_messages.hpp>
 #include <graphene/net/exceptions.hpp>
 
-#include <graphene/time/time.hpp>
-
 #include <graphene/utilities/key_conversion.hpp>
 
 #include <fc/smart_ref_impl.hpp>
@@ -308,8 +306,6 @@ namespace detail {
             _force_validate = true;
          }
 
-         graphene::time::now();
-
          if( _options->count("api-user") )
          {
             for( const std::string& api_access_str : _options->at("api-user").as< std::vector<std::string> >() )
@@ -418,7 +414,7 @@ namespace detail {
                  ("n", blk_msg.block.block_num()) );
          }
 
-         time_point_sec now = graphene::time::now();
+         time_point_sec now = fc::time_point::now();
 
          uint64_t max_accept_time = now.sec_since_epoch();
          max_accept_time += allow_future_time;
@@ -762,10 +758,9 @@ namespace detail {
          return fc::time_point_sec::min();
       } FC_CAPTURE_AND_RETHROW( (block_id) ) }
 
-      /** returns graphene::time::now() */
       virtual fc::time_point_sec get_blockchain_now() override
       {
-         return graphene::time::now();
+         return fc::time_point::now();
       }
 
       virtual item_hash_t get_head_block_id() const override
