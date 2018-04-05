@@ -136,7 +136,7 @@ namespace muse { namespace app {
              if( itr != _callbacks.end() )
              {
                 auto callback = _callbacks.find(id)->second;
-                fc::async( [capture_this,this,id,block_num,trx_num,callback](){ callback( fc::variant(transaction_confirmation{ id, block_num, trx_num, false}) ); } );
+                fc::async( [capture_this,this,id,block_num,trx_num,callback](){ callback( fc::variant( transaction_confirmation{ id, block_num, trx_num, false}, GRAPHENE_MAX_NESTED_OBJECTS ) ); } );
                 itr->second = []( const variant& ){};
              }
           }
@@ -152,7 +152,7 @@ namespace muse { namespace app {
                if( cb_itr != _callbacks.end() ) {
                    auto capture_this = shared_from_this();
                    auto callback = _callbacks.find(trx_id)->second; 
-                   fc::async( [capture_this,this,block_num,trx_id,callback](){ callback( fc::variant(transaction_confirmation{ trx_id, block_num, -1, true}) ); } );
+                   fc::async( [capture_this,this,block_num,trx_id,callback](){ callback( fc::variant( transaction_confirmation{ trx_id, block_num, -1, true}, GRAPHENE_MAX_NESTED_OBJECTS ) ); } );
                    _callbacks.erase(cb_itr);
                }
              }

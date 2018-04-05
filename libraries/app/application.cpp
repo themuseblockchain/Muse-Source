@@ -207,7 +207,7 @@ namespace detail {
       void on_connection( const fc::http::websocket_connection_ptr& c )
       {
          std::shared_ptr< api_session_data > session = std::make_shared<api_session_data>();
-         session->wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c);
+         session->wsc = std::make_shared<fc::rpc::websocket_api_connection>(*c, GRAPHENE_NET_MAX_NESTED_OBJECTS);
 
          for( const std::string& name : _public_apis )
          {
@@ -224,7 +224,7 @@ namespace detail {
          c->set_session_data( session );
       }
 
-      application_impl(application* self)
+      explicit application_impl(application* self)
          : _self(self),
            _pending_trx_db(std::make_shared<graphene::db::object_database>()),
            _chain_db(std::make_shared<chain::database>())
@@ -253,14 +253,14 @@ namespace detail {
             if( _options->count("genesis-json") )
             {
                fc::path genesis_path(_options->at("genesis-json").as<boost::filesystem::path>());
-               auto genesis = fc::json::from_file( genesis_path ).as<genesis_state_type>();
+               auto genesis = fc::json::from_file( genesis_path ).as<genesis_state_type>( 20 );
                genesis.initial_chain_id = MUSE_CHAIN_ID;
                return genesis;
 
             } else {
                std::string egenesis_json;
                muse::egenesis::compute_egenesis_json(egenesis_json);
-               auto genesis = fc::json::from_string(egenesis_json).as<genesis_state_type>();
+               auto genesis = fc::json::from_string(egenesis_json).as<genesis_state_type>( 20 );
                genesis.initial_chain_id = MUSE_CHAIN_ID;
                return genesis;
             }
@@ -279,7 +279,7 @@ namespace detail {
             loaded_checkpoints.reserve( cps.size() );
             for( auto cp : cps )
             {
-               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >();
+               auto item = fc::json::from_string(cp).as<std::pair<uint32_t,block_id_type> >( 2 );
                loaded_checkpoints[item.first] = item.second;
             }
          }
@@ -310,7 +310,7 @@ namespace detail {
          {
             for( const std::string& api_access_str : _options->at("api-user").as< std::vector<std::string> >() )
             {
-               api_access_info info = fc::json::from_string( api_access_str ).as<api_access_info>();
+               api_access_info info = fc::json::from_string( api_access_str ).as<api_access_info>( 20 );
                FC_ASSERT( info.username != "" );
                _apiaccess.permission_map[info.username] = info;
             }

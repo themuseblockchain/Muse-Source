@@ -145,7 +145,7 @@
 #define MUSE_FREE_TRANSACTIONS_WITH_NEW_ACCOUNT 100
 
 #define MUSE_BANDWIDTH_AVERAGE_WINDOW_SECONDS (60*60*24*7) ///< 1 week
-#define MUSE_BANDWIDTH_PRECISION             1000000ll ///< 1 million
+#define MUSE_BANDWIDTH_PRECISION             uint64_t(1000000) ///< 1 million
 #define MUSE_MAX_COMMENT_DEPTH               6
 
 #define MUSE_MAX_RESERVE_RATIO   (20000)
@@ -179,16 +179,16 @@
 // chosen to be the maximal value such that MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK * 2**64 * 100000 < 2**128
 #define MUSE_APR_PERCENT_SHIFT_PER_BLOCK             87
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_0_2      (0x3e214e64a7380ULL)
-#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_0_2         91
+#define MUSE_APR_PERCENT_MULTIPLY_PER_BLOCK_0_2      (uint64_t(0x3e214e64a7380ULL))
+#define MUSE_APR_PERCENT_SHIFT_PER_BLOCK_0_2         (uint8_t(91))
 
 #define MUSE_APR_PERCENT_MULTIPLY_PER_DAY            ( (uint64_t( 0x1347 ) << 20 ) \
                                                         | (uint64_t( 0xdcd1 ) << 10 ) \
                                                         | (uint64_t( 0x906D )       ) )
 #define MUSE_APR_PERCENT_SHIFT_PER_DAY               73
 
-#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_0_2        (0x369c2966a19c8ULL)
-#define MUSE_APR_PERCENT_SHIFT_PER_DAY_0_2           76
+#define MUSE_APR_PERCENT_MULTIPLY_PER_DAY_0_2        (uint64_t(0x369c2966a19c8ULL))
+#define MUSE_APR_PERCENT_SHIFT_PER_DAY_0_2           (uint8_t(76))
 
 #define MUSE_CURATE_APR_PERCENT_RESERVE           10
 #define MUSE_CONTENT_APR_PERCENT                 712
@@ -262,3 +262,5 @@
 
 #define MUSE_1ST_LEVEL_SCORING_PERCENTAGE 50
 #define MUSE_2ST_LEVEL_SCORING_PERCENTAGE 10
+
+#define GRAPHENE_MAX_NESTED_OBJECTS (200)

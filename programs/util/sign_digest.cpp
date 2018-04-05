@@ -44,7 +44,7 @@ int main()
 
       fc::variant v = fc::json::from_string( line );
       signing_request sreq;
-      fc::from_variant( v, sreq );
+      fc::from_variant( v, sreq, 10 );
       signing_result sres;
       sres.dig = sreq.dig;
       fc::ecc::private_key priv_key = *graphene::utilities::wif_to_key( sreq.wif );

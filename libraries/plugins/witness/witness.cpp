@@ -57,7 +57,6 @@ void new_chain_banner( const muse::chain::database& db )
          "\n"
          ;
    }
-   return;
 }
 
 void witness_plugin::plugin_set_program_options(
@@ -144,7 +143,6 @@ void witness_plugin::schedule_production_loop()
 
    fc::time_point next_wakeup( now + fc::microseconds( time_to_next_second ) );
 
-   //wdump( (now.time_since_epoch().count())(next_wakeup.time_since_epoch().count()) );
    _block_production_task = fc::schedule([this]{block_production_loop();},
                                          next_wakeup, "Witness Block Production");
 }
@@ -159,7 +157,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
    }
 
    block_production_condition::block_production_condition_enum result;
-   fc::mutable_variant_object capture;
+   fc::limited_mutable_variant_object capture( GRAPHENE_MAX_NESTED_OBJECTS );
    try
    {
       result = maybe_produce_block(capture);
@@ -187,13 +185,10 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
          ilog("Generated block #${n} with timestamp ${t} at time ${c} by ${w}", (capture));
          break;
       case block_production_condition::not_synced:
-         //ilog("Not producing block because production is disabled until we receive a recent block (see: --enable-stale-production)");
          break;
       case block_production_condition::not_my_turn:
-         //ilog("Not producing block because it isn't my turn");
          break;
       case block_production_condition::not_time_yet:
-         // ilog("Not producing block because slot has not yet arrived");
          break;
       case block_production_condition::no_private_key:
          ilog("Not producing block for ${scheduled_witness} because I don't have the private key for ${scheduled_key}", (capture) );
@@ -218,7 +213,7 @@ block_production_condition::block_production_condition_enum witness_plugin::bloc
    return result;
 }
 
-block_production_condition::block_production_condition_enum witness_plugin::maybe_produce_block( fc::mutable_variant_object& capture )
+block_production_condition::block_production_condition_enum witness_plugin::maybe_produce_block( fc::limited_mutable_variant_object& capture )
 {
    chain::database& db = database();
    fc::time_point_sec now = fc::time_point::now() + fc::microseconds( 500000 );
