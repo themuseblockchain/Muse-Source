@@ -131,10 +131,10 @@ namespace muse { namespace chain {
           basic
       };
 
-      authority_type    type = active;
-      proposal_id_type  proposal;
-      string            vetoer;
-      extensions_type   extensions;
+      uint8_t          type = active; // from enum authority_type
+      proposal_id_type proposal;
+      string           vetoer;
+      extensions_type  extensions;
 
       void validate()const;
       void get_required_active_authorities( flat_set<string>& )const;

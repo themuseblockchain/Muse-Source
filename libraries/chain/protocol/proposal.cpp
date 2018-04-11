@@ -82,6 +82,7 @@ void proposal_update_operation::get_required_owner_authorities( flat_set<string>
 void proposal_delete_operation::validate() const
 {
     FC_ASSERT( !vetoer.empty() );
+    FC_ASSERT( type == active || type == owner || type == basic, "Invalid authority type!" );
 }
 
 void proposal_delete_operation::get_required_active_authorities( flat_set<string>& a )const
