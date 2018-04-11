@@ -21,13 +21,10 @@
 
 namespace muse { namespace app {
 
-class database_api_impl;
-
-
 class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 {
    public:
-      database_api_impl( muse::chain::database& db );
+      explicit database_api_impl( muse::chain::database& db );
       ~database_api_impl();
 
       // Objects
@@ -157,7 +154,7 @@ void database_api_impl::on_applied_block( const chain::signed_block& b )
 {
    try
    {
-      _block_applied_callback( fc::variant(signed_block_header(b) ) );
+      _block_applied_callback( fc::variant( signed_block_header(b), GRAPHENE_MAX_NESTED_OBJECTS ) );
    }
    catch( ... )
    {
@@ -313,11 +310,11 @@ fc::variants database_api_impl::get_objects(const vector<object_id_type>& ids)co
    result.reserve(ids.size());
 
    std::transform(ids.begin(), ids.end(), std::back_inserter(result),
-         [this](object_id_type id) -> fc::variant {
-         if(auto obj = _db.find_object(id))
-         return obj->to_variant();
-         return {};
-         });
+                  [this](object_id_type id) -> fc::variant {
+                     if(auto obj = _db.find_object(id))
+                        return obj->to_variant();
+                     return {};
+                  });
 
    return result;
 }
@@ -576,7 +573,7 @@ uint64_t database_api_impl::get_account_scoring( string account )
    FC_ASSERT( account.size() > 0);
    const account_object* ao = nullptr;
    if (std::isdigit(account[0]))
-      ao = _db.find(fc::variant(account).as<account_id_type>());
+      ao = _db.find(fc::variant(account).as<account_id_type>(1));
    else
    {
       const auto& idx = _db.get_index_type<account_index>().indices().get<by_name>();
@@ -1147,7 +1144,7 @@ bool database_api_impl::verify_account_authority( const string& name_or_id, cons
    FC_ASSERT( name_or_id.size() > 0);
    const account_object* account = nullptr;
    if (std::isdigit(name_or_id[0]))
-      account = _db.find(fc::variant(name_or_id).as<account_id_type>());
+      account = _db.find(fc::variant(name_or_id, 1).as<account_id_type>(1));
    else
    {
       const auto& idx = _db.get_index_type<account_index>().indices().get<by_name>();

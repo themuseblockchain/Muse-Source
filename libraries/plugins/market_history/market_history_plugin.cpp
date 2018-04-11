@@ -34,8 +34,6 @@ void market_history_plugin_impl::update_market_histories( const operation_object
       auto& db = _self.database();
       const auto& bucket_idx = db.get_index_type< bucket_index >().indices().get< by_bucket >();
 
-      uint64_t history_seq = std::numeric_limits< uint64_t >::min();
-
       db.create< order_history_object >( [&]( order_history_object& ho )
       {
          ho.time = db.head_block_time();
@@ -173,14 +171,14 @@ void market_history_plugin::plugin_initialize( const boost::program_options::var
 {
    try
    {
-      database().pre_apply_operation.connect( [&]( const operation_object& o ){ _my->update_market_histories( o ); } );
+      database().pre_apply_operation.connect( [this]( const operation_object& o ){ _my->update_market_histories( o ); } );
       database().add_index< primary_index< bucket_index > >();
       database().add_index< primary_index< order_history_index > >();
 
       if( options.count("bucket-size" ) )
       {
          const std::string& buckets = options["bucket-size"].as< string >();
-         _my->_tracked_buckets = fc::json::from_string( buckets ).as< flat_set< uint32_t > >();
+         _my->_tracked_buckets = fc::json::from_string( buckets ).as< flat_set< uint32_t > >( 2 );
       }
       if( options.count("history-per-size" ) )
          _my->_maximum_history_per_bucket_size = options["history-per-size"].as< uint32_t >();

@@ -47,9 +47,9 @@ int main()
       if( line == "" )
          continue;
 
-      fc::variant v = fc::json::from_string( line, fc::json::strict_parser );
+      fc::variant v = fc::json::from_string( line );
       tx_signing_request sreq;
-      fc::from_variant( v, sreq );
+      fc::from_variant( v, sreq, 10 );
       tx_signing_result sres;
       sres.tx = sreq.tx;
       sres.digest = sreq.tx.digest();

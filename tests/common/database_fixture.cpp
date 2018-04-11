@@ -2,7 +2,6 @@
 #include <boost/program_options.hpp>
 
 #include <graphene/db/simple_index.hpp>
-#include <graphene/time/time.hpp>
 #include <graphene/utilities/tempdir.hpp>
 
 #include <muse/chain/base_objects.hpp>
@@ -108,7 +107,6 @@ live_database_fixture::live_database_fixture()
       FC_ASSERT( fc::exists( _chain_dir ), "Requires blockchain to test on in ./test_blockchain" );
 
       db.open( _chain_dir, genesis_state_type(), "TEST" );
-      graphene::time::now();
 
       auto ahplugin = app.register_plugin< muse::account_history::account_history_plugin >();
       ahplugin->plugin_set_app( &app );
