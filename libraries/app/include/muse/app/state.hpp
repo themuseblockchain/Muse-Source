@@ -46,6 +46,7 @@ namespace muse { namespace app {
       map<uint64_t,operation_object>     vote_history;
       map<uint64_t,operation_object>     other_history;
       set<string>                        witness_votes;
+      vector<proposal_object>            proposals;
 
       optional<map<uint32_t,extended_limit_order>> open_orders;
    };
@@ -111,7 +112,8 @@ namespace muse { namespace app {
 FC_REFLECT_DERIVED( muse::app::extended_account,
                    (muse::chain::account_object),
                    (vesting_balance)
-                   (transfer_history)(market_history)(vote_history)(other_history)(witness_votes)(open_orders) )
+                   (transfer_history)(market_history)(vote_history)(other_history)
+                   (witness_votes)(open_orders)(proposals) )
 
 
 FC_REFLECT( muse::app::vote_state, (voter)(weight)(rshares)(percent)(time) );

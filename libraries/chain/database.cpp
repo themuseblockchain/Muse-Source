@@ -2214,7 +2214,9 @@ void database::initialize_indexes()
    add_index< primary_index< asset_index > >();
    add_index< primary_index< account_balance_index > >();
 
-   add_index< primary_index< proposal_index > >();
+   auto prop_index = add_index< primary_index< proposal_index > >();
+   prop_index->add_secondary_index<required_approval_index>();
+
    add_index< primary_index< content_stats_index > >();
    add_index< primary_index< content_vote_index > >();
    add_index< primary_index< balance_index > >();
