@@ -375,6 +375,8 @@ optional < account_object > database_api::get_account_from_id( account_id_type a
 
 vector< extended_account > database_api_impl::get_accounts( const vector< string >& names )const
 {
+   const auto& dgpo = _db.get_dynamic_global_properties();
+   const price vesting_price = dgpo.get_vesting_share_price();
    const auto& idx  = _db.get_index_type< account_index >().indices().get< by_name >();
    const auto& vidx = _db.get_index_type< witness_vote_index >().indices().get< by_account_witness >();
    const auto& proposal_idx = _db.get_index_type<proposal_index>();
@@ -388,6 +390,7 @@ vector< extended_account > database_api_impl::get_accounts( const vector< string
       if ( itr == idx.end() ) continue;
 
       results.push_back( *itr );
+      results.back().muse_power = itr->vesting_shares * vesting_price;
 
       auto vitr = vidx.lower_bound( boost::make_tuple( itr->get_id(), witness_id_type() ) );
       while( vitr != vidx.end() && vitr->account == itr->get_id() ) {

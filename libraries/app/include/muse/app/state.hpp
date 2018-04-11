@@ -40,7 +40,7 @@ namespace muse { namespace app {
       extended_account(){}
       extended_account( const account_object& a ):account_object(a){}
 
-      asset                              vesting_balance; /// convert vesting_shares to vesting muse
+      asset                              muse_power; /// convert vesting_shares to vesting muse
       map<uint64_t,operation_object>     transfer_history; /// transfer to/from vesting
       map<uint64_t,operation_object>     market_history; /// limit order / cancel / fill
       map<uint64_t,operation_object>     vote_history;
@@ -111,7 +111,7 @@ namespace muse { namespace app {
 
 FC_REFLECT_DERIVED( muse::app::extended_account,
                    (muse::chain::account_object),
-                   (vesting_balance)
+                   (muse_power)
                    (transfer_history)(market_history)(vote_history)(other_history)
                    (witness_votes)(open_orders)(proposals) )
 
