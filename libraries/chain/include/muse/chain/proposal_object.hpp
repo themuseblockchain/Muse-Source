@@ -28,6 +28,8 @@
 
 #include <graphene/db/generic_index.hpp>
 
+#include <boost/multi_index/composite_key.hpp>
+
 namespace muse { namespace chain {
 
 using namespace graphene::db;
@@ -54,6 +56,7 @@ class proposal_object : public abstract_object<proposal_object>
       flat_set<string>     required_master_content_approvals;
       flat_set<string>     required_comp_content_approvals;
       flat_set<public_key_type>     available_key_approvals;
+      set<string>               can_veto;
 
       bool is_authorized_to_execute(database& db)const;
 };
@@ -77,6 +80,7 @@ class required_approval_index : public secondary_index
       virtual void about_to_modify( const object& before ) override{};
       virtual void object_modified( const object& after  ) override{};
 
+   private:
       void remove( string a, proposal_id_type p );
 
       map<string, set<proposal_id_type> > _account_to_proposals;
@@ -87,7 +91,12 @@ typedef boost::multi_index_container<
    proposal_object,
    indexed_by<
       ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >,
-      ordered_non_unique< tag< by_expiration >, member< proposal_object, time_point_sec, &proposal_object::expiration_time > >
+      ordered_unique< tag< by_expiration >,
+         composite_key<proposal_object,
+            member<proposal_object, time_point_sec, &proposal_object::expiration_time>,
+            member< object, object_id_type, &object::id >
+         >
+      >
    >
 > proposal_multi_index_container;
 typedef generic_index<proposal_object, proposal_multi_index_container> proposal_index;

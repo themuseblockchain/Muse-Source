@@ -2152,6 +2152,7 @@ void database::initialize_evaluators()
     register_evaluator<balance_claim_evaluator>();
 
     register_evaluator<proposal_create_evaluator>();
+    register_evaluator<proposal_delete_evaluator>();
     register_evaluator<proposal_update_evaluator>();
 
     register_evaluator<feed_publish_evaluator>();
@@ -2549,6 +2550,7 @@ void database::_apply_block( const signed_block& next_block )
 
    create_block_summary(next_block);
    clear_expired_transactions();
+   clear_expired_proposals();
    clear_expired_orders();
    update_witness_schedule();
 
@@ -2696,7 +2698,8 @@ void database::_apply_transaction(const signed_transaction& trx)
       auto get_master_cont = [&]( const string& url ) { return &get_content(url).manage_master; };
       auto get_comp_cont = [&]( const string& url ) { return &get_content(url).manage_comp; };
 
-      trx.verify_authority( chain_id, get_active, get_owner, get_basic, get_master_cont, get_comp_cont, MUSE_MAX_SIG_CHECK_DEPTH );
+      trx.verify_authority( chain_id, get_active, get_owner, get_basic, get_master_cont, get_comp_cont,
+                            !has_hardfork( MUSE_HARDFORK_0_3 ) ? 1 : 2 );
    }
    flat_set<string> required; vector<authority> other;
    flat_set<string> required_content;
@@ -2904,7 +2907,8 @@ void database::update_virtual_supply()
 
 void database::push_proposal(const proposal_object& proposal)
 { try {
-   //TODO_MUSE
+   ilog( "Proposal: executing ${p}", ("p",proposal) );
+
    auto session = _undo_db.start_undo_session(true);
    _current_op_in_trx = 0;
    transaction_evaluation_state eval_state(this);
@@ -3124,6 +3128,29 @@ void database::clear_expired_orders()
    }
 }
 
+void database::clear_expired_proposals()
+{
+   if ( !has_hardfork(MUSE_HARDFORK_0_3) ) return;
+
+   const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();
+   while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
+   {
+      const proposal_object& proposal = *proposal_expiration_index.begin();
+      processed_transaction result;
+      try {
+         if( proposal.is_authorized_to_execute(*this) )
+         {
+            push_proposal(proposal);
+            continue;
+         }
+      } catch( const fc::exception& e ) {
+         elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
+              ("proposal", proposal)("error", e.to_detail_string()));
+      }
+      remove(proposal);
+   }
+}
+
 string database::to_pretty_string( const asset& a )const
 {
    return a.asset_id(*this).amount_to_pretty_string(a.amount);
@@ -3340,6 +3367,14 @@ void database::apply_hardfork( uint32_t hardfork )
                dgpo.virtual_supply += dgpo.supply_delta;
                dgpo.supply_delta = asset();
             } );
+         }
+         break;
+
+      case MUSE_HARDFORK_0_3:
+         {
+            const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();
+            while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
+               remove( *proposal_expiration_index.begin() );
          }
          break;
 
