@@ -240,7 +240,7 @@ void verify_authority_v2( const vector<operation>& ops, const flat_set<public_ke
    // fetch all of the top level authorities
    for( auto id : required_basic )
    {
-      MUSE_ASSERT( s.check_authority(get_basic(id)) ||
+      MUSE_ASSERT( s.check_authority(id) ||
                        s.check_authority(get_active(id)) ||
                        s.check_authority(get_owner(id)),
                                 tx_missing_basic_auth, "Missing Active Authority ${id}", ("id",id)("auth",*get_active(id))("owner",*get_owner(id)) );

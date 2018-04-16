@@ -1282,4 +1282,33 @@ BOOST_AUTO_TEST_CASE( proposals_with_mixed_authorities )
    }
 } FC_LOG_AND_RETHROW() }
 
+BOOST_AUTO_TEST_CASE( basic_authority )
+{ try {
+   generate_block();
+
+   ACTORS( (alice)(brenda) );
+
+   const auto& pidx = db.get_index_type<proposal_index>().indices().get<by_id>();
+
+   proposal_create_operation pco;
+   friendship_operation friend_op;
+   friend_op.who = "alice";
+   friend_op.whom = "brenda";
+   pco.proposed_ops.emplace_back( friend_op );
+   pco.expiration_time = db.head_block_time() + fc::minutes(1);
+   trx.operations.push_back( pco );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   proposal_update_operation pup;
+   pup.proposal = pidx.begin()->id;
+   pup.active_approvals_to_add.insert( "alice" );
+   trx.operations.push_back( pup );
+   sign( trx, alice_private_key );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   BOOST_CHECK_EQUAL( 0, pidx.size() );
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_SUITE_END()
