@@ -68,6 +68,9 @@ void account_create_evaluator::do_apply( const account_create_operation& o )
          FC_ASSERT( fc::json::is_valid(o.json_metadata, fc::json::broken_nul_parser), "JSON Metadata not valid JSON" );
    }
 
+   if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
+      o.basic.validate();
+
    const auto& creator = db().get_account( o.creator );
 
    const auto& props = db().get_dynamic_global_properties();
@@ -120,6 +123,9 @@ void account_update_evaluator::do_apply( const account_update_operation& o )
    }
 
    FC_ASSERT( o.account != MUSE_TEMP_ACCOUNT );
+
+   if( db().has_hardfork( MUSE_HARDFORK_0_3 ) && o.basic )
+      o.basic->validate();
 
    const auto& account = db().get_account( o.account );
 
