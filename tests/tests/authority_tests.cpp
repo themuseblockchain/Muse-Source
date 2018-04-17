@@ -42,6 +42,114 @@ using namespace muse::chain::test;
 
 BOOST_FIXTURE_TEST_SUITE( authority_tests, clean_database_fixture )
 
+BOOST_AUTO_TEST_CASE( invalid_authorities )
+{ try {
+
+   ACTORS( (alice) );
+   fund( "alice" );
+
+   private_key_type brenda_private_key = generate_private_key( "brenda" );
+   account_create_operation aco;
+   aco.creator = "alice";
+   aco.new_account_name = "brenda";
+   aco.fee = asset( 1000 );
+   aco.owner.key_auths[brenda_private_key.get_public_key()] = 1;
+   aco.owner.weight_threshold = 1;
+   aco.active.key_auths[brenda_private_key.get_public_key()] = 1;
+   aco.active.weight_threshold = 1;
+   aco.basic.key_auths[brenda_private_key.get_public_key()] = 1;
+   aco.basic.weight_threshold = 1;
+   aco.memo_key = brenda_private_key.get_public_key();
+
+   aco.owner.account_auths["Hello world!"] = 1;
+   trx.operations.push_back(aco);
+   sign(trx, alice_private_key);
+   BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+   trx.clear();
+
+   proposal_create_operation pop;
+   pop.proposed_ops.emplace_back( aco );
+   pop.expiration_time = db.head_block_time() + fc::minutes(1);
+   trx.operations.push_back( pop );
+   BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+   pop.proposed_ops.clear();
+   trx.clear();
+
+   aco.owner.account_auths.clear();
+   aco.active.account_auths["Hello world!"] = 1;
+   trx.operations.push_back(aco);
+   sign(trx, alice_private_key);
+   BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+   trx.clear();
+
+   pop.proposed_ops.emplace_back( aco );
+   trx.operations.push_back( pop );
+   BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+   pop.proposed_ops.clear();
+   trx.clear();
+
+   aco.active.account_auths.clear();
+   aco.basic.account_auths["Hello world!"] = 1;
+   trx.operations.push_back(aco);
+   sign(trx, alice_private_key);
+   BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+   trx.clear();
+
+   pop.proposed_ops.emplace_back( aco );
+   trx.operations.push_back( pop );
+   BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+   pop.proposed_ops.clear();
+   trx.clear();
+
+   {
+      account_update_operation aup;
+      aup.account = "alice";
+      aup.owner = authority( 1, "Hello world!", 1 );
+      trx.operations.push_back(aup);
+      sign(trx, alice_private_key);
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      trx.clear();
+
+      pop.proposed_ops.emplace_back( aup );
+      trx.operations.push_back( pop );
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      pop.proposed_ops.clear();
+      trx.clear();
+   }
+
+   {
+      account_update_operation aup;
+      aup.account = "alice";
+      aup.active = authority( 1, "Hello world!", 1 );
+      trx.operations.push_back(aup);
+      sign(trx, alice_private_key);
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      trx.clear();
+
+      pop.proposed_ops.emplace_back( aup );
+      trx.operations.push_back( pop );
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      pop.proposed_ops.clear();
+      trx.clear();
+   }
+
+   {
+      account_update_operation aup;
+      aup.account = "alice";
+      aup.basic = authority( 1, "Hello world!", 1 );
+      trx.operations.push_back(aup);
+      sign(trx, alice_private_key);
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      trx.clear();
+
+      pop.proposed_ops.emplace_back( aup );
+      trx.operations.push_back( pop );
+      BOOST_CHECK_THROW( PUSH_TX( db, trx ), fc::assert_exception );
+      pop.proposed_ops.clear();
+      trx.clear();
+   }
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_CASE( simple_single_signature )
 { try {
 

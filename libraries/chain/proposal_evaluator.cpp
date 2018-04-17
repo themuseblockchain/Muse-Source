@@ -34,22 +34,39 @@ namespace muse { namespace chain {
 using namespace graphene::db;
 
 
-namespace impl { // TODO: remove after HF 3 has passed
-   class hf_3_visitor {
+namespace impl {
+   class proposal_op_visitor {
       public:
          typedef void result_type;
+
+         proposal_op_visitor( database& db ) : _db(db) {}
 
          template<typename T>
          void operator()( const T& v )const {}
 
+         void operator()( const muse::chain::account_create_operation& v )const {
+            // TODO: move into account_create_operation::validate after HF 3 has passed
+            if( _db.has_hardfork( MUSE_HARDFORK_0_3 ) )
+               v.basic.validate();
+         }
+
+         void operator()( const muse::chain::account_update_operation& v )const {
+            // TODO: move into account_update_operation::validate after HF 3 has passed
+            if( _db.has_hardfork( MUSE_HARDFORK_0_3 ) && v.basic)
+               v.basic->validate();
+         }
+
          void operator()( const muse::chain::proposal_delete_operation& v )const {
-            FC_ASSERT( false, "Not allowed until hardfork 3" );
+            // TODO: remove after HF 3 has passed
+            FC_ASSERT( _db.has_hardfork( MUSE_HARDFORK_0_3 ), "Not allowed until hardfork 3" );
          }
 
          void operator()( const muse::chain::proposal_create_operation& v )const {
             for( const op_wrapper& op : v.proposed_ops )
                 op.op.visit( *this );
          }
+      private:
+         database& _db;
    };
 }
 
@@ -77,11 +94,8 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
 { try {
    database& d = db();
 
-   if( !d.has_hardfork( MUSE_HARDFORK_0_3 ) )
-   { // TODO: remove after HF 3 has been activated
-      muse::chain::impl::hf_3_visitor hf_3;
-      hf_3( o );
-   }
+   muse::chain::impl::proposal_op_visitor vtor(d);
+   vtor( o );
 
    transaction _proposed_trx;
    const auto& global_parameters = d.get_dynamic_global_properties();
