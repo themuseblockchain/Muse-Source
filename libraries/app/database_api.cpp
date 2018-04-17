@@ -375,22 +375,33 @@ optional < account_object > database_api::get_account_from_id( account_id_type a
 
 vector< extended_account > database_api_impl::get_accounts( const vector< string >& names )const
 {
+   const auto& dgpo = _db.get_dynamic_global_properties();
+   const price vesting_price = dgpo.get_vesting_share_price();
    const auto& idx  = _db.get_index_type< account_index >().indices().get< by_name >();
    const auto& vidx = _db.get_index_type< witness_vote_index >().indices().get< by_account_witness >();
-   vector< extended_account > results;
+   const auto& proposal_idx = _db.get_index_type<proposal_index>();
+   const auto& pidx = dynamic_cast<const primary_index<proposal_index>&>(proposal_idx);
+   const auto& proposals_by_account = pidx.get_secondary_index<muse::chain::required_approval_index>();
 
-   for( auto name: names )
+   vector< extended_account > results;
+   for( const auto& name: names )
    {
       auto itr = idx.find( name );
-      if ( itr != idx.end() )
-      {
-         results.push_back( *itr );
-         auto vitr = vidx.lower_bound( boost::make_tuple( itr->get_id(), witness_id_type() ) );
-         while( vitr != vidx.end() && vitr->account == itr->get_id() ) {
-            results.back().witness_votes.insert(vitr->witness(_db).owner);
-            ++vitr;
-         }
+      if ( itr == idx.end() ) continue;
+
+      results.push_back( *itr );
+      results.back().muse_power = itr->vesting_shares * vesting_price;
+
+      auto vitr = vidx.lower_bound( boost::make_tuple( itr->get_id(), witness_id_type() ) );
+      while( vitr != vidx.end() && vitr->account == itr->get_id() ) {
+         results.back().witness_votes.insert(vitr->witness(_db).owner);
+         ++vitr;
       }
+
+      const set<proposal_id_type> proposals = proposals_by_account.lookup( name );
+      results.back().proposals.reserve( proposals.size() );
+      for( const auto proposal_id : proposals )
+         results.back().proposals.push_back( proposal_id(_db) );
    }
 
    return results;

@@ -104,4 +104,13 @@ void required_approval_index::object_removed( const object& obj )
        remove( a, p.id );
 }
 
+const set<proposal_id_type>& required_approval_index::lookup( const string& account )const
+{
+   static const std::set<proposal_id_type> empty;
+   auto itr = _account_to_proposals.find( account );
+   if( itr != _account_to_proposals.end() )
+      return itr->second;
+   return empty;
+}
+
 } } // muse::chain

@@ -80,6 +80,8 @@ class required_approval_index : public secondary_index
       virtual void about_to_modify( const object& before ) override{};
       virtual void object_modified( const object& after  ) override{};
 
+      const set<proposal_id_type>& lookup( const string& account )const;
+
    private:
       void remove( string a, proposal_id_type p );
 
