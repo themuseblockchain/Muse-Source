@@ -41,8 +41,8 @@ public:
    }
 
    bool is_tagged( const std::string& user, const std::string& tagged_by, const std::string& tag ) const;
-   const fc::optional<std::set<std::string>>& list_checked_tags()const;
-   const fc::optional<std::set<std::string>>& list_checked_taggers()const;
+//   const fc::optional<std::set<std::string>>& list_checked_tags()const;
+//   const fc::optional<std::set<std::string>>& list_checked_taggers()const;
    std::vector<half_tagging> list_tags_from( const std::string& tagger,
                                              const std::string& filter_tag,
                                              const std::string& start_tag,
@@ -62,17 +62,17 @@ bool custom_tags_api_impl::is_tagged( const std::string& user, const std::string
    return idx.find( boost::make_tuple( tagged_by, tag, user ) ) != idx.end();
 }
 
-static const fc::optional<std::set<std::string>> EMPTY;
+//static const fc::optional<std::set<std::string>> EMPTY;
 
-const fc::optional<std::set<std::string>>& custom_tags_api_impl::list_checked_tags()const
-{
-   return EMPTY; // FIXME
-}
-
-const fc::optional<std::set<std::string>>& custom_tags_api_impl::list_checked_taggers()const
-{
-   return EMPTY; // FIXME
-}
+//const fc::optional<std::set<std::string>>& custom_tags_api_impl::list_checked_tags()const
+//{
+//   return EMPTY; // FIXME
+//}
+//
+//const fc::optional<std::set<std::string>>& custom_tags_api_impl::list_checked_taggers()const
+//{
+//   return EMPTY; // FIXME
+//}
 
 std::vector<half_tagging> custom_tags_api_impl::list_tags_from( const std::string& tagger,
                                                                 const std::string& filter_tag,
@@ -119,15 +119,15 @@ bool custom_tags_api::is_tagged( const std::string& user, const std::string& tag
    return my->is_tagged( user, tagged_by, tag );
 }
 
-const fc::optional<std::set<std::string>>& custom_tags_api::list_checked_tags()const
-{
-   return my->list_checked_tags();
-}
-
-const fc::optional<std::set<std::string>>& custom_tags_api::list_checked_taggers()const
-{
-   return my->list_checked_taggers();
-}
+//const fc::optional<std::set<std::string>>& custom_tags_api::list_checked_tags()const
+//{
+//   return my->list_checked_tags();
+//}
+//
+//const fc::optional<std::set<std::string>>& custom_tags_api::list_checked_taggers()const
+//{
+//   return my->list_checked_taggers();
+//}
 
 std::vector<half_tagging> custom_tags_api::list_tags_from( const std::string& tagger,
                                                            const std::string& filter_tag,

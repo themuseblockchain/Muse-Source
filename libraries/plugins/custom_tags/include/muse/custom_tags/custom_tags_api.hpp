@@ -66,12 +66,12 @@ class custom_tags_api
       /**
        * @brief Returns a list of all tags checked by this node, or null if it handles all tags
        */
-      const fc::optional<std::set<std::string>>& list_checked_tags()const;
+      //const fc::optional<std::set<std::string>>& list_checked_tags()const;
 
       /**
        * @brief Returns a list of all taggers checked by this node, or null if it handles all taggers
        */
-      const fc::optional<std::set<std::string>>& list_checked_taggers()const;
+      //const fc::optional<std::set<std::string>>& list_checked_taggers()const;
 
       /**
        * @brief Returns a possibly filtered list of up to 100 known tags, ordered by (tag,taggee)
@@ -107,8 +107,8 @@ FC_REFLECT( muse::custom_tags::half_tagging, (user)(tag) )
 
 FC_API( muse::custom_tags::custom_tags_api,
         (is_tagged)
-        (list_checked_tags)
-        (list_checked_taggers)
+//        (list_checked_tags)
+//        (list_checked_taggers)
         (list_tags_from)
         (list_tags_on)
       )
