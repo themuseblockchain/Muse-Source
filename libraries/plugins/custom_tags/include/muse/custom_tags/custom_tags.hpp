@@ -81,10 +81,16 @@ struct tag_object : public graphene::db::abstract_object< tag_object > {
    std::string taggee;
 };
 
+struct by_all;
 typedef boost::multi_index_container<
    tag_object,
    indexed_by<
-      ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >
+      ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >,
+      ordered_unique< tag< by_all >,
+         composite_key< tag_object,
+                        member< tag_object, std::string, &tag_object::tagger >,
+                        member< tag_object, std::string, &tag_object::tag >,
+                        member< tag_object, std::string, &tag_object::taggee > > >
    >
 > custom_tags_multi_index_container;
 typedef generic_index<tag_object, custom_tags_multi_index_container> custom_tags_index;

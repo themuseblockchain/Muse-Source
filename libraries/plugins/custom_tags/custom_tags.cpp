@@ -23,12 +23,16 @@
  */
 #include <muse/custom_tags/custom_tags_api.hpp>
 
+#include <muse/chain/history_object.hpp>
+
 namespace muse { namespace custom_tags {
 
 namespace detail {
 
 class custom_tags_impl {
 public:
+   typedef void result_type;
+
    custom_tags_impl( custom_tags_plugin& _plugin )
       : _self( _plugin ) {}
 
@@ -38,12 +42,134 @@ public:
 
    void on_operation( const muse::chain::operation_object& op_obj );
 
-   custom_tags_plugin& _self;
-   custom_tags_index*  cti;
+   std::set<std::string> get_accounts( const fc::variant_object& json, const char* key );
+   void set_labels( const std::string& tagger, const std::string& label, std::set<std::string>& names );
+   void add_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names );
+   void remove_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names );
+
+   template<typename Op>
+   void operator()( Op&& )const{}
+
+   void operator()( const muse::chain::custom_json_operation& op );
+
+   custom_tags_plugin&                  _self;
+   primary_index< custom_tags_index >*  cti;
 };
 
+std::set<std::string> custom_tags_impl::get_accounts( const fc::variant_object& json, const char* key )
+{
+   std::set<std::string> result;
+
+   auto itr = json.find( key );
+   if( itr == json.end() ) return result;
+
+   FC_ASSERT( itr->value().is_array(), "${key} is not an array - ignoring op", ("key",std::string(key)) );
+
+   for( const fc::variant& name : itr->value().get_array() )
+   {
+      database().get_account( name.get_string() ); // ensure it exists
+      result.insert( name.get_string() );
+   }
+
+   return result;
+}
+
+void custom_tags_impl::set_labels( const std::string& tagger, const std::string& label, std::set<std::string>& names )
+{
+   auto& idx = cti->indices().get<by_all>();
+   auto itr = idx.lower_bound( boost::make_tuple( tagger, label, "" ) );
+   while( itr != idx.end() && itr->tagger == tagger && itr->tag == label )
+   {
+      if( names.find( itr->taggee ) != names.end() )
+      {
+         auto& to_erase = *itr;
+         itr++;
+         cti->remove( to_erase );
+      }
+      else
+      {
+         names.erase( itr->taggee );
+         itr++;
+      }
+   }
+   for( const std::string& name : names )
+      database().create<tag_object>( [&tagger,&label,&name]( tag_object& new_tag ) {
+         new_tag.tagger = tagger;
+         new_tag.tag = label;
+         new_tag.taggee = name;
+      });
+}
+
+void custom_tags_impl::add_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names )
+{
+   auto& idx = cti->indices().get<by_all>();
+   for( const std::string& name : names )
+   {
+      auto itr = idx.find( boost::make_tuple( tagger, label, name ) );
+      if( itr == idx.end() )
+         database().create<tag_object>( [&tagger,&label,&name]( tag_object& new_tag ) {
+            new_tag.tagger = tagger;
+            new_tag.tag = label;
+            new_tag.taggee = name;
+         });
+   }
+}
+
+void custom_tags_impl::remove_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names )
+{
+   auto& idx = cti->indices().get<by_all>();
+   for( const std::string& name : names )
+   {
+      auto itr = idx.find( boost::make_tuple( tagger, label, name ) );
+      if( itr != idx.end() ) cti->remove( *itr );
+   }
+}
+
+void custom_tags_impl::operator()( const muse::chain::custom_json_operation& op )
+{ try {
+   const std::string* tagger;
+   if( op.required_auths.size() == 1 && op.required_basic_auths.empty() )
+      tagger = &(*op.required_auths.begin());
+   else if( op.required_auths.empty() && op.required_basic_auths.size() == 1 )
+      tagger = &(*op.required_basic_auths.begin());
+   else
+   {
+      ilog( "Ignoring custom_json_operation with more than one authority" );
+      return;
+   }
+
+   const fc::variant json_data = fc::json::from_string( op.json );
+   if( !json_data.is_object() )
+   {
+      ilog( "Ignoring custom_json_operation that contains no json object" );
+      return;
+   }
+
+   auto itr = json_data.get_object().find( "label" );
+   if( itr == json_data.get_object().end() || !itr->value().is_string() )
+   {
+      ilog( "Ignoring custom_json_operation with no string label" );
+      return;
+   }
+   const std::string& label = itr->value().get_string();
+
+   const std::set<std::string> to_add = get_accounts( json_data.get_object(), "add" );
+   const std::set<std::string> to_remove = get_accounts( json_data.get_object(), "remove" );
+   std::set<std::string> to_set = get_accounts( json_data.get_object(), "set" );
+
+   FC_ASSERT( to_set.empty() || ( to_add.empty() && to_remove.empty() ), "custom_json should use either set or add/remove!" );
+
+   if( !to_set.empty() )
+      set_labels( *tagger, label, to_set );
+   else
+   {
+      add_labels( *tagger, label, to_add );
+      remove_labels( *tagger, label, to_remove );
+   }
+} FC_CAPTURE_AND_LOG( (op) ) }
+
 void custom_tags_impl::on_operation( const muse::chain::operation_object& op_obj ) {
-    // FIXME
+   op_obj.op.visit( *this );
 }
 
 } // detail
