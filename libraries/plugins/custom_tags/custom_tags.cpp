@@ -76,7 +76,7 @@ std::set<std::string> custom_tags_impl::get_accounts( const fc::variant_object& 
 
 void custom_tags_impl::set_labels( const std::string& tagger, const std::string& label, std::set<std::string>& names )
 {
-   auto& idx = cti->indices().get<by_all>();
+   auto& idx = cti->indices().get<by_tagger>();
    auto itr = idx.lower_bound( boost::make_tuple( tagger, label, "" ) );
    while( itr != idx.end() && itr->tagger == tagger && itr->tag == label )
    {
@@ -102,7 +102,7 @@ void custom_tags_impl::set_labels( const std::string& tagger, const std::string&
 
 void custom_tags_impl::add_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names )
 {
-   auto& idx = cti->indices().get<by_all>();
+   auto& idx = cti->indices().get<by_tagger>();
    for( const std::string& name : names )
    {
       auto itr = idx.find( boost::make_tuple( tagger, label, name ) );
@@ -117,7 +117,7 @@ void custom_tags_impl::add_labels( const std::string& tagger, const std::string&
 
 void custom_tags_impl::remove_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names )
 {
-   auto& idx = cti->indices().get<by_all>();
+   auto& idx = cti->indices().get<by_tagger>();
    for( const std::string& name : names )
    {
       auto itr = idx.find( boost::make_tuple( tagger, label, name ) );

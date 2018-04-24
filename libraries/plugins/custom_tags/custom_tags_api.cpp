@@ -43,12 +43,14 @@ public:
    bool is_tagged( const std::string& user, const std::string& tagged_by, const std::string& tag ) const;
    const fc::optional<std::set<std::string>>& list_checked_tags()const;
    const fc::optional<std::set<std::string>>& list_checked_taggers()const;
-   std::vector<tagging> list_tags( const std::string& filter_tagger,
-                                   const std::string& filter_tag,
-                                   const std::string& filter_taggee,
-                                   const std::string& start_tagger,
-                                   const std::string& start_tag,
-                                   const std::string& start_taggee )const;
+   std::vector<half_tagging> list_tags_from( const std::string& tagger,
+                                             const std::string& filter_tag,
+                                             const std::string& start_tag,
+                                             const std::string& start_taggee )const;
+   std::vector<half_tagging> list_tags_on( const std::string& taggee,
+                                           const std::string& filter_tag,
+                                           const std::string& start_tag,
+                                           const std::string& start_tagger )const;
 
 private:
    muse::app::application& app;
@@ -56,7 +58,8 @@ private:
 
 bool custom_tags_api_impl::is_tagged( const std::string& user, const std::string& tagged_by, const std::string& tag ) const
 {
-   return false; // FIXME
+   const auto& idx = app.chain_database()->get_index_type<custom_tags_index>().indices().get<by_tagger>();
+   return idx.find( boost::make_tuple( tagged_by, tag, user ) ) != idx.end();
 }
 
 static const fc::optional<std::set<std::string>> EMPTY;
@@ -71,14 +74,42 @@ const fc::optional<std::set<std::string>>& custom_tags_api_impl::list_checked_ta
    return EMPTY; // FIXME
 }
 
-std::vector<tagging> custom_tags_api_impl::list_tags( const std::string& filter_tagger,
-                                      const std::string& filter_tag,
-                                      const std::string& filter_taggee,
-                                      const std::string& start_tagger,
-                                      const std::string& start_tag,
-                                      const std::string& start_taggee )const
+std::vector<half_tagging> custom_tags_api_impl::list_tags_from( const std::string& tagger,
+                                                                const std::string& filter_tag,
+                                                                const std::string& start_tag,
+                                                                const std::string& start_taggee )const
 {
-   return std::vector<tagging>(); // FIXME
+   FC_ASSERT( filter_tag.empty() || start_tag.empty(), "Use either filter_tag or start_tag but not both!" );
+
+   std::vector<half_tagging> result;
+   result.reserve(100);
+   const auto& idx = app.chain_database()->get_index_type<custom_tags_index>().indices().get<by_tagger>();
+   auto itr = idx.lower_bound( boost::make_tuple( tagger, filter_tag.empty() ? start_tag : filter_tag, start_taggee ) );
+   while( itr != idx.end() && itr->tagger == tagger && result.size() < 100 )
+   {
+       if( !filter_tag.empty() && itr->tag != filter_tag ) break;
+       result.push_back( half_tagging( *itr++, false ) );
+   }
+   return result;
+}
+
+std::vector<half_tagging> custom_tags_api_impl::list_tags_on( const std::string& taggee,
+                                                              const std::string& filter_tag,
+                                                              const std::string& start_tag,
+                                                              const std::string& start_tagger )const
+{
+   FC_ASSERT( filter_tag.empty() || start_tag.empty(), "Use either filter_tag or start_tag but not both!" );
+
+   std::vector<half_tagging> result;
+   result.reserve(100);
+   const auto& idx = app.chain_database()->get_index_type<custom_tags_index>().indices().get<by_taggee>();
+   auto itr = idx.lower_bound( boost::make_tuple( taggee, filter_tag.empty() ? start_tag : filter_tag, start_tagger ) );
+   while( itr != idx.end() && itr->taggee == taggee && result.size() < 100 )
+   {
+       if( !filter_tag.empty() && itr->tag != filter_tag ) break;
+       result.push_back( half_tagging( *itr++, true ) );
+   }
+   return result;
 }
 
 } // detail
@@ -98,15 +129,20 @@ const fc::optional<std::set<std::string>>& custom_tags_api::list_checked_taggers
    return my->list_checked_taggers();
 }
 
-std::vector<tagging> custom_tags_api::list_tags( const std::string& filter_tagger,
-                                      const std::string& filter_tag,
-                                      const std::string& filter_taggee,
-                                      const std::string& start_tagger,
-                                      const std::string& start_tag,
-                                      const std::string& start_taggee )const
+std::vector<half_tagging> custom_tags_api::list_tags_from( const std::string& tagger,
+                                                           const std::string& filter_tag,
+                                                           const std::string& start_tag,
+                                                           const std::string& start_taggee )const
 {
-    return my->list_tags( filter_tagger, filter_tag, filter_taggee,
-                          start_tagger, start_tag, start_taggee );
+    return my->list_tags_from( tagger, filter_tag, start_tag, start_taggee );
+}
+
+std::vector<half_tagging> custom_tags_api::list_tags_on( const std::string& taggee,
+                                                         const std::string& filter_tag,
+                                                         const std::string& start_tag,
+                                                         const std::string& start_tagger )const
+{
+    return my->list_tags_on( taggee, filter_tag, start_tag, start_tagger );
 }
 
 custom_tags_api::custom_tags_api( const muse::app::api_context& ctx )
@@ -116,7 +152,7 @@ custom_tags_api::custom_tags_api( const muse::app::api_context& ctx )
 
 void custom_tags_api::on_api_startup() {}
 
-tagging::tagging( const tag_object& t )
-   : tagger(t.tagger), tag(t.tag), taggee(t.taggee) {}
+half_tagging::half_tagging( const tag_object& t, bool use_tagger )
+   : user( use_tagger ? t.tagger : t.taggee ), tag(t.tag) {}
 
 } } // muse::custom_tags

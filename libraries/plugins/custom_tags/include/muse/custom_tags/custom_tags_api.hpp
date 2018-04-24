@@ -39,13 +39,12 @@ namespace detail {
    class custom_tags_api_impl;
 }
 
-class tagging {
+class half_tagging {
 public:
-   tagging( const tag_object& t );
+   half_tagging( const tag_object& t, bool use_tagger );
 
-   std::string tagger;
+   std::string user;
    std::string tag;
-   std::string taggee;
 };
 
 class custom_tags_api
@@ -75,31 +74,41 @@ class custom_tags_api
       const fc::optional<std::set<std::string>>& list_checked_taggers()const;
 
       /**
-       * @brief Returns a possibly filtered list of up to 100 known tags, ordered by (tagger,tag,taggee)
-       * @param filter_tagger only return tags set by this user, or empty string
+       * @brief Returns a possibly filtered list of up to 100 known tags, ordered by (tag,taggee)
+       * @param tagger the creator of the tags to return
        * @param filter_tag only return tags with this value, or empty string
-       * @param filter_taggee only return tags set on this user, or empty string
-       * @param start_tagger start with tags set by this user, or empty string
        * @param start_tag start with tags containing this value, or empty string
        * @param start_taggee start with tags set on this user, or empty string
        */
-      std::vector<tagging> list_tags( const std::string& filter_tagger,
-                                      const std::string& filter_tag,
-                                      const std::string& filter_taggee,
-                                      const std::string& start_tagger,
-                                      const std::string& start_tag,
-                                      const std::string& start_taggee )const;
+      std::vector<half_tagging> list_tags_from( const std::string& tagger,
+                                                const std::string& filter_tag,
+                                                const std::string& start_tag,
+                                                const std::string& start_taggee )const;
+
+      /**
+       * @brief Returns a possibly filtered list of up to 100 known tags, ordered by (tag,tagger)
+       * @param taggee the recipient of the tags to return
+       * @param filter_tag only return tags with this value, or empty string
+       * @param start_tag start with tags containing this value, or empty string
+       * @param start_tagger start with tags set by this user, or empty string
+       */
+      std::vector<half_tagging> list_tags_on( const std::string& taggee,
+                                              const std::string& filter_tag,
+                                              const std::string& start_tag,
+                                              const std::string& start_tagger )const;
+
    private:
       std::shared_ptr< detail::custom_tags_api_impl > my;
 };
 
 } } // muse::custom_tags
 
-FC_REFLECT( muse::custom_tags::tagging, (tagger)(tag)(taggee) )
+FC_REFLECT( muse::custom_tags::half_tagging, (user)(tag) )
 
 FC_API( muse::custom_tags::custom_tags_api,
         (is_tagged)
         (list_checked_tags)
         (list_checked_taggers)
-        (list_tags)
+        (list_tags_from)
+        (list_tags_on)
       )
