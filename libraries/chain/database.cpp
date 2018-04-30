@@ -1797,6 +1797,8 @@ void database::pay_to_curator(const content_object &co, account_id_type cur, con
 asset database::pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform)
 {try{
    asset paid (0);
+   if( !has_hardfork(MUSE_HARDFORK_0_2) )
+      payout = payout - payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100; // former curation reward
    const content_object& co = get<content_object>( content );
    asset platform_reward = payout;
    platform_reward.amount = platform_reward.amount * co.playing_reward / 10000;
