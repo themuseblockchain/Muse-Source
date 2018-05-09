@@ -128,7 +128,7 @@ namespace muse { namespace app {
        {
           /// we need to ensure the database_api is not deleted for the life of the async operation
           auto capture_this = shared_from_this();
-          for( int32_t trx_num = 0; trx_num < b.transactions.size(); ++trx_num )
+          for( size_t trx_num = 0; trx_num < b.transactions.size(); ++trx_num )
           {
              const auto& trx = b.transactions[trx_num];
              auto id = trx.id();
@@ -136,7 +136,7 @@ namespace muse { namespace app {
              if( itr != _callbacks.end() )
              {
                 auto callback = _callbacks.find(id)->second;
-                fc::async( [capture_this,this,id,block_num,trx_num,callback](){ callback( fc::variant( transaction_confirmation{ id, block_num, trx_num, false}, GRAPHENE_MAX_NESTED_OBJECTS ) ); } );
+                fc::async( [capture_this,this,id,block_num,trx_num,callback](){ callback( fc::variant( transaction_confirmation{ id, block_num, int32_t(trx_num), false}, GRAPHENE_MAX_NESTED_OBJECTS ) ); } );
                 itr->second = []( const variant& ){};
              }
           }

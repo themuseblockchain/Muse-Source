@@ -144,11 +144,11 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
             proposal.required_basic_approvals.erase( o );
 
          FC_ASSERT( proposal.required_basic_approvals.size() == 0
-                    || required_active.size() == 0
-                       && proposal.required_owner_approvals.size() == 0
-                       && proposal.required_master_content_approvals.size() == 0
-                       && proposal.required_comp_content_approvals.size() == 0
-                       && other.size() == 0,
+                    || ( required_active.size() == 0
+                         && proposal.required_owner_approvals.size() == 0
+                         && proposal.required_master_content_approvals.size() == 0
+                         && proposal.required_comp_content_approvals.size() == 0
+                         && other.size() == 0 ),
                     "Cannot combine operations with basic approval and others!" );
 
          authority_collector collector( d, required_active );

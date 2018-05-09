@@ -2225,14 +2225,14 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          a.options.max_supply = MUSE_MAX_SHARE_SUPPLY;
          a.options.description = "MUSE Core asset";
       });
-      const asset_object& vest_asset = create<asset_object>( [&]( asset_object& a ) 
+      create<asset_object>( [&]( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "VEST";
          a.options.max_supply = MUSE_MAX_SHARE_SUPPLY;
          a.options.description = "MUSE Power asset";
       });
-      const asset_object& mbd_asset = create<asset_object>( [&]( asset_object& a ) 
+      create<asset_object>( [&]( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "MBD";
@@ -2264,17 +2264,6 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          return itr->get_id();
       };
 
-      // Helper function to get asset ID by symbol
-      const auto& assets_by_symbol = get_index_type<asset_index>().indices().get<by_symbol>();
-      const auto get_asset_id = [&assets_by_symbol](const string& symbol) {
-         auto itr = assets_by_symbol.find(symbol);
-      
-         FC_ASSERT(itr != assets_by_symbol.end(),
-            "Unable to find asset '${sym}'. Did you forget to add a record for it to initial_assets?",
-            ("sym", symbol));
-         return itr->get_id();
-      };
-
       ///////////////////////////////////////////////////////////
       //                 IMPORT                                //
       ///////////////////////////////////////////////////////////
@@ -2302,7 +2291,6 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
       //assets
       for( const genesis_state_type::initial_asset_type& asset : initial_allocation.initial_assets )
       {
-         asset_id_type new_asset_id = get_index_type<asset_index>().get_next_id();
          create<asset_object>([&](asset_object& a) {
                a.symbol_string = asset.symbol;
                a.options.description = asset.description;
@@ -2961,8 +2949,6 @@ int database::match( const limit_order_object& new_order, const limit_order_obje
 
    assert( new_order_pays == new_order.amount_for_sale() ||
            old_order_pays == old_order.amount_for_sale() );
-
-   auto age = head_block_time() - old_order.created;
 
    push_applied_operation( fill_order_operation( new_order.seller, new_order.orderid, new_order_pays, old_order.seller, old_order.orderid, old_order_pays ) );
 

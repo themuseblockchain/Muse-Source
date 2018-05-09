@@ -808,7 +808,7 @@ public:
          }
       }
 
-      auto minimal_signing_keys = tx.minimize_required_signatures(
+      tx.minimize_required_signatures(
          MUSE_CHAIN_ID,
          available_keys,
          [&]( const string& account_name ) -> const authority*
@@ -967,7 +967,7 @@ public:
 
          share_type bid_sum=0;
          share_type ask_sum=0;
-         for( int i = 0; i < orders.bids.size() || i < orders.asks.size(); i++ )
+         for( size_t i = 0; i < orders.bids.size() || i < orders.asks.size(); i++ )
          {
          
             if ( i < orders.bids.size() )

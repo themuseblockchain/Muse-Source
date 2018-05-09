@@ -191,7 +191,7 @@ try {
 void escrow_dispute_evaluator::do_apply( const escrow_dispute_operation& o ) {
 try {
    FC_ASSERT( false, "Escrow dispute operation not enabled" );
-   const auto& from_account = db().get_account(o.from);
+   db().get_account(o.from); // check if it exists
 
    const auto& e = db().get_escrow( o.from, o.escrow_id );
    FC_ASSERT( !e.disputed );
@@ -205,9 +205,9 @@ try {
 void escrow_release_evaluator::do_apply( const escrow_release_operation& o ) {
 try {
    FC_ASSERT( false, "Escrow release operation not enabled" );
-   const auto& from_account = db().get_account(o.from);
+   db().get_account(o.from); // check if it exists
    const auto& to_account = db().get_account(o.to);
-   const auto& who_account = db().get_account(o.who);
+   db().get_account(o.who); // check if it exists
 
    const auto& e = db().get_escrow( o.from, o.escrow_id );
    FC_ASSERT( e.balance >= o.amount && e.balance.asset_id == o.amount.asset_id );

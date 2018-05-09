@@ -115,7 +115,6 @@ void account_history_plugin_impl::on_operation( const operation_object& op_obj )
    flat_set<string> impacted;
    muse::chain::database& db = database();
 
-   const auto& hist_idx = db.get_index_type<account_history_index>().indices().get<by_account>();
    const operation_object* new_obj = nullptr;
    app::operation_get_impacted_accounts( op_obj.op, impacted );
 
