@@ -15,12 +15,12 @@ install:
 script:
  - cmake -DCMAKE_BUILD_TYPE=Debug -DBoost_USE_STATIC_LIBS=OFF .
  - make -j 2
- - tests/chain_test
- - tests/plugin_test
+ - tests/chain_test | cat
+ - tests/plugin_test | cat
  - cd libraries/fc
- - tests/all_tests
- - tests/api
- - tests/bip_lock
- - tests/ecc_test README.md
- - tests/log_test
- - tests/sha_test
+ - tests/all_tests | cat
+ - tests/api | cat
+ - tests/bip_lock | cat
+ - tests/ecc_test README.md | cat
+ - tests/log_test | cat
+ - tests/sha_test | cat
