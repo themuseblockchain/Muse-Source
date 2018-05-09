@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <list>
+#include <locale>
 
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
@@ -57,6 +58,8 @@
 
 #define BRAIN_KEY_WORD_COUNT 16
 
+static const std::locale& c_locale = std::locale::classic();
+
 namespace muse { namespace wallet {
 
 namespace detail {
@@ -64,7 +67,7 @@ namespace detail {
 template<class T>
 optional<T> maybe_id( const string& name_or_id )
 {
-   if( std::isdigit( name_or_id.front() ) )
+   if( std::isdigit( name_or_id.front(), c_locale ) )
    {
       try
       {

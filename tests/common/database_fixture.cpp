@@ -7,6 +7,7 @@
 #include <muse/chain/base_objects.hpp>
 #include <muse/chain/history_object.hpp>
 #include <muse/account_history/account_history_plugin.hpp>
+#include <muse/custom_tags/custom_tags.hpp>
 
 #include <fc/crypto/digest.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -44,6 +45,7 @@ void database_fixture::initialize_clean( uint32_t num_hardforks )
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
    auto ahplugin = app.register_plugin< muse::account_history::account_history_plugin >();
+   auto ctplugin = app.register_plugin< muse::custom_tags::custom_tags_plugin >();
    init_account_pub_key = init_account_priv_key.get_public_key();
 
    boost::program_options::variables_map options;
@@ -52,7 +54,9 @@ void database_fixture::initialize_clean( uint32_t num_hardforks )
 
    // app.initialize();
    ahplugin->plugin_set_app( &app );
+   ctplugin->plugin_set_app( &app );
    ahplugin->plugin_initialize( options );
+   ctplugin->plugin_initialize( options );
 
    validate_database();
    generate_block();
