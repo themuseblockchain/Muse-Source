@@ -39,10 +39,10 @@ namespace impl {
       public:
          typedef void result_type;
 
-         proposal_op_visitor( database& db ) : _db(db) {}
+         explicit proposal_op_visitor( database& db ) : _db(db) {}
 
          template<typename T>
-         void operator()( const T& v )const {}
+         void operator()( const T& v )const { /* do nothing by default */ }
 
          void operator()( const muse::chain::account_create_operation& v )const {
             // TODO: move into account_create_operation::validate after HF 3 has passed

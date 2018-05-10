@@ -33,7 +33,7 @@ class custom_tags_impl {
 public:
    typedef void result_type;
 
-   custom_tags_impl( custom_tags_plugin& _plugin )
+   explicit custom_tags_impl( custom_tags_plugin& _plugin )
       : _self( _plugin ) {}
 
    ~custom_tags_impl() {}
@@ -48,7 +48,7 @@ public:
    void remove_labels( const std::string& tagger, const std::string& label, const std::set<std::string>& names );
 
    template<typename Op>
-   void operator()( Op&& )const{}
+   void operator()( Op&& )const{ /* ignore most operations */ }
 
    void operator()( const muse::chain::custom_json_operation& op );
 

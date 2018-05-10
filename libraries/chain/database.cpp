@@ -2206,7 +2206,7 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          } );
       }
 
-      auto gpo = create<dynamic_global_property_object>([&](dynamic_global_property_object& p)
+      auto gpo = create<dynamic_global_property_object>([&init_allocation](dynamic_global_property_object& p)
       {
          p.current_witness = MUSE_INIT_MINER_NAME;
          p.time = MUSE_GENESIS_TIME;
@@ -2218,21 +2218,21 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
       } );
 
       //Create core assets
-      const asset_object& muse_asset = create<asset_object>( [&]( asset_object& a ) 
+      const asset_object& muse_asset = create<asset_object>( []( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "MUSE";
          a.options.max_supply = MUSE_MAX_SHARE_SUPPLY;
          a.options.description = "MUSE Core asset";
       });
-      create<asset_object>( [&]( asset_object& a )
+      create<asset_object>( []( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "VEST";
          a.options.max_supply = MUSE_MAX_SHARE_SUPPLY;
          a.options.description = "MUSE Power asset";
       });
-      create<asset_object>( [&]( asset_object& a )
+      create<asset_object>( []( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "MBD";
@@ -3036,7 +3036,6 @@ void database::clear_expired_proposals()
    while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
    {
       const proposal_object& proposal = *proposal_expiration_index.begin();
-      processed_transaction result;
       try {
          if( proposal.is_authorized_to_execute(*this) )
          {
