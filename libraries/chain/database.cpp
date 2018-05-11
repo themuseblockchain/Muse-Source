@@ -2206,7 +2206,7 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          } );
       }
 
-      auto gpo = create<dynamic_global_property_object>([&init_allocation](dynamic_global_property_object& p)
+      auto gpo = create<dynamic_global_property_object>([&initial_allocation](dynamic_global_property_object& p)
       {
          p.current_witness = MUSE_INIT_MINER_NAME;
          p.time = MUSE_GENESIS_TIME;
