@@ -424,6 +424,7 @@ namespace muse { namespace chain {
          void update_signing_witness(const witness_object& signing_witness, const signed_block& new_block);
          void update_last_irreversible_block();
          void clear_expired_transactions();
+         void clear_expired_proposals();
          void clear_expired_orders();
          void process_header_extensions( const signed_block& next_block );
 
@@ -465,5 +466,14 @@ namespace muse { namespace chain {
          flat_map<uint32_t,block_id_type>  _checkpoints;
 
          node_property_object              _node_property_object;
+
+         /**
+          * Whether database is successfully opened or not.
+          *
+          * The database is considered open when there's no exception
+          * or assertion fail during database::open() method, and
+          * database::close() has not been called, or failed during execution.
+          */
+         bool                              _opened = false;
    };
 } }

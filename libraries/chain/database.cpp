@@ -251,7 +251,9 @@ void database::reindex( fc::path data_dir )
 void database::wipe(const fc::path& data_dir, bool include_blocks)
 {
    ilog("Wiping database", ("include_blocks", include_blocks));
-   close();
+   if (_opened) {
+     close();
+   }
    object_database::wipe(data_dir);
    if( include_blocks )
       fc::remove_all( data_dir / "database" );
@@ -298,6 +300,8 @@ void database::close(bool rewind)
          _block_id_to_block.close();
 
       _fork_db.reset();
+
+      _opened = false;
    }
    FC_CAPTURE_AND_RETHROW()
 }
@@ -664,6 +668,7 @@ bool database::_push_block(const signed_block& new_block)
          else
             return false;
       }
+      _opened = true;
    }
 
    try
@@ -1113,6 +1118,8 @@ void database::update_witness_schedule4()
         itr != widx.end() && selected_voted.size() <  MUSE_MAX_VOTED_WITNESSES;
         ++itr )
    {
+      if( has_hardfork( MUSE_HARDFORK_0_3 ) && (itr->signing_key == public_key_type()) )
+         continue; // skip witnesses without a valid block signing key
       selected_voted.insert(itr->get_id());
       active_witnesses.push_back(itr->owner);
    }
@@ -1129,6 +1136,8 @@ void database::update_witness_schedule4()
    {
       new_virtual_time = sitr->virtual_scheduled_time; /// everyone advances to at least this time
       processed_witnesses.push_back(sitr);
+      if( has_hardfork( MUSE_HARDFORK_0_3 ) && sitr->signing_key == public_key_type() )
+         continue; // skip witnesses without a valid block signing key
       if( selected_voted.find(sitr->get_id()) == selected_voted.end() )
       {
          active_witnesses.push_back(sitr->owner);
@@ -1620,38 +1629,6 @@ asset database::process_content_cashout( const asset& content_reward )
    
    asset total_payout = has_hardfork( MUSE_HARDFORK_0_2 ) ? content_reward : get_content_reward();
 
-   if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
-   {
-      //find thresholds
-      const auto& cridx = get_index_type< content_index >().indices().get< by_popularity >();
-      auto critr = cridx.rbegin();
-      uint32_t i = 0;
-      uint32_t current_plays_threshold1;
-      uint32_t current_plays_threshold2;
-      while ( i < MUSE_CURATION_THRESHOLD1 && critr != cridx.rend() )
-      {
-         ++i; ++critr;
-      }
-      if( critr == cridx.rend() )
-         current_plays_threshold1 = 0; //any content is in top 1000
-      else
-         current_plays_threshold1 = critr->times_played_24;
-      while ( i < MUSE_CURATION_THRESHOLD2 && critr != cridx.rend() )
-      {
-         ++i; ++critr;
-      }
-      if( critr == cridx.rend() )
-         current_plays_threshold2 = 0;
-      else
-         current_plays_threshold2 = critr->times_played_24;
-
-      auto& c_stat = get<content_stats_object> (content_stats_id_type(0));
-      modify<content_stats_object>(c_stat, [current_plays_threshold1,current_plays_threshold2](content_stats_object& cso){
-           cso.current_plays_threshold1 = current_plays_threshold1;
-           cso.current_plays_threshold2 = current_plays_threshold2;
-      });
-   }
-
    const auto& ridx = get_index_type<report_index>().indices().get<by_created>();
    auto itr = ridx.begin();
    std::set<account_id_type> customers;
@@ -1824,11 +1801,9 @@ void database::pay_to_curator(const content_object &co, account_id_type cur, con
 asset database::pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform)
 {try{
    asset paid (0);
-   const content_object& co = get<content_object>( content ); //content_id_type(content)(*this); //*get_index_type<content_index>().indices().get<by_id>().find(content);
-   asset curation_reserve;
    if( !has_hardfork(MUSE_HARDFORK_0_2) )
-      curation_reserve = payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100;
-   payout = payout - curation_reserve;
+      payout = payout - payout * MUSE_CURATE_APR_PERCENT_RESERVE / 100; // former curation reward
+   const content_object& co = get<content_object>( content );
    asset platform_reward = payout;
    platform_reward.amount = platform_reward.amount * co.playing_reward / 10000;
 
@@ -1843,58 +1818,6 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    paid += master_reward;
    paid += comp_reward;
    paid += platform_reward;
-
-   if( !has_hardfork(MUSE_HARDFORK_0_2) ) {
-      const content_stats_object& c_stat = get<content_stats_object> (content_stats_id_type(0));
-      const bool above_thr1 = (c_stat.current_plays_threshold1 <= co.times_played_24);
-      const bool above_thr2 = (c_stat.current_plays_threshold2 <= co.times_played_24);
-      bool pay_curators = false;
-      bool reset_curation_rewards = false;
-
-      modify<content_object>(co,[above_thr1,above_thr2,&pay_curators,&reset_curation_rewards,this](content_object& c){
-         if(c.curation_rewards){
-            if(above_thr2) { //still in top 2000
-               if(head_block_time() < c.curation_reward_expiration)
-               {
-                  pay_curators = true;
-               }
-            }else{
-               c.curation_rewards = false;
-               reset_curation_rewards = true;
-            }
-         }else{ //not in top 1000 yet...
-            if(above_thr1){
-               c.curation_rewards = true;
-               c.curation_reward_expiration = head_block_time() + MUSE_CURATION_DURATION;
-               pay_curators = true;
-            }
-         }
-         if(c.times_played_24)
-            --c.times_played_24;
-      });
-
-      const auto& vidx = get_index_type<content_vote_index>().indices().get< by_reward_flag_update > ();
-      if(reset_curation_rewards){
-         auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
-         while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-            modify<content_vote_object>(*vitr, [](content_vote_object &vo) {
-               vo.marked_for_curation_reward = false;
-            });
-            ++vitr;
-         }
-      }
-      if(pay_curators){
-         auto vitr = vidx.lower_bound( boost::make_tuple( true, time_point_sec(0) ) );
-	  
-         while( vitr!=vidx.end() && vitr->marked_for_curation_reward == true ) {
-            asset cp = curation_reserve / 10;
-            curation_reserve = curation_reserve - cp;
-            pay_to_curator(co, vitr->voter, cp );
-            paid += cp;
-            ++vitr;
-         }
-      }
-   }
    return paid;
 }FC_LOG_AND_RETHROW() }
 
@@ -2148,6 +2071,7 @@ void database::initialize_evaluators()
     register_evaluator<balance_claim_evaluator>();
 
     register_evaluator<proposal_create_evaluator>();
+    register_evaluator<proposal_delete_evaluator>();
     register_evaluator<proposal_update_evaluator>();
 
     register_evaluator<feed_publish_evaluator>();
@@ -2209,8 +2133,9 @@ void database::initialize_indexes()
    add_index< primary_index< asset_index > >();
    add_index< primary_index< account_balance_index > >();
 
-   add_index< primary_index< proposal_index > >();
-   add_index< primary_index< content_stats_index > >();
+   auto prop_index = add_index< primary_index< proposal_index > >();
+   prop_index->add_secondary_index<required_approval_index>();
+
    add_index< primary_index< content_vote_index > >();
    add_index< primary_index< balance_index > >();
 }
@@ -2220,16 +2145,19 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
    try
    {
       _undo_db.disable();
-      struct auth_inhibitor
+      class auth_inhibitor
       {
-         auth_inhibitor(database& db) : db(db), old_flags(db.node_properties().skip_flags)
+      public:
+         explicit auth_inhibitor(database& db) : db(db), old_flags(db.node_properties().skip_flags)
          { db.node_properties().skip_flags |= skip_authority_check; }
          ~auth_inhibitor()
          { db.node_properties().skip_flags = old_flags; }
       private:
          database& db;
          uint32_t old_flags;
-      } inhibitor(*this);
+      };
+
+      auth_inhibitor inhibitor(*this); FC_UNUSED(inhibitor);
 
       transaction_evaluation_state genesis_eval_state(this);
 
@@ -2278,7 +2206,7 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          } );
       }
 
-      auto gpo = create<dynamic_global_property_object>([&](dynamic_global_property_object& p)
+      auto gpo = create<dynamic_global_property_object>([&initial_allocation](dynamic_global_property_object& p)
       {
          p.current_witness = MUSE_INIT_MINER_NAME;
          p.time = MUSE_GENESIS_TIME;
@@ -2290,21 +2218,21 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
       } );
 
       //Create core assets
-      const asset_object& muse_asset = create<asset_object>( [&]( asset_object& a ) 
+      const asset_object& muse_asset = create<asset_object>( []( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "MUSE";
          a.options.max_supply = MUSE_MAX_SHARE_SUPPLY;
          a.options.description = "MUSE Core asset";
       });
-      const asset_object& vest_asset = create<asset_object>( [&]( asset_object& a ) 
+      create<asset_object>( []( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "VEST";
          a.options.max_supply = MUSE_MAX_SHARE_SUPPLY;
          a.options.description = "MUSE Power asset";
       });
-      const asset_object& mbd_asset = create<asset_object>( [&]( asset_object& a ) 
+      create<asset_object>( []( asset_object& a )
       {
          a.current_supply = 0;
          a.symbol_string = "MBD";
@@ -2336,17 +2264,6 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          return itr->get_id();
       };
 
-      // Helper function to get asset ID by symbol
-      const auto& assets_by_symbol = get_index_type<asset_index>().indices().get<by_symbol>();
-      const auto get_asset_id = [&assets_by_symbol](const string& symbol) {
-         auto itr = assets_by_symbol.find(symbol);
-      
-         FC_ASSERT(itr != assets_by_symbol.end(),
-            "Unable to find asset '${sym}'. Did you forget to add a record for it to initial_assets?",
-            ("sym", symbol));
-         return itr->get_id();
-      };
-
       ///////////////////////////////////////////////////////////
       //                 IMPORT                                //
       ///////////////////////////////////////////////////////////
@@ -2374,7 +2291,6 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
       //assets
       for( const genesis_state_type::initial_asset_type& asset : initial_allocation.initial_assets )
       {
-         asset_id_type new_asset_id = get_index_type<asset_index>().get_next_id();
          create<asset_object>([&](asset_object& a) {
                a.symbol_string = asset.symbol;
                a.options.description = asset.description;
@@ -2423,8 +2339,6 @@ void database::init_genesis( const genesis_state_type& initial_allocation )
          } );
       }
 
-      create<content_stats_object>([&](content_stats_object& cso){ cso.current_plays_threshold1=0; cso.current_plays_threshold2 =0;});
-
       _undo_db.enable();
    }
    FC_CAPTURE_AND_RETHROW()
@@ -2435,6 +2349,7 @@ void database::validate_transaction( const signed_transaction& trx )
 {
    auto session = _undo_db.start_undo_session();
    _apply_transaction( trx );
+   FC_UNUSED(session); // will be rolled back by destructor
 }
 
 void database::notify_changed_objects()
@@ -2483,18 +2398,10 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
               ;
    }
 
-   detail::with_skip_flags( *this, skip, [&]()
+   detail::with_skip_flags( *this, skip, [this,&next_block]()
    {
       _apply_block( next_block );
    } );
-
-   /*try
-   {
-   /// check invariants
-   if( is_producing() || !( skip & skip_validate_invariants ) )
-      validate_invariants();
-   }
-   FC_CAPTURE_AND_RETHROW( (next_block) );*/
 }
 
 void database::_apply_block( const signed_block& next_block )
@@ -2545,6 +2452,7 @@ void database::_apply_block( const signed_block& next_block )
 
    create_block_summary(next_block);
    clear_expired_transactions();
+   clear_expired_proposals();
    clear_expired_orders();
    update_witness_schedule();
 
@@ -2692,7 +2600,8 @@ void database::_apply_transaction(const signed_transaction& trx)
       auto get_master_cont = [&]( const string& url ) { return &get_content(url).manage_master; };
       auto get_comp_cont = [&]( const string& url ) { return &get_content(url).manage_comp; };
 
-      trx.verify_authority( chain_id, get_active, get_owner, get_basic, get_master_cont, get_comp_cont, MUSE_MAX_SIG_CHECK_DEPTH );
+      trx.verify_authority( chain_id, get_active, get_owner, get_basic, get_master_cont, get_comp_cont,
+                            !has_hardfork( MUSE_HARDFORK_0_3 ) ? 1 : 2 );
    }
    flat_set<string> required; vector<authority> other;
    flat_set<string> required_content;
@@ -2813,11 +2722,14 @@ void database::update_global_dynamic_data( const signed_block& b )
       for( uint32_t i = 0; i < missed_blocks; ++i )
       {
          const auto& witness_missed = get_witness( get_scheduled_witness( i+1 ) );
-         if(  witness_missed.owner != b.witness )
+         if( witness_missed.owner != b.witness )
          {
-            modify( witness_missed, [&]( witness_object& w )
+            modify( witness_missed, [this]( witness_object& w )
             {
                w.total_missed++;
+               if( has_hardfork( MUSE_HARDFORK_0_3 )
+                   && head_block_num() - w.last_confirmed_block_num  > MUSE_BLOCKS_PER_DAY )
+                  w.signing_key = public_key_type();
             } );
          }
       }
@@ -2897,7 +2809,8 @@ void database::update_virtual_supply()
 
 void database::push_proposal(const proposal_object& proposal)
 { try {
-   //TODO_MUSE
+   ilog( "Proposal: executing ${p}", ("p",proposal) );
+
    auto session = _undo_db.start_undo_session(true);
    _current_op_in_trx = 0;
    transaction_evaluation_state eval_state(this);
@@ -3037,8 +2950,6 @@ int database::match( const limit_order_object& new_order, const limit_order_obje
    assert( new_order_pays == new_order.amount_for_sale() ||
            old_order_pays == old_order.amount_for_sale() );
 
-   auto age = head_block_time() - old_order.created;
-
    push_applied_operation( fill_order_operation( new_order.seller, new_order.orderid, new_order_pays, old_order.seller, old_order.orderid, old_order_pays ) );
 
    int result = 0;
@@ -3114,6 +3025,28 @@ void database::clear_expired_orders()
    {
       cancel_order( *itr );
       itr = orders_by_exp.begin();
+   }
+}
+
+void database::clear_expired_proposals()
+{
+   if ( !has_hardfork(MUSE_HARDFORK_0_3) ) return;
+
+   const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();
+   while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
+   {
+      const proposal_object& proposal = *proposal_expiration_index.begin();
+      try {
+         if( proposal.is_authorized_to_execute(*this) )
+         {
+            push_proposal(proposal);
+            continue;
+         }
+      } catch( const fc::exception& e ) {
+         elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
+              ("proposal", proposal)("error", e.to_detail_string()));
+      }
+      remove(proposal);
    }
 }
 
@@ -3233,6 +3166,9 @@ void database::init_hardforks()
    FC_ASSERT( MUSE_HARDFORK_0_2 == 2, "Invalid hardfork configuration" );
    _hardfork_times[ MUSE_HARDFORK_0_2 ] = fc::time_point_sec( MUSE_HARDFORK_0_2_TIME );
    _hardfork_versions[ MUSE_HARDFORK_0_2 ] = MUSE_HARDFORK_0_2_VERSION;
+   FC_ASSERT( MUSE_HARDFORK_0_3 == 3, "Invalid hardfork configuration" );
+   _hardfork_times[ MUSE_HARDFORK_0_3 ] = fc::time_point_sec( MUSE_HARDFORK_0_3_TIME );
+   _hardfork_versions[ MUSE_HARDFORK_0_3 ] = MUSE_HARDFORK_0_3_VERSION;
 
    const auto& hardforks = hardfork_property_id_type()( *this );
    FC_ASSERT( hardforks.last_hardfork <= MUSE_NUM_HARDFORKS, "Chain knows of more hardforks than configuration", ("hardforks.last_hardfork",hardforks.last_hardfork)("MUSE_NUM_HARDFORKS",MUSE_NUM_HARDFORKS) );
@@ -3333,6 +3269,14 @@ void database::apply_hardfork( uint32_t hardfork )
          }
          break;
 
+      case MUSE_HARDFORK_0_3:
+         {
+            const auto& proposal_expiration_index = get_index_type<proposal_index>().indices().get<by_expiration>();
+            while( !proposal_expiration_index.empty() && proposal_expiration_index.begin()->expiration_time <= head_block_time() )
+               remove( *proposal_expiration_index.begin() );
+         }
+         break;
+
       default:
          break;
    }
@@ -3420,17 +3364,12 @@ void database::validate_invariants()const
       for( auto itr = balances.begin(); itr != balances.end(); itr++ )
          total_supply += itr->balance;
 
-      if( has_hardfork( MUSE_HARDFORK_0_2 ) )
+      const auto& content_idx = get_index_type< content_index >().indices();
+      for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
       {
-         const auto& content_idx = get_index_type< content_index >().indices();
-         for( auto itr = content_idx.begin(); itr != content_idx.end(); itr++ )
-         {
-            total_supply += itr->accumulated_balance_master;
-            total_supply += itr->accumulated_balance_comp;
-         }
+         total_supply += itr->accumulated_balance_master;
+         total_supply += itr->accumulated_balance_comp;
       }
-      else
-         total_supply += gpo.total_reward_fund_muse;
 
       total_supply += gpo.total_vesting_fund_muse;
 

@@ -6,15 +6,6 @@
 
 namespace muse { namespace chain {
 
-   /// TODO: after the hardfork, we can rename this method validate_permlink because it is strictily less restrictive than before
-   ///  Issue #56 contains the justificiation for allowing any UTF-8 string to serve as a permlink, content will be grouped by tags
-   ///  going forward.
-   inline void validate_permlink( const string& permlink )
-   {
-      FC_ASSERT( permlink.size() < MUSE_MAX_PERMLINK_LENGTH );
-      FC_ASSERT( fc::is_utf8( permlink ), "permlink not formatted in UTF8" );
-   }
-
    inline void validate_url(const string& url )
    {
       FC_ASSERT(url.size() < MUSE_MAX_URL_LENGTH );
@@ -37,7 +28,7 @@ namespace muse { namespace chain {
       if ( json_metadata.size() > 0 )
       {
          FC_ASSERT( fc::is_utf8(json_metadata), "JSON Metadata not formatted in UTF8" );
-         FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
+         //FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
       }
       FC_ASSERT( fee >= asset( 0, MUSE_SYMBOL ) );
    }
@@ -53,7 +44,7 @@ namespace muse { namespace chain {
       if ( json_metadata.size() > 0 )
       {
          FC_ASSERT( fc::is_utf8(json_metadata), "JSON Metadata not formatted in UTF8" );
-         FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
+         //FC_ASSERT( fc::json::is_valid(json_metadata), "JSON Metadata not valid JSON" );
       }
    }
 
@@ -134,7 +125,7 @@ namespace muse { namespace chain {
       FC_ASSERT( (required_auths.size() + required_basic_auths.size()) > 0, "at least on account must be specified" );
       FC_ASSERT( id.size() <= 32 );
       FC_ASSERT( fc::is_utf8(json), "JSON Metadata not formatted in UTF8" );
-      FC_ASSERT( fc::json::is_valid(json), "JSON Metadata not valid JSON" );
+      //FC_ASSERT( fc::json::is_valid(json), "JSON Metadata not valid JSON" );
    }
 
    void feed_publish_operation::validate()const

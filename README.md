@@ -17,6 +17,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
+Build Status
+------------
+
+**master** | **develop** | **next_hardfork**
+ --- | --- | ---
+ [![master Build Status](https://travis-ci.org/themuseblockchain/Muse-Source.svg?branch=master)](https://travis-ci.org/themuseblockchain/Muse-Source) | [![develop Build Status](https://travis-ci.org/themuseblockchain/Muse-Source.svg?branch=develop)](https://travis-ci.org/themuseblockchain/Muse-Source) | [![next_hardfork Build Status](https://travis-ci.org/themuseblockchain/Muse-Source.svg?branch=next_hardfork)](https://travis-ci.org/themuseblockchain/Muse-Source)
+
 Code is Documentation
 ---------------------
 

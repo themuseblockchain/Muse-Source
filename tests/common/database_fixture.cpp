@@ -2,12 +2,12 @@
 #include <boost/program_options.hpp>
 
 #include <graphene/db/simple_index.hpp>
-#include <graphene/time/time.hpp>
 #include <graphene/utilities/tempdir.hpp>
 
 #include <muse/chain/base_objects.hpp>
 #include <muse/chain/history_object.hpp>
 #include <muse/account_history/account_history_plugin.hpp>
+#include <muse/custom_tags/custom_tags.hpp>
 
 #include <fc/crypto/digest.hpp>
 #include <fc/smart_ref_impl.hpp>
@@ -29,7 +29,11 @@ using std::cerr;
 
 clean_database_fixture::clean_database_fixture()
 {
-   try {
+   initialize_clean( MUSE_NUM_HARDFORKS );
+}
+
+void database_fixture::initialize_clean( uint32_t num_hardforks )
+{ try {
    int argc = boost::unit_test::framework::master_test_suite().argc;
    char** argv = boost::unit_test::framework::master_test_suite().argv;
    for( int i=1; i<argc; i++ )
@@ -41,6 +45,7 @@ clean_database_fixture::clean_database_fixture()
          std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
    }
    auto ahplugin = app.register_plugin< muse::account_history::account_history_plugin >();
+   auto ctplugin = app.register_plugin< muse::custom_tags::custom_tags_plugin >();
    init_account_pub_key = init_account_priv_key.get_public_key();
 
    boost::program_options::variables_map options;
@@ -49,7 +54,9 @@ clean_database_fixture::clean_database_fixture()
 
    // app.initialize();
    ahplugin->plugin_set_app( &app );
+   ctplugin->plugin_set_app( &app );
    ahplugin->plugin_initialize( options );
+   ctplugin->plugin_initialize( options );
 
    validate_database();
    generate_block();
@@ -66,7 +73,8 @@ clean_database_fixture::clean_database_fixture()
       });
    }
 
-   db.set_hardfork( MUSE_NUM_HARDFORKS );
+   if( num_hardforks > 0 )
+      db.set_hardfork( num_hardforks );
    vest( MUSE_INIT_MINER_NAME, 10000 );
 
    // Fill up the rest of the required miners
@@ -78,14 +86,7 @@ clean_database_fixture::clean_database_fixture()
    }
 
    validate_database();
-   } catch ( const fc::exception& e )
-   {
-      edump( (e.to_detail_string()) );
-      throw;
-   }
-
-   return;
-}
+} FC_LOG_AND_RETHROW() }
 
 clean_database_fixture::~clean_database_fixture()
 { try {
@@ -110,7 +111,6 @@ live_database_fixture::live_database_fixture()
       FC_ASSERT( fc::exists( _chain_dir ), "Requires blockchain to test on in ./test_blockchain" );
 
       db.open( _chain_dir, genesis_state_type(), "TEST" );
-      graphene::time::now();
 
       auto ahplugin = app.register_plugin< muse::account_history::account_history_plugin >();
       ahplugin->plugin_set_app( &app );

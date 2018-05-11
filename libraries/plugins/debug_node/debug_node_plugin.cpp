@@ -99,16 +99,16 @@ void debug_apply_update( chain::database& db, const fc::variant_object& vo )
          FC_ASSERT( false );
          break;
       case db_action_write:
-         db.modify( db.get_object( oid ), [&]( graphene::db::object& obj )
+         db.modify( db.get_object( oid ), [&idx,&vo]( graphene::db::object& obj )
          {
             idx.object_default( obj );
-            idx.object_from_variant( vo, obj );
+            idx.object_from_variant( vo, obj, GRAPHENE_MAX_NESTED_OBJECTS );
          } );
          break;
       case db_action_update:
-         db.modify( db.get_object( oid ), [&]( graphene::db::object& obj )
+         db.modify( db.get_object( oid ), [&idx,&vo]( graphene::db::object& obj )
          {
-            idx.object_from_variant( vo, obj );
+            idx.object_from_variant( vo, obj, GRAPHENE_MAX_NESTED_OBJECTS );
          } );
          break;
       case db_action_delete:
@@ -117,7 +117,7 @@ void debug_apply_update( chain::database& db, const fc::variant_object& vo )
       case db_action_set_hardfork:
          {
             uint32_t hardfork_id;
-            from_variant( vo[ "hardfork_id" ], hardfork_id );
+            from_variant( vo[ "hardfork_id" ], hardfork_id, GRAPHENE_MAX_NESTED_OBJECTS );
             db.set_hardfork( hardfork_id, false );
          }
          break;

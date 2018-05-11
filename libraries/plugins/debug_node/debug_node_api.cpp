@@ -110,7 +110,7 @@ uint32_t debug_node_api_impl::debug_generate_blocks( const std::string& debug_ke
       if( scheduled_key != debug_public_key )
       {
          wlog( "Modified key for witness ${w}", ("w", scheduled_witness_name) );
-         fc::mutable_variant_object update;
+         fc::limited_mutable_variant_object update( GRAPHENE_MAX_NESTED_OBJECTS );
          update("_action", "update")("id", scheduled_witness.id)("signing_key", debug_public_key);
          debug_plugin->debug_update( update );
       }
@@ -151,7 +151,7 @@ uint32_t debug_node_api_impl::debug_generate_blocks_until( const std::string& de
       if( scheduled_key != debug_public_key )
       {
          wlog( "Modified key for witness ${w}", ("w", scheduled_witness_name) );
-         fc::mutable_variant_object update;
+         fc::limited_mutable_variant_object update( GRAPHENE_MAX_NESTED_OBJECTS );
          update("_action", "update")("id", scheduled_witness.id)("signing_key", debug_public_key);
          debug_plugin->debug_update( update );
       }
@@ -218,7 +218,7 @@ void debug_node_api_impl::debug_set_hardfork( uint32_t hardfork_id )
    if( hardfork_id > MUSE_NUM_HARDFORKS )
       return;
 
-   fc::mutable_variant_object update;
+   fc::limited_mutable_variant_object update( GRAPHENE_MAX_NESTED_OBJECTS );
    auto hfp_id = muse::chain::hardfork_property_id_type();
    update( "_action", "set_hardfork" )( "id", hfp_id )( "hardfork_id", hardfork_id );
    get_plugin()->debug_update( update );

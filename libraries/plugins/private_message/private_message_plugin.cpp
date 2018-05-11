@@ -77,7 +77,7 @@ void private_message_plugin_impl::on_operation( const operation_object& op_obj )
       } else if( op_obj.op.which() == operation::tag<custom_json_operation>::value ) {
          const custom_json_operation& cop = op_obj.op.get<custom_json_operation>();
          if( cop.id == "private_message" )  {
-            opm = fc::json::from_string(cop.json).as<private_message_operation>();
+            opm = fc::json::from_string(cop.json).as<private_message_operation>( 5 );
             FC_ASSERT( cop.required_auths.find( opm->from ) != cop.required_auths.end() ||
                        cop.required_basic_auths.find( opm->from ) != cop.required_basic_auths.end()
                        , "sender didn't sign message" );

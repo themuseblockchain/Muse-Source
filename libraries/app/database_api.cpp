@@ -16,18 +16,18 @@
 
 #include <cfenv>
 #include <iostream>
+#include <locale>
 
 #define GET_REQUIRED_FEES_MAX_RECURSION 4
 
+static const std::locale& c_locale = std::locale::classic();
+
 namespace muse { namespace app {
-
-class database_api_impl;
-
 
 class database_api_impl : public std::enable_shared_from_this<database_api_impl>
 {
    public:
-      database_api_impl( muse::chain::database& db );
+      explicit database_api_impl( muse::chain::database& db );
       ~database_api_impl();
 
       // Objects
@@ -157,7 +157,7 @@ void database_api_impl::on_applied_block( const chain::signed_block& b )
 {
    try
    {
-      _block_applied_callback( fc::variant(signed_block_header(b) ) );
+      _block_applied_callback( fc::variant( signed_block_header(b), GRAPHENE_MAX_NESTED_OBJECTS ) );
    }
    catch( ... )
    {
@@ -313,11 +313,11 @@ fc::variants database_api_impl::get_objects(const vector<object_id_type>& ids)co
    result.reserve(ids.size());
 
    std::transform(ids.begin(), ids.end(), std::back_inserter(result),
-         [this](object_id_type id) -> fc::variant {
-         if(auto obj = _db.find_object(id))
-         return obj->to_variant();
-         return {};
-         });
+                  [this](object_id_type id) -> fc::variant {
+                     if(auto obj = _db.find_object(id))
+                        return obj->to_variant();
+                     return {};
+                  });
 
    return result;
 }
@@ -378,22 +378,33 @@ optional < account_object > database_api::get_account_from_id( account_id_type a
 
 vector< extended_account > database_api_impl::get_accounts( const vector< string >& names )const
 {
+   const auto& dgpo = _db.get_dynamic_global_properties();
+   const price vesting_price = dgpo.get_vesting_share_price();
    const auto& idx  = _db.get_index_type< account_index >().indices().get< by_name >();
    const auto& vidx = _db.get_index_type< witness_vote_index >().indices().get< by_account_witness >();
-   vector< extended_account > results;
+   const auto& proposal_idx = _db.get_index_type<proposal_index>();
+   const auto& pidx = dynamic_cast<const primary_index<proposal_index>&>(proposal_idx);
+   const auto& proposals_by_account = pidx.get_secondary_index<muse::chain::required_approval_index>();
 
-   for( auto name: names )
+   vector< extended_account > results;
+   for( const auto& name: names )
    {
       auto itr = idx.find( name );
-      if ( itr != idx.end() )
-      {
-         results.push_back( *itr );
-         auto vitr = vidx.lower_bound( boost::make_tuple( itr->get_id(), witness_id_type() ) );
-         while( vitr != vidx.end() && vitr->account == itr->get_id() ) {
-            results.back().witness_votes.insert(vitr->witness(_db).owner);
-            ++vitr;
-         }
+      if ( itr == idx.end() ) continue;
+
+      results.push_back( *itr );
+      results.back().muse_power = itr->vesting_shares * vesting_price;
+
+      auto vitr = vidx.lower_bound( boost::make_tuple( itr->get_id(), witness_id_type() ) );
+      while( vitr != vidx.end() && vitr->account == itr->get_id() ) {
+         results.back().witness_votes.insert(vitr->witness(_db).owner);
+         ++vitr;
       }
+
+      const set<proposal_id_type> proposals = proposals_by_account.lookup( name );
+      results.back().proposals.reserve( proposals.size() );
+      for( const auto proposal_id : proposals )
+         results.back().proposals.push_back( proposal_id(_db) );
    }
 
    return results;
@@ -575,8 +586,8 @@ uint64_t database_api_impl::get_account_scoring( string account )
 {
    FC_ASSERT( account.size() > 0);
    const account_object* ao = nullptr;
-   if (std::isdigit(account[0]))
-      ao = _db.find(fc::variant(account).as<account_id_type>());
+   if (std::isdigit(account[0], c_locale))
+      ao = _db.find(fc::variant(account).as<account_id_type>(1));
    else
    {
       const auto& idx = _db.get_index_type<account_index>().indices().get<by_name>();
@@ -1133,7 +1144,7 @@ bool database_api_impl::verify_authority( const signed_transaction& trx )const
                          [&]( string account_name ){ return &_db.get_account( account_name ).basic; },
                          [&]( string content_url ){ return &_db.get_content( content_url ).manage_master; },
                          [&]( string content_url ){ return &_db.get_content( content_url ).manage_comp; },
-                         MUSE_MAX_SIG_CHECK_DEPTH );
+                         !_db.has_hardfork( MUSE_HARDFORK_0_3 ) ? 1 : 2 );
    return true;
 }
 
@@ -1146,8 +1157,8 @@ bool database_api_impl::verify_account_authority( const string& name_or_id, cons
 {
    FC_ASSERT( name_or_id.size() > 0);
    const account_object* account = nullptr;
-   if (std::isdigit(name_or_id[0]))
-      account = _db.find(fc::variant(name_or_id).as<account_id_type>());
+   if (std::isdigit(name_or_id[0], c_locale))
+      account = _db.find(fc::variant(name_or_id, 1).as<account_id_type>(1));
    else
    {
       const auto& idx = _db.get_index_type<account_index>().indices().get<by_name>();

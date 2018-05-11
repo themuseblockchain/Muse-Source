@@ -107,7 +107,7 @@ public:
   {
     _node_id = hello_message_received.node_public_key;
     if (hello_message_received.user_data.contains("node_id"))
-      originating_peer->node_id = hello_message_received.user_data["node_id"].as<graphene::net::node_id_t>();
+      originating_peer->node_id = hello_message_received.user_data["node_id"].as<graphene::net::node_id_t>( 1 );
     originating_peer->send_message(graphene::net::connection_rejected_message());
   }
 
@@ -295,7 +295,7 @@ int main(int argc, char** argv)
   dot_stream << "graph G {\n";
   dot_stream << "  // Total " << address_info_by_node_id.size() << " nodes, firewalled: " << (address_info_by_node_id.size() - non_firewalled_nodes_set.size())
                               << ", non-firewalled: " << non_firewalled_nodes_set.size() << "\n";
-  dot_stream << "  // Seed node is " << (std::string)address_info_by_node_id[seed_node_id].remote_endpoint << " id: " << fc::variant(seed_node_id).as_string() << "\n";
+  dot_stream << "  // Seed node is " << (std::string)address_info_by_node_id[seed_node_id].remote_endpoint << " id: " << fc::variant( seed_node_id, 1 ).as_string() << "\n";
   dot_stream << "  // Seed node is connected to " << connections_by_node_id[seed_node_id].size() << " nodes\n";
   dot_stream << "  // Seed node is missing connections to " << seed_node_missing_connections.size() << " non-firewalled nodes:\n";
   for (const graphene::net::node_id_t& id : seed_node_missing_connections)
@@ -305,14 +305,14 @@ int main(int argc, char** argv)
 
   for (const auto& address_info_for_node : address_info_by_node_id)
   {
-    dot_stream << "  \"" << fc::variant(address_info_for_node.first).as_string() << "\"[label=\"" << (std::string)address_info_for_node.second.remote_endpoint << "\"";
+    dot_stream << "  \"" << fc::variant( address_info_for_node.first, 1 ).as_string() << "\"[label=\"" << (std::string)address_info_for_node.second.remote_endpoint << "\"";
     if (address_info_for_node.second.firewalled != graphene::net::firewalled_state::not_firewalled)
       dot_stream << ",shape=rectangle";
     dot_stream << "];\n";
   }
   for (auto& node_and_connections : connections_by_node_id)
     for (const graphene::net::address_info& this_connection : node_and_connections.second)
-      dot_stream << "  \"" << fc::variant(node_and_connections.first).as_string() << "\" -- \"" << fc::variant(this_connection.node_id).as_string() << "\";\n";
+      dot_stream << "  \"" << fc::variant( node_and_connections.first, 2 ).as_string() << "\" -- \"" << fc::variant( this_connection.node_id, 1 ).as_string() << "\";\n";
 
   dot_stream << "}\n";
 

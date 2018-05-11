@@ -11,7 +11,7 @@ add_library( muse_app
              ${EGENESIS_HEADERS}
            )
 
-target_link_libraries( muse_app muse_chain  muse_mf_plugins fc graphene_db graphene_net graphene_time graphene_utilities )
+target_link_libraries( muse_app muse_chain  muse_mf_plugins fc graphene_db graphene_net graphene_utilities )
 target_include_directories( muse_app
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" 
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../egenesis/include")

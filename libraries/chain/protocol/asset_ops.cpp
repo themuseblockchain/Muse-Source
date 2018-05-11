@@ -22,10 +22,11 @@
  * THE SOFTWARE.
  */
 #include <muse/chain/protocol/asset_ops.hpp>
+#include <locale>
+
+static const std::locale& c_locale = std::locale::classic();
 
 namespace muse { namespace chain {
-
-
 
 /**
  *  Valid symbols can contain [A-Z0-9], and '.'
@@ -41,16 +42,16 @@ bool is_valid_symbol( const string& symbol )
     if( symbol.size() > MUSE_MAX_ASSET_SYMBOL_LENGTH )
         return false;
 
-    if( !isalpha( symbol.front() ) )
+    if( !isalpha( symbol.front(), c_locale ) )
         return false;
 
-    if( !isalpha( symbol.back() ) )
+    if( !isalpha( symbol.back(), c_locale ) )
         return false;
 
     bool dot_already_present = false;
     for( const auto c : symbol )
     {
-        if( (isalpha( c ) && isupper( c )) || isdigit(c) )
+        if( (isalpha( c, c_locale ) && isupper( c, c_locale )) || isdigit(c, c_locale) )
             continue;
 
         if( c == '.' )

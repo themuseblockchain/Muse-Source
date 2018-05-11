@@ -10,23 +10,10 @@
 #include <graphene/db/generic_index.hpp>
 
 #include <boost/multi_index/composite_key.hpp>
-#include <boost/multi_index/ranked_index_fwd.hpp>
-#include <boost/multi_index/ranked_index.hpp>
 
 namespace muse { namespace chain {
 
    using namespace graphene::db;
-
-
-   class content_stats_object : public abstract_object<content_stats_object>
-   {
-      public:
-         static const uint8_t space_id = implementation_ids;
-         static const uint8_t type_id  = impl_content_stats_object_type;
-
-         uint32_t    current_plays_threshold1;
-         uint32_t    current_plays_threshold2;
-   };
 
    class content_object : public abstract_object<content_object>
    {
@@ -95,7 +82,7 @@ namespace muse { namespace chain {
          static const uint8_t type_id  = impl_content_vote_object_type;
          account_id_type voter;
          content_id_type content;
-         uint64_t  weight;
+         int16_t weight;
          int8_t num_changes = 0;
          bool marked_for_curation_reward = false;
          time_point_sec  last_update; ///< The time of the last update of the vote
@@ -179,17 +166,9 @@ namespace muse { namespace chain {
       >
    > content_multi_index_type;
 
-   typedef multi_index_container<
-      content_stats_object,
-      indexed_by<
-            ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >
-      >
-   > content_stats_multi_index_type;
-
    typedef generic_index< content_object,      content_multi_index_type >       content_index;
    typedef generic_index< content_vote_object, content_vote_multi_index_type >  content_vote_index;
    typedef generic_index< content_approve_object, content_approve_multi_index_type > content_approve_index;
-   typedef generic_index< content_stats_object, content_stats_multi_index_type > content_stats_index;
 } } // muse::chain
 
 FC_REFLECT_DERIVED( muse::chain::content_object, (graphene::db::object),
@@ -206,5 +185,3 @@ FC_REFLECT_DERIVED( muse::chain::content_approve_object, (graphene::db::object),
 
 FC_REFLECT_DERIVED( muse::chain::content_vote_object, (graphene::db::object),
                     (voter)(content)(marked_for_curation_reward)(weight)(num_changes)(last_update) )
-
-FC_REFLECT_DERIVED( muse::chain::content_stats_object, (graphene::db::object), (current_plays_threshold1)(current_plays_threshold1))
