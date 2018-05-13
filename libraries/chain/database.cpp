@@ -1818,6 +1818,11 @@ asset database::pay_to_content(content_id_type content, asset payout, streaming_
    paid += master_reward;
    paid += comp_reward;
    paid += platform_reward;
+
+   modify<content_object>( co, []( content_object& c ) {
+      --c.times_played_24;
+   });
+
    return paid;
 }FC_LOG_AND_RETHROW() }
 
