@@ -130,12 +130,14 @@ namespace muse { namespace chain {
 } }
 
 namespace fc {
-    inline void to_variant( const muse::chain::asset& var,  fc::variant& vo ) { 
+    inline void to_variant( const muse::chain::asset& var,  fc::variant& vo, uint32_t max_depth = 1 )
+    {
        vo = var.to_string();
-       //graphene::db::object_id_type object = var.asset_id;
-       //vo += std::string(object);
     }
-    inline void from_variant( const fc::variant& var,  muse::chain::asset& vo ) { vo = muse::chain::asset::from_string( var.as_string() ); }
+    inline void from_variant( const fc::variant& var,  muse::chain::asset& vo, uint32_t max_depth = 1 )
+    {
+       vo = muse::chain::asset::from_string( var.as_string() );
+    }
 }
 
 FC_REFLECT( muse::chain::asset, (amount)(asset_id) )
