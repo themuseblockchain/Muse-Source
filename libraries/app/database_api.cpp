@@ -392,7 +392,7 @@ vector< extended_account > database_api_impl::get_accounts( const vector< string
       auto itr = idx.find( name );
       if ( itr == idx.end() ) continue;
 
-      results.push_back( *itr );
+      results.push_back( extended_account( *itr ) );
       results.back().muse_power = itr->vesting_shares * vesting_price;
 
       auto vitr = vidx.lower_bound( boost::make_tuple( itr->get_id(), witness_id_type() ) );
@@ -842,7 +842,7 @@ vector<extended_limit_order> database_api::get_open_orders( string owner )const 
    const auto& idx = my->_db.get_index_type<limit_order_index>().indices().get<by_account>();
    auto itr = idx.lower_bound( owner );
    while( itr != idx.end() && itr->seller == owner ) {
-      result.push_back( *itr );
+      result.push_back( extended_limit_order( *itr ) );
 
       if( itr->sell_price.base.asset_id == MUSE_SYMBOL )
          result.back().real_price = (result.back().sell_price).to_real();

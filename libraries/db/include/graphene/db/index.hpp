@@ -30,9 +30,6 @@
 #include <fstream>
 
 namespace graphene { namespace db {
-   class object_database;
-   using fc::path;
-
    /**
     * @class index_observer
     * @brief used to get callbacks when objects change
@@ -107,7 +104,7 @@ namespace graphene { namespace db {
           */
          const object&              get( object_id_type id )const
          {
-            auto maybe_found = find( id );
+            const object* maybe_found = find( id );
             FC_ASSERT( maybe_found != nullptr, "Unable to find Object", ("id",id) );
             return *maybe_found;
          }
@@ -222,7 +219,7 @@ namespace graphene { namespace db {
             return fc::sha256::hash(desc);
          }
 
-         virtual void open( const path& db )override
+         virtual void open( const fc::path& db )override
          { 
             if( !fc::exists( db ) ) return;
             fc::file_mapping fm( db.generic_string().c_str(), fc::read_only );
@@ -243,7 +240,7 @@ namespace graphene { namespace db {
             } catch ( const fc::exception&  ){}
          }
 
-         virtual void save( const path& db ) override 
+         virtual void save( const fc::path& db ) override 
          {
             std::ofstream out( db.generic_string(), 
                                std::ofstream::binary | std::ofstream::out | std::ofstream::trunc );
@@ -251,7 +248,7 @@ namespace graphene { namespace db {
             auto ver  = get_object_version();
             fc::raw::pack( out, _next_id );
             fc::raw::pack( out, ver );
-            this->inspect_all_objects( [&]( const object& o ) {
+            this->inspect_all_objects( [&out]( const object& o ) {
                 auto vec = fc::raw::pack_to_vector( static_cast<const object_type&>(o) );
                 auto packed_vec = fc::raw::pack_to_vector( vec );
                 out.write( packed_vec.data(), packed_vec.size() );

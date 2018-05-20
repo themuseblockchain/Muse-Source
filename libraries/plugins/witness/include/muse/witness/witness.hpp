@@ -31,7 +31,6 @@
 namespace muse { namespace witness_plugin {
 
 using std::string;
-using chain::public_key_type;
 
 namespace block_production_condition
 {
@@ -86,17 +85,10 @@ private:
    bool _production_enabled = false;
    uint32_t _required_witness_participation = 33 * MUSE_1_PERCENT;
    uint32_t _production_skip_flags = muse::chain::database::skip_nothing;
-   uint32_t _mining_threads = 0;
 
-   uint64_t         _head_block_num       = 0;
-   uint64_t         _total_hashes         = 0;
-   fc::time_point   _hash_start_time;
-
-
-   std::map<public_key_type, fc::ecc::private_key> _private_keys;
-   std::set<string>                                _witnesses;
-   chain::chain_properties                         _miner_prop_vote;
-   fc::future<void>                                _block_production_task;
+   std::map<chain::public_key_type, fc::ecc::private_key> _private_keys;
+   std::set<string>                                       _witnesses;
+   fc::future<void>                                       _block_production_task;
 };
 
 } } //muse::witness_plugin

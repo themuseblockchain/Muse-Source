@@ -52,8 +52,8 @@ public:
 
    void operator()( const muse::chain::custom_json_operation& op );
 
-   custom_tags_plugin&                  _self;
-   primary_index< custom_tags_index >*  cti;
+   custom_tags_plugin&                                _self;
+   graphene::db::primary_index< custom_tags_index >*  cti;
 };
 
 std::set<std::string> custom_tags_impl::get_accounts( const fc::variant_object& json, const char* key )
@@ -198,7 +198,7 @@ void custom_tags_plugin::plugin_initialize(const boost::program_options::variabl
    ilog("custom_tags plugin: plugin_initialize() begin");
 
    database().post_apply_operation.connect( [this]( const muse::chain::operation_object& op ){ my->on_operation(op); } );
-   my->cti = database().add_index< primary_index< custom_tags_index > >();
+   my->cti = database().add_index< graphene::db::primary_index< custom_tags_index > >();
 
    ilog("custom_tags plugin: plugin_initialize() end");
 } FC_LOG_AND_RETHROW() }

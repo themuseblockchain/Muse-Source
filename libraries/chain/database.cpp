@@ -1787,17 +1787,6 @@ void database::pay_to_platform( streaming_platform_id_type platform, const asset
    push_applied_operation(playing_reward_operation(pl.owner, url, mbd_created, vest_created ));
 }FC_LOG_AND_RETHROW() }
 
-
-void database::pay_to_curator(const content_object &co, account_id_type cur, const asset& pay)
-{try{
-   const auto& curator = get<account_object>(cur);
-   auto vesting_muse = asset(0, MUSE_SYMBOL);
-   auto mbd_muse     = pay - vesting_muse;
-   auto vest_created = create_vesting( curator, vesting_muse );
-   auto mbd_created = create_mbd( curator, mbd_muse );
-   push_applied_operation(curate_reward_operation( curator.name, co.url, mbd_created, vest_created ));
-}FC_LOG_AND_RETHROW() }
-
 asset database::pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform)
 {try{
    asset paid (0);

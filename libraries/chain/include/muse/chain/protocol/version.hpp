@@ -66,7 +66,6 @@ struct hardfork_version_vote
 
 namespace fc
 {
-   class variant;
    void to_variant( const muse::chain::version& v, variant& var, uint32_t max_depth = 1 );
    void from_variant( const variant& var, muse::chain::version& v, uint32_t max_depth = 1 );
 
