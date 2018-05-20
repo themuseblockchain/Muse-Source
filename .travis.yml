@@ -24,5 +24,5 @@ script:
  - 'which build-wrapper-linux-x86-64 && build-wrapper-linux-x86-64 --out-dir bw-output make -j 2 || make -j 2'
  - libraries/fc/tests/run-parallel-tests.sh tests/chain_test
  - libraries/fc/tests/run-parallel-tests.sh tests/plugin_test
- - 'find CMakeFiles/fc.dir -type d | while read d; do gcov -o "$d" "${d/CMakeFiles*.dir/./}"/*.cpp; done >/dev/null'
+ - 'find libraries/[acdemnpuw]*/CMakeFiles/*.dir programs/[cjmsu]*/CMakeFiles/*.dir -type d | while read d; do gcov -o "$d" "${d/CMakeFiles*.dir/./}"/*.cpp; done >/dev/null'
  - 'which sonar-scanner && sonar-scanner || true'
