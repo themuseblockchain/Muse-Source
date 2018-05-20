@@ -71,10 +71,10 @@ optional<T> maybe_id( const string& name_or_id )
    {
       try
       {
-         return fc::variant(name_or_id).as<T>();
+         return fc::variant(name_or_id, 1).as<T>(1);
       }
       catch (const fc::exception&)
-      {
+      { // not an ID
       }
    }
    return optional<T>();
@@ -286,17 +286,17 @@ public:
    variant info() const
    {
       auto dynamic_props = _remote_db->get_dynamic_global_properties();
-      fc::mutable_variant_object result(fc::variant(dynamic_props).get_object());
+      fc::mutable_variant_object result(fc::variant( dynamic_props, GRAPHENE_MAX_NESTED_OBJECTS ).get_object());
       result["witness_majority_version"] = fc::string( _remote_db->get_witness_schedule().majority_version );
       result["hardfork_version"] = fc::string( _remote_db->get_hardfork_version() );
       result["head_block_num"] = dynamic_props.head_block_number;
-      result["head_block_id"] = dynamic_props.head_block_id;
+      result["head_block_id"] = fc::variant(dynamic_props.head_block_id, 1);
       result["head_block_age"] = fc::get_approximate_relative_time_string(dynamic_props.time,
                                                                           time_point_sec(time_point::now()),
                                                                           " old");
       result["participation"] = (100*dynamic_props.recent_slots_filled.popcount()) / 128.0;
-      result["median_mbd_price"] = _remote_db->get_current_median_history_price();
-      result["account_creation_fee"] = _remote_db->get_chain_properties().account_creation_fee;
+      result["median_mbd_price"] = fc::variant( _remote_db->get_current_median_history_price(), 3 );
+      result["account_creation_fee"] = fc::variant( _remote_db->get_chain_properties().account_creation_fee, 2 );
       return result;
    }
 
@@ -307,12 +307,10 @@ public:
       if( pos != string::npos && client_version.size() > pos )
          client_version = client_version.substr( pos + 1 );
 
-      fc::mutable_variant_object result;
-      //result["blockchain_name"]        = BLOCKCHAIN_NAME;
-      //result["blockchain_description"] = BTS_BLOCKCHAIN_DESCRIPTION;
+      fc::limited_mutable_variant_object result( GRAPHENE_MAX_NESTED_OBJECTS );
       result["client_version"]           = client_version;
-      result["muse_revision"]           = graphene::utilities::git_revision_sha;
-      result["muse_revision_age"]       = fc::get_approximate_relative_time_string( fc::time_point_sec( graphene::utilities::git_revision_unix_timestamp ) );
+      result["muse_revision"]            = graphene::utilities::git_revision_sha;
+      result["muse_revision_age"]        = fc::get_approximate_relative_time_string( fc::time_point_sec( graphene::utilities::git_revision_unix_timestamp ) );
       result["fc_revision"]              = fc::git_revision_sha;
       result["fc_revision_age"]          = fc::get_approximate_relative_time_string( fc::time_point_sec( fc::git_revision_unix_timestamp ) );
       result["compile_date"]             = "compiled on " __DATE__ " at " __TIME__;
@@ -403,7 +401,7 @@ public:
       if( ! fc::exists( wallet_filename ) )
          return false;
 
-      _wallet = fc::json::from_file( wallet_filename ).as< wallet_data >();
+      _wallet = fc::json::from_file( wallet_filename ).as< wallet_data >( GRAPHENE_MAX_NESTED_OBJECTS );
 
       return true;
    }
@@ -641,7 +639,7 @@ public:
    {
       proposal_update_operation update_op;
 
-      update_op.proposal = fc::variant(proposal_id).as<proposal_id_type>();
+      update_op.proposal = fc::variant( proposal_id, 1 ).as<proposal_id_type>( 1 );
 
       for( const std::string& name : delta.active_approvals_to_add )
          update_op.active_approvals_to_add.insert( name );
@@ -810,7 +808,7 @@ public:
          }
       }
 
-      auto minimal_signing_keys = tx.minimize_required_signatures(
+      tx.minimize_required_signatures(
          MUSE_CHAIN_ID,
          available_keys,
          [&]( const string& account_name ) -> const authority*
@@ -829,6 +827,7 @@ public:
               optional<content_object> content = *_remote_db->get_content_by_url ( content_url );
               return &content->manage_comp;
          },
+         _remote_db->get_hardfork_version() < MUSE_HARDFORK_0_3_VERSION ? 1 : 2,
          MUSE_MAX_SIG_CHECK_DEPTH
          );
 
@@ -875,7 +874,7 @@ public:
       m["list_my_accounts"] = [](variant result, const fc::variants& a ) {
          std::stringstream out;
 
-         auto accounts = result.as<vector<account_object>>();
+         auto accounts = result.as<vector<account_object>>( GRAPHENE_MAX_NESTED_OBJECTS );
          asset total_muse;
          asset total_vest(0, VESTS_SYMBOL );
          asset total_mbd(0, MBD_SYMBOL );
@@ -884,15 +883,15 @@ public:
             total_vest  += a.vesting_shares;
             total_mbd  += a.mbd_balance;
             out << std::left << std::setw( 17 ) << a.name
-                << std::right << std::setw(20) << fc::variant(a.balance).as_string() <<" "
-                << std::right << std::setw(20) << fc::variant(a.vesting_shares).as_string() <<" "
-                << std::right << std::setw(20) << fc::variant(a.mbd_balance).as_string() <<"\n";
+                << std::right << std::setw(20) << fc::variant( a.balance, 2 ).as_string() <<" "
+                << std::right << std::setw(20) << fc::variant( a.vesting_shares, 2 ).as_string() <<" "
+                << std::right << std::setw(20) << fc::variant( a.mbd_balance, 2 ).as_string() <<"\n";
          }
          out << "-------------------------------------------------------------------------\n";
             out << std::left << std::setw( 17 ) << "TOTAL"
-                << std::right << std::setw(20) << fc::variant(total_muse).as_string() <<" "
-                << std::right << std::setw(20) << fc::variant(total_vest).as_string() <<" "
-                << std::right << std::setw(20) << fc::variant(total_mbd).as_string() <<"\n";
+                << std::right << std::setw(20) << fc::variant( total_muse, 2 ).as_string() <<" "
+                << std::right << std::setw(20) << fc::variant( total_vest, 2 ).as_string() <<" "
+                << std::right << std::setw(20) << fc::variant( total_mbd, 2 ).as_string() <<"\n";
          return out.str();
       };
       m["get_account_history"] = []( variant result, const fc::variants& a ) {
@@ -916,7 +915,7 @@ public:
          return ss.str();
       };
       m["get_open_orders"] = [&]( variant result, const fc::variants& a ) {
-          auto orders = result.as<vector<extended_limit_order>>();
+          auto orders = result.as<vector<extended_limit_order>>( GRAPHENE_MAX_NESTED_OBJECTS );
 
           std::stringstream ss;
 
@@ -939,14 +938,14 @@ public:
              ss << ' ' << setw( 10 ) << o.orderid;
              ss << ' ' << setw( 10 ) << get_asset_symbol(o.sell_price.base.asset_id == MBD_SYMBOL ? o.sell_price.quote.asset_id : o.sell_price.base.asset_id );
              ss << ' ' << setw( 10 ) << o.real_price;
-             ss << ' ' << setw( 10 ) << fc::variant( for_sale ).as_string();
+             ss << ' ' << setw( 10 ) << fc::variant( for_sale, 1 ).as_string();
              ss << ' ' << setw( 10 ) << (o.sell_price.base.asset_id == MBD_SYMBOL ? "BUY" : "SELL");
              ss << "\n";
           }
           return ss.str();
       };
       m["get_order_book"] = []( variant result, const fc::variants& a ) {
-         auto orders = result.as< order_book >();
+         auto orders = result.as< order_book >( GRAPHENE_MAX_NESTED_OBJECTS );
          std::stringstream ss;
          //asset bid_sum = asset( 0, MBD_SYMBOL );
          //asset ask_sum = asset( 0, MBD_SYMBOL );
@@ -968,7 +967,7 @@ public:
 
          share_type bid_sum=0;
          share_type ask_sum=0;
-         for( int i = 0; i < orders.bids.size() || i < orders.asks.size(); i++ )
+         for( size_t i = 0; i < orders.bids.size() || i < orders.asks.size(); i++ )
          {
          
             if ( i < orders.bids.size() )
@@ -1021,7 +1020,7 @@ public:
       catch( const fc::exception& e )
       {
          elog( "Couldn't get network node API" );
-         throw(e);
+         throw;
       }
    }
 
@@ -1030,8 +1029,14 @@ public:
       if( _remote_message_api.valid() )
          return;
 
-      try { _remote_message_api = _remote_api->get_api_by_name("private_message_api")->as< private_message_api >(); }
-      catch( const fc::exception& e ) { elog( "Couldn't get private message API" ); throw(e); }
+      try {
+         _remote_message_api = _remote_api->get_api_by_name("private_message_api")->as< private_message_api >();
+      }
+      catch( const fc::exception& e )
+      {
+         elog( "Couldn't get private message API" );
+         throw;
+      }
    }
 
    void network_add_nodes( const vector<string>& nodes )
@@ -1052,7 +1057,7 @@ public:
       for( const auto& peer : peers )
       {
          variant v;
-         fc::to_variant( peer, v );
+         fc::to_variant( peer, v, GRAPHENE_MAX_NESTED_OBJECTS );
          result.push_back( v );
       }
       return result;

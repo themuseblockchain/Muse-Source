@@ -104,8 +104,8 @@ namespace muse { namespace chain {
 } } // muse::chain
 
 namespace fc {
-    void to_variant( const muse::chain::operation& var,  fc::variant& vo );
-    void from_variant( const fc::variant& var,  muse::chain::operation& vo );
+    void to_variant( const muse::chain::operation& var,  fc::variant& vo, uint32_t max_depth );
+    void from_variant( const fc::variant& var,  muse::chain::operation& vo, uint32_t max_depth );
 }
 
 FC_REFLECT_TYPENAME( muse::chain::operation )

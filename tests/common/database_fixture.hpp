@@ -152,6 +152,8 @@ struct database_fixture {
                                const fc::ecc::private_key& key = generate_private_key("init_key"),
                                int miss_blocks = 0);
 
+   void initialize_clean( uint32_t num_hardforks );
+
    /**
     * @brief Generates block_count blocks
     * @param block_count number of blocks to generate

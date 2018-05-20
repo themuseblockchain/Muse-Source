@@ -11,13 +11,14 @@ namespace fc {
    struct from_operation
    {
       variant& var;
-      from_operation( variant& dv ):var(dv){}
+      uint32_t _max_depth;
+      from_operation( variant& dv, uint32_t max_depth ):var(dv),_max_depth(max_depth){}
 
       typedef void result_type;
       template<typename T> void operator()( const T& v )const
       {
          auto name = name_from_type( fc::get_typename<T>::name() );
-         var = variant( std::make_pair(name,v) );
+         var = variant( std::make_pair(name,v), _max_depth );
       }
    };
    struct get_operation_name
@@ -32,11 +33,11 @@ namespace fc {
       }
    };
 
-    void to_variant( const muse::chain::operation& var,  fc::variant& vo )
+    void to_variant( const muse::chain::operation& var, fc::variant& vo, uint32_t max_depth )
     {
-       var.visit( from_operation( vo ) );
+       var.visit( from_operation( vo, max_depth ) );
     }
-    void from_variant( const fc::variant& var,  muse::chain::operation& vo )
+    void from_variant( const fc::variant& var, muse::chain::operation& vo, uint32_t max_depth )
     {
       static std::map<string,uint32_t> to_tag = [](){
          std::map<string,uint32_t> name_map;
@@ -60,7 +61,7 @@ namespace fc {
          FC_ASSERT( itr != to_tag.end(), "Invalid operation name: ${n}", ("n", ar[0]) );
          vo.set_which( to_tag[ar[0].as_string()] );
       }
-       vo.visit( fc::to_static_variant( ar[1] ) );
+       vo.visit( fc::to_static_variant( ar[1], max_depth ) );
     }
 }
 

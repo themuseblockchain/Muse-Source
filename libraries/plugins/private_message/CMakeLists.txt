@@ -4,7 +4,7 @@ add_library( muse_private_message
              private_message_plugin.cpp
            )
 
-target_link_libraries( muse_private_message muse_chain muse_app graphene_time )
+target_link_libraries( muse_private_message muse_chain muse_app )
 target_include_directories( muse_private_message
                             PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 

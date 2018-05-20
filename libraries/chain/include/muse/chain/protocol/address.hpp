@@ -78,8 +78,8 @@ inline bool operator <  ( const address& a, const address& b ) { return a.addr <
 
 namespace fc
 {
-void to_variant( const muse::chain::address& var,  fc::variant& vo );
-void from_variant( const fc::variant& var,  muse::chain::address& vo );
+void to_variant( const muse::chain::address& var, fc::variant& vo, uint32_t max_depth = 1 );
+void from_variant( const fc::variant& var, muse::chain::address& vo, uint32_t max_depth = 1 );
 }
 
 namespace std

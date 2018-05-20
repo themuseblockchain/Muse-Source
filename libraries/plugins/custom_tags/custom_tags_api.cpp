@@ -33,7 +33,7 @@ namespace detail {
 class custom_tags_api_impl
 {
 public:
-   custom_tags_api_impl( muse::app::application& _app ) : app( _app ) {}
+   explicit custom_tags_api_impl( muse::app::application& _app ) : app( _app ) {}
 
    std::shared_ptr< muse::custom_tags::custom_tags_plugin > get_plugin()
    {
@@ -150,7 +150,7 @@ custom_tags_api::custom_tags_api( const muse::app::api_context& ctx )
    my = std::make_shared< detail::custom_tags_api_impl >( ctx.app );
 }
 
-void custom_tags_api::on_api_startup() {}
+void custom_tags_api::on_api_startup() { /* nothing to do */ }
 
 half_tagging::half_tagging( const tag_object& t, bool use_tagger )
    : user( use_tagger ? t.tagger : t.taggee ), tag(t.tag) {}

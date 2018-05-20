@@ -58,17 +58,13 @@ void asset_create_evaluator::do_apply( const asset_create_operation& op )
                  ("s",op.symbol)("p",prefix) );
    }
 
-   auto next_asset_id = db().get_index_type<asset_index>().get_next_id();
-   
-   const asset_object& new_asset =
-     db().create<asset_object>( [&]( asset_object& a ) {
-         a.issuer = issuer.id;
-         a.symbol_string = op.symbol;
-         a.precision = op.precision;
-         a.options = op.common_options;
-         a.current_supply = 0;
-      });
-   assert( new_asset.id == next_asset_id );
+   db().create<asset_object>( [&issuer,&op]( asset_object& a ) {
+      a.issuer = issuer.id;
+      a.symbol_string = op.symbol;
+      a.precision = op.precision;
+      a.options = op.common_options;
+      a.current_supply = 0;
+   });
 
    return; 
 } FC_CAPTURE_AND_RETHROW( (op) ) }

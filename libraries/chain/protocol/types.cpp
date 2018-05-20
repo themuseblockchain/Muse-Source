@@ -186,41 +186,41 @@ asset_id_type MBD_SYMBOL(2);
 namespace fc
 {
     using namespace std;
-    void to_variant( const muse::chain::public_key_type& var,  fc::variant& vo )
+    void to_variant( const muse::chain::public_key_type& var, fc::variant& vo, uint32_t max_depth )
     {
         vo = std::string( var );
     }
 
-    void from_variant( const fc::variant& var,  muse::chain::public_key_type& vo )
+    void from_variant( const fc::variant& var, muse::chain::public_key_type& vo, uint32_t max_depth )
     {
         vo = muse::chain::public_key_type( var.as_string() );
     }
 
-    void to_variant( const muse::chain::extended_public_key_type& var, fc::variant& vo )
+    void to_variant( const muse::chain::extended_public_key_type& var, fc::variant& vo, uint32_t max_depth )
     {
        vo = std::string( var );
     }
 
-    void from_variant( const fc::variant& var, muse::chain::extended_public_key_type& vo )
+    void from_variant( const fc::variant& var, muse::chain::extended_public_key_type& vo, uint32_t max_depth )
     {
        vo = muse::chain::extended_public_key_type( var.as_string() );
     }
 
-    void to_variant( const muse::chain::extended_private_key_type& var, fc::variant& vo )
+    void to_variant( const muse::chain::extended_private_key_type& var, fc::variant& vo, uint32_t max_depth )
     {
        vo = std::string( var );
     }
 
-    void from_variant( const fc::variant& var, muse::chain::extended_private_key_type& vo )
+    void from_variant( const fc::variant& var, muse::chain::extended_private_key_type& vo, uint32_t max_depth )
     {
        vo = muse::chain::extended_private_key_type( var.as_string() );
     }
 
-    void to_variant( const muse::chain::share_type& var, fc::variant& vo )
+    void to_variant( const muse::chain::share_type& var, fc::variant& vo, uint32_t max_depth )
     {
        vo = fc::to_string( var.value / asset::static_precision() ) + "." + std::to_string(asset::static_precision() + var.value %asset::static_precision()).erase(0,1);
     }
-    void from_variant( const fc::variant& var, muse::chain::share_type& vo ){
+    void from_variant( const fc::variant& var, muse::chain::share_type& vo, uint32_t max_depth ){
        int64_t amount;
        string s = fc::trim( var.as_string() );
        auto dot_pos = s.find( "." );
@@ -229,7 +229,7 @@ namespace fc
          amount = fc::to_int64(intpart)*asset::static_precision();
          std::string fractpart = s.substr( dot_pos+1, std::max<size_t>(s.length()-dot_pos-1, MUSE_ASSET_PRECISION));
          uint64_t fract_amount = fc::to_int64(fractpart);
-         for(int i=MUSE_ASSET_PRECISION; i< fractpart.length(); i--)
+         for(size_t i=MUSE_ASSET_PRECISION; i< fractpart.length(); i--)
             fract_amount*=10;
          amount = amount +  fract_amount;
        }else{

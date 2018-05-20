@@ -67,12 +67,12 @@ BOOST_AUTO_TEST_CASE( serialization_json_test )
       op.amount = asset(100,MUSE_SYMBOL);
 
 
-      fc::variant test(op.amount);
-      auto tmp = test.as<asset>(); FC_UNUSED(tmp);
+      fc::variant test( op.amount, 2 );
+      auto tmp = test.as<asset>( 2 ); FC_UNUSED(tmp);
 
       trx.operations.push_back( op );
-      fc::variant packed(trx);
-      signed_transaction unpacked = packed.as<signed_transaction>();
+      fc::variant packed(trx, GRAPHENE_MAX_NESTED_OBJECTS);
+      signed_transaction unpacked = packed.as<signed_transaction>( GRAPHENE_MAX_NESTED_OBJECTS );
       unpacked.validate();
       BOOST_CHECK( trx.digest() == unpacked.digest() );
    } catch (fc::exception& e) {

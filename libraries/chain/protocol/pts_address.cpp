@@ -88,11 +88,11 @@ pts_address::operator std::string()const
 
 namespace fc
 {
-void to_variant( const muse::chain::pts_address& var,  variant& vo )
+void to_variant( const muse::chain::pts_address& var, variant& vo, uint32_t max_depth )
 {
    vo = std::string(var);
 }
-void from_variant( const variant& var,  muse::chain::pts_address& vo )
+void from_variant( const variant& var, muse::chain::pts_address& vo, uint32_t max_depth )
 {
    vo = muse::chain::pts_address( var.as_string() );
 }

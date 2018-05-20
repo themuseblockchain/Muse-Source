@@ -601,7 +601,6 @@ BOOST_FIXTURE_TEST_CASE( pop_block_twice, clean_database_fixture )
          );
 
       // Sam is the creator of accounts
-      auto init_account_priv_key  = fc::ecc::private_key::regenerate(fc::sha256::hash(string("init_key")) );
       private_key_type sam_key = generate_private_key( "sam" );
       account_object sam_account_object = account_create( "sam", sam_key.get_public_key() );
 
@@ -792,69 +791,23 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
 {
    try
    {
-      /* Setup code from clean fixture sans setting hardforks */
-      try {
-         int argc = boost::unit_test::framework::master_test_suite().argc;
-         char** argv = boost::unit_test::framework::master_test_suite().argv;
-         for( int i=1; i<argc; i++ )
-         {
-            const std::string arg = argv[i];
-            if( arg == "--record-assert-trip" )
-               fc::enable_record_assert_trip = true;
-            if( arg == "--show-test-names" )
-               std::cout << "running test " << boost::unit_test::framework::current_test_case().p_name << std::endl;
-         }
-         auto ahplugin = app.register_plugin< muse::account_history::account_history_plugin >();
-         init_account_pub_key = init_account_priv_key.get_public_key();
+      initialize_clean( 0 );
 
-         boost::program_options::variables_map options;
-
-         open_database();
-
-         {
-            const account_object& init_acct = db.get_account( MUSE_INIT_MINER_NAME );
-            db.modify( init_acct, [&]( account_object& acct ) {
-               acct.active.add_authority( init_account_pub_key, acct.active.weight_threshold );
-            });
-            const witness_object& init_witness = db.get_witness( MUSE_INIT_MINER_NAME );
-            db.modify( init_witness, [&]( witness_object& witness ) {
-               witness.signing_key = init_account_pub_key;
-            });
-         }
-
-         // app.initialize();
-         ahplugin->plugin_set_app( &app );
-         ahplugin->plugin_initialize( options );
-
-         generate_block();
-         vest( "initminer", 10000 );
-
-         // Fill up the rest of the required miners
-         for( int i = MUSE_NUM_INIT_MINERS; i < MUSE_MAX_MINERS; i++ )
-         {
-            account_create( MUSE_INIT_MINER_NAME + fc::to_string( i ), init_account_pub_key );
-            fund( MUSE_INIT_MINER_NAME + fc::to_string( i ), MUSE_MIN_PRODUCER_REWARD.amount.value );
-            witness_create( MUSE_INIT_MINER_NAME + fc::to_string( i ), init_account_priv_key, "foo.bar", init_account_pub_key, MUSE_MIN_PRODUCER_REWARD.amount );
-         }
-
-         generate_blocks( 2 * MUSE_MAX_MINERS );
-
-         validate_database();
-      } catch ( const fc::exception& e )
-      {
-         edump( (e.to_detail_string()) );
-         throw;
-      }
+      generate_blocks( 2 * MUSE_MAX_MINERS );
 
       BOOST_TEST_MESSAGE( "Check hardfork not applied at genesis" );
       BOOST_REQUIRE( db.has_hardfork( 0 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
 
       BOOST_TEST_MESSAGE( "Generate blocks up to the hardfork time and check hardfork still not applied" );
       generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_1_TIME - MUSE_BLOCK_INTERVAL ), true );
 
       BOOST_REQUIRE( db.has_hardfork( 0 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
 
       BOOST_TEST_MESSAGE( "Generate a block and check hardfork is applied" );
       generate_block();
@@ -885,14 +838,191 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( 0 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
 
       generate_block();
 
       BOOST_REQUIRE( db.has_hardfork( 0 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+
+      generate_blocks( 2*MUSE_MAX_MINERS );
+      generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME - MUSE_BLOCK_INTERVAL ), true );
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+
+      generate_block();
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_3 ) );
    }
    FC_LOG_AND_RETHROW()
 }
+
+BOOST_FIXTURE_TEST_CASE( skip_witness_on_empty_key, database_fixture )
+{ try {
+
+   initialize_clean(2);
+
+   const auto skip_sigs = database::skip_transaction_signatures | database::skip_authority_check;
+
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+
+   const witness_schedule_object& wso = witness_schedule_id_type()(db);
+
+   std::set<string> witnesses( wso.current_shuffled_witnesses.begin(), wso.current_shuffled_witnesses.end() );
+   BOOST_CHECK_EQUAL( MUSE_MAX_MINERS, witnesses.size() );
+
+   {
+      witness_update_operation wup;
+      wup.block_signing_key = public_key_type();
+      wup.url = "http://peertracks.com";
+      wup.owner = MUSE_INIT_MINER_NAME;
+      wup.fee = asset( MUSE_MIN_ACCOUNT_CREATION_FEE, MUSE_SYMBOL );
+      trx.operations.push_back( wup );
+      trx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+      PUSH_TX( db, trx, skip_sigs );
+   }
+
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+
+   witnesses.clear();
+   witnesses.insert( wso.current_shuffled_witnesses.begin(), wso.current_shuffled_witnesses.end() );
+   BOOST_CHECK_EQUAL( MUSE_MAX_MINERS, witnesses.size() );
+
+   generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME ), true );
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+    
+   std::set<string> fewer_witnesses( wso.current_shuffled_witnesses.begin(), wso.current_shuffled_witnesses.end() );
+   BOOST_CHECK_EQUAL( MUSE_MAX_MINERS - 1, fewer_witnesses.size() );
+
+   for( const string& w : fewer_witnesses )
+      witnesses.erase( w );
+
+   BOOST_CHECK_EQUAL( 1, witnesses.size() );
+
+   BOOST_CHECK_EQUAL( 1, witnesses.count( MUSE_INIT_MINER_NAME ) );
+
+} FC_LOG_AND_RETHROW() }
+
+BOOST_FIXTURE_TEST_CASE( expire_proposals_on_hf3, database_fixture )
+{ try {
+
+   initialize_clean(2);
+
+   ACTORS( (alice)(bob) );
+   const asset_object& core = asset_id_type()(db);
+
+   generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME - 5 * 60 ) );
+
+   transfer_operation transfer_op;
+   transfer_op.from = "alice";
+   transfer_op.to  = "bob";
+   transfer_op.amount = core.amount(100);
+
+   proposal_create_operation op;
+   op.proposed_ops.emplace_back( transfer_op );
+   op.expiration_time = db.head_block_time() + fc::minutes(1);
+   trx.operations.push_back(op);
+   trx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   op.proposed_ops.clear();
+   transfer_op.amount = core.amount(50);
+   op.proposed_ops.emplace_back( transfer_op );
+   op.expiration_time = db.head_block_time() + fc::minutes(2);
+   trx.operations.push_back(op);
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   const auto& pidx = db.get_index_type<proposal_index>().indices().get<by_id>();
+   BOOST_CHECK_EQUAL( 2, pidx.size() );
+   const proposal_id_type pid1 = pidx.begin()->id;
+   const proposal_id_type pid2 = std::next( pidx.begin() )->id;
+
+   proposal_update_operation uop;
+   uop.proposal = pid1;
+   uop.active_approvals_to_add.insert("alice");
+   trx.operations.push_back(uop);
+   sign( trx, alice_private_key );
+   PUSH_TX( db, trx );
+   trx.clear();
+
+   // Proposals failed to execute
+   BOOST_CHECK_EQUAL( 2, pidx.size() );
+
+   fund( "alice" );
+   const auto original_balance = get_balance("alice").amount.value;
+
+   generate_block();
+
+   // Proposals failed to execute
+   BOOST_CHECK_EQUAL( 2, pidx.size() );
+   BOOST_CHECK_EQUAL( original_balance, get_balance("alice").amount.value );
+
+   const proposal_object& proposal1 = pid1(db);
+   BOOST_CHECK_EQUAL(proposal1.required_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal1.available_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal1.required_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal1.available_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL("alice", *proposal1.required_active_approvals.begin());
+
+   const proposal_object& proposal2 = pid2(db);
+   BOOST_CHECK_EQUAL(proposal2.required_active_approvals.size(), 1);
+   BOOST_CHECK_EQUAL(proposal2.available_active_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal2.required_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL(proposal2.available_owner_approvals.size(), 0);
+   BOOST_CHECK_EQUAL("alice", *proposal2.required_active_approvals.begin());
+
+   generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME ) );
+   generate_blocks( 2*MUSE_MAX_MINERS );
+
+   // Proposals were removed
+   BOOST_CHECK_EQUAL( 0, pidx.size() );
+
+   // ...and did not execute
+   BOOST_CHECK_EQUAL( original_balance, get_balance("alice").amount.value );
+
+} FC_LOG_AND_RETHROW() }
+
+static void generate_1_day_of_misses( database& db, const string& witness_to_skip )
+{
+   for( int blocks = 0; blocks < MUSE_BLOCKS_PER_DAY + 2 * MUSE_MAX_MINERS; blocks++ )
+   {
+      int next = 0;
+      string next_witness;
+      do
+      {
+         next_witness = db.get_scheduled_witness( ++next );
+      } while( next_witness == witness_to_skip );
+      db.generate_block(db.get_slot_time( next ), next_witness, init_account_priv_key(), 0);
+   }
+}
+
+BOOST_FIXTURE_TEST_CASE( clear_witness_key, clean_database_fixture )
+{ try {
+
+   generate_blocks( 2 * MUSE_MAX_MINERS );
+
+   auto witness = db.get_witness( MUSE_INIT_MINER_NAME );
+
+   BOOST_CHECK_NE( std::string(public_key_type()), std::string(witness.signing_key) );
+
+   generate_1_day_of_misses( db, MUSE_INIT_MINER_NAME );
+
+   witness = db.get_witness( MUSE_INIT_MINER_NAME );
+
+   BOOST_CHECK_GT( witness.total_missed, MUSE_BLOCKS_PER_DAY / MUSE_MAX_MINERS - 5 );
+   BOOST_CHECK_LT( witness.last_confirmed_block_num, db.head_block_num() - MUSE_BLOCKS_PER_DAY );
+   BOOST_CHECK_EQUAL( std::string(public_key_type()), std::string(witness.signing_key) );
+
+} FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()
