@@ -10,17 +10,19 @@ sudo: true
 install:
  - echo "deb http://de.archive.ubuntu.com/ubuntu xenial main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
  - sudo apt-get update
- - sudo apt-get install --allow-unauthenticated g++ libboost-all-dev cmake libreadline-dev libssl-dev autoconf
+ - sudo apt-get install --allow-unauthenticated g++ libboost-all-dev cmake libreadline-dev libssl-dev autoconf parallel
+
+addons:
+  sonarcloud:
+    organization: "djxeo0smpujky4mpro50l67fsv74ijvt"
+    token:
+      secure: "TCLDVl8x3nKck4IoQK3SmehmI57I4MDyXZOAu/7HVPEtIfpcR2H2ua+NxxZDKHdjDKd886F2MlSsW46vj5pxXWJ2tdlEA0SRRZK8OjYewpjr304yN1W5FL9obRchXGgG1WyP72aR2V2Rubwem/ZQkGul+15lSC7KOZY/rGJ60crXOUoXEidMRIpr/TaDi/8ChCFxM1PaKKiZF1uRYtux1up5aA0V6eby3Fq0S6OxXMXwfJ7pIN50Xmyv7bf7leD6TefR4+t46QSEJ+DcmBUIEA0ib2Eu49cWpEzaXMuS1qfBGkggEwCMy1ls7BcYdk/TbqN36Pr0mpXZyJC22Jm0Z3iR3xsRhXgsNzBZ2xXg3V1otG6nderJ09GAiccF/3vevbslXAlR7/33BWidZemyGB33dVntUOJwS4NdveWNUvvpDZzfzj9VxbXJ1C0lURitdIWS30/KOUicT+sRLMkQiE/TCA4kqmri/B08xmXuPw/waVl7R7mwemg9a/Wxh3i0XBXOSo8EUGbC9HFJS21qEdsoN8vdQI+IyfBRRECSsYa5udpDlIQALaobZ3pHCaC1mKh7Q13YhDz130/e/we5TXalfbmfC1fmz/xFHl4WQJaopRBUDcQAjV9j0xwUAf+elp4WX2Layjf/96CRKxh/yUNCUhmMKpArjhnkAQDjcSY="
 
 script:
- - cmake -DCMAKE_BUILD_TYPE=Debug -DBoost_USE_STATIC_LIBS=OFF .
- - make -j 2
- - tests/chain_test | cat
- - tests/plugin_test | cat
- - cd libraries/fc
- - tests/all_tests | cat
- - tests/api | cat
- - tests/bip_lock | cat
- - tests/ecc_test README.md | cat
- - tests/log_test | cat
- - tests/sha_test | cat
+ - sed -i '/subdirectory.*tests/d' libraries/fc/CMakeLists.txt
+ - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS=--coverage -DCMAKE_CXX_FLAGS=--coverage -DBoost_USE_STATIC_LIBS=OFF -DCMAKE_CXX_OUTPUT_EXTENSION_REPLACE=ON .
+ - 'which build-wrapper-linux-x86-64 && build-wrapper-linux-x86-64 --out-dir bw-output make -j 2 || make -j 2'
+ - libraries/fc/tests/run-parallel-tests.sh tests/chain_test
+ - libraries/fc/tests/run-parallel-tests.sh tests/plugin_test
+ - 'find CMakeFiles/fc.dir -type d | while read d; do gcov -o "$d" "${d/CMakeFiles*.dir/./}"/*.cpp; done >/dev/null'
+ - 'which sonar-scanner && sonar-scanner || true'
