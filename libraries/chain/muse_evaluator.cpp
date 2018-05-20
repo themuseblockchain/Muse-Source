@@ -2,20 +2,6 @@
 #include <muse/chain/base_evaluator.hpp>
 #include <muse/chain/base_objects.hpp>
 
-#ifndef IS_LOW_MEM
-#include <diff_match_patch.h>
-#include <boost/locale/encoding_utf.hpp>
-
-using boost::locale::conv::utf_to_utf;
-
-std::wstring utf8_to_wstring(const std::string& str);
-
-
-std::string wstring_to_utf8(const std::wstring& str);
-
-
-#endif
-
 #include <fc/uint128.hpp>
 #include <fc/utf8.hpp>
 
@@ -30,7 +16,7 @@ void streaming_platform_update_evaluator::do_apply( const streaming_platform_upd
 
    FC_ASSERT( o.url.size() <= MUSE_MAX_STREAMING_PLATFORM_URL_LENGTH );
 
-   FC_ASSERT( sp_account.balance >= o.fee, "Isufficient balance to update streaming platform: have ${c}, need ${f}", ( "c", sp_account.balance )( "f", o.fee ) );
+   FC_ASSERT( sp_account.balance >= o.fee, "Insufficient balance to update streaming platform: have ${c}, need ${f}", ( "c", sp_account.balance )( "f", o.fee ) );
 
    const auto& by_streaming_platform_name_idx = db().get_index_type< streaming_platform_index >().indices().get< by_name >();
    auto wit_itr = by_streaming_platform_name_idx.find( o.owner );
@@ -289,19 +275,19 @@ void content_evaluator::do_apply( const content_operation& o )
       }
 
       for( const distribution& d : o.distributions )
-         const auto& payee = db().get_account( d.payee );
+         db().get_account( d.payee ); // ensure it exists
 
       if( o.distributions_comp )
          for( const distribution& d : *(o.distributions_comp) )
-            const auto& payee = db().get_account( d.payee );
+            db().get_account( d.payee ); // ensure it exists
 
       for( const management_vote& m : o.management )
-         const auto& voter = db().get_account(m.voter);
+         db().get_account(m.voter); // ensure it exists
 
       if( o.comp_meta.third_party_publishers  ){
          FC_ASSERT( o.management_comp && o.management_threshold_comp );
          for( const management_vote& m : *(o.management_comp) )
-            const auto& voter = db().get_account(m.voter);
+            db().get_account(m.voter); // ensure it exists
       }
 
       db().create< content_object >( [&o,this]( content_object& con ) {
@@ -375,11 +361,6 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
       for( const management_vote& m : o.new_management )
          db().get_account(m.voter); // just to ensure that m.voter account exists
 
-      bool redistribute_master = ( o.side == o.master && o.new_distributions.size() > 0
-                                   && itr->distributions_master.size() == 0 );
-      bool redistribute_comp = ( o.side == o.publisher && o.new_distributions.size() > 0
-                                 && itr->distributions_comp.size() == 0 );
-
       asset accumulated_balances = (o.side==content_update_operation::side_t::master)?itr->accumulated_balance_master : itr->accumulated_balance_comp;
       db().modify< content_object >( *itr, [&o,this]( content_object& con ) {
            //the third_party_publishers flag cannot be changed. EVER.
@@ -391,18 +372,11 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.track_meta = *o.track_meta;
                  con.track_title = o.track_meta->track_title;
               }
-              if( !third_party_flag && o.comp_meta ) {
+              if( !third_party_flag && o.comp_meta )
                  con.comp_meta = *o.comp_meta;
-                 if(!db().has_hardfork(MUSE_HARDFORK_0_2)) {
-                    third_party_flag = con.comp_meta.third_party_publishers;
-                 }
-              }
 
-              if( o.new_distributions.size() > 0 ) {
+              if( o.new_distributions.size() > 0 )
                  con.distributions_master = o.new_distributions;
-                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
-                    con.accumulated_balance_master.amount = 0;
-              }
 
               if( o.new_management.size() > 0 ) {
                  con.manage_master.account_auths.clear();
@@ -415,11 +389,8 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
               if( o.comp_meta ) {
                  con.comp_meta = *o.comp_meta;
               }
-              if( o.new_distributions.size() > 0 ) {
+              if( o.new_distributions.size() > 0 )
                  con.distributions_comp = o.new_distributions;
-                 if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) )
-                    con.accumulated_balance_comp.amount = 0;
-              }
               if( o.new_management.size() > 0 ) {
                  con.manage_comp.account_auths.clear();
                  for( const management_vote &m : o.new_management ) {
@@ -436,19 +407,13 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
                  con.publishers_share = o.new_publishers_share;
            }else
            {
-              if( o.new_playing_reward != con.playing_reward )
-                 con.playing_reward = o.new_playing_reward;
-              if( o.new_publishers_share != con.publishers_share )
-                 con.publishers_share = o.new_publishers_share;
+              con.playing_reward = o.new_playing_reward;
+              con.publishers_share = o.new_publishers_share;
            }
            con.last_update = db().head_block_time();
       });
-      if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) {
-         if( redistribute_master )
-            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
-         if( redistribute_comp )
-            db().pay_to_content(itr->id, accumulated_balances, muse::chain::streaming_platform_id_type());
-      } else if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
+      if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
+         if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) wlog("HF point 5 triggered");
          if( o.side == o.master )
             db().pay_to_content_master( *itr, asset( 0, MUSE_SYMBOL ) );
          else
@@ -522,15 +487,17 @@ void vote_evaluator::do_apply( const vote_operation& o )
       auto elapsed_seconds   = (db().head_block_time() - voter.last_vote_time).to_seconds();
       FC_ASSERT( elapsed_seconds >= MUSE_MIN_VOTE_INTERVAL_SEC );
 
-      db().modify( voter, [&]( account_object& a ){
-           a.last_vote_time = db().head_block_time();
+      const auto& now = db().head_block_time();
+      db().modify( voter, [now]( account_object& a ){
+           a.last_vote_time = std::move(now);
       });
 
       if( o.url.length() > 0 ) //vote for content
       {
          const auto&content = db().get_content( o.url );
          FC_ASSERT( !content.disabled );
-         if( o.weight > 0 ) FC_ASSERT( content.allow_votes );
+         const auto weight = o.weight;
+         if( weight > 0 ) FC_ASSERT( content.allow_votes );
          const auto& content_vote_idx = db().get_index_type< content_vote_index >().indices().get< by_content_voter >();
          auto itr = content_vote_idx.find( std::make_tuple( content.id, voter.id ) );
 
@@ -540,25 +507,20 @@ void vote_evaluator::do_apply( const vote_operation& o )
 
             FC_ASSERT( itr->weight != o.weight, "Changing your vote requires actually changing you vote." );
 
-            db().modify( *itr, [&]( content_vote_object& cv )
+            db().modify( *itr, [weight,now]( content_vote_object& cv )
             {
-                 cv.weight = o.weight;
-                 cv.last_update = db().head_block_time();
+                 cv.weight = weight;
+                 cv.last_update = std::move(now);
                  cv.num_changes += 1;
             });
          }else{ //new vote...
-            bool rewarder = false;
-            const content_stats_object& c_stat = db().get<content_stats_object> (content_stats_id_type(0));
-            if( !content.curation_rewards or content.times_played_24 < c_stat.current_plays_threshold2 )
-               rewarder = true;
-            FC_ASSERT( o.weight != 0, "Weight cannot be 0");
-            const auto& cvo = db().create<content_vote_object>( [&]( content_vote_object& cv ){
+            FC_ASSERT( weight != 0, "Weight cannot be 0");
+            db().create<content_vote_object>( [&voter,&content,weight,now]( content_vote_object& cv ){
                  cv.voter=voter.id;
                  cv.content=content.id;
-                 cv.weight = o.weight;
-                 cv.last_update = db().head_block_time();
+                 cv.weight = weight;
+                 cv.last_update = std::move(now);
                  cv.num_changes = 0;
-                 cv.marked_for_curation_reward = rewarder;
             });
          }
       }

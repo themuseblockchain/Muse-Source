@@ -67,11 +67,11 @@ struct hardfork_version_vote
 namespace fc
 {
    class variant;
-   void to_variant( const muse::chain::version& v, variant& var );
-   void from_variant( const variant& var, muse::chain::version& v );
+   void to_variant( const muse::chain::version& v, variant& var, uint32_t max_depth = 1 );
+   void from_variant( const variant& var, muse::chain::version& v, uint32_t max_depth = 1 );
 
-   void to_variant( const muse::chain::hardfork_version& hv, variant& var );
-   void from_variant( const variant& var, muse::chain::hardfork_version& hv );
+   void to_variant( const muse::chain::hardfork_version& hv, variant& var, uint32_t max_depth = 1 );
+   void from_variant( const variant& var, muse::chain::hardfork_version& hv, uint32_t max_depth = 1 );
 } // fc
 
 #include <fc/reflect/reflect.hpp>

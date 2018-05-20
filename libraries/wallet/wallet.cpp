@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <list>
+#include <locale>
 
 #include <boost/version.hpp>
 #include <boost/lexical_cast.hpp>
@@ -57,6 +58,8 @@
 
 #define BRAIN_KEY_WORD_COUNT 16
 
+static const std::locale& c_locale = std::locale::classic();
+
 namespace muse { namespace wallet {
 
 namespace detail {
@@ -64,7 +67,7 @@ namespace detail {
 template<class T>
 optional<T> maybe_id( const string& name_or_id )
 {
-   if( std::isdigit( name_or_id.front() ) )
+   if( std::isdigit( name_or_id.front(), c_locale ) )
    {
       try
       {
@@ -805,7 +808,7 @@ public:
          }
       }
 
-      auto minimal_signing_keys = tx.minimize_required_signatures(
+      tx.minimize_required_signatures(
          MUSE_CHAIN_ID,
          available_keys,
          [&]( const string& account_name ) -> const authority*
@@ -964,7 +967,7 @@ public:
 
          share_type bid_sum=0;
          share_type ask_sum=0;
-         for( int i = 0; i < orders.bids.size() || i < orders.asks.size(); i++ )
+         for( size_t i = 0; i < orders.bids.size() || i < orders.asks.size(); i++ )
          {
          
             if ( i < orders.bids.size() )
@@ -1017,7 +1020,7 @@ public:
       catch( const fc::exception& e )
       {
          elog( "Couldn't get network node API" );
-         throw(e);
+         throw;
       }
    }
 
@@ -1026,8 +1029,14 @@ public:
       if( _remote_message_api.valid() )
          return;
 
-      try { _remote_message_api = _remote_api->get_api_by_name("private_message_api")->as< private_message_api >(); }
-      catch( const fc::exception& e ) { elog( "Couldn't get private message API" ); throw(e); }
+      try {
+         _remote_message_api = _remote_api->get_api_by_name("private_message_api")->as< private_message_api >();
+      }
+      catch( const fc::exception& e )
+      {
+         elog( "Couldn't get private message API" );
+         throw;
+      }
    }
 
    void network_add_nodes( const vector<string>& nodes )

@@ -216,11 +216,11 @@ void verify_authority_v2( const vector<operation>& ops, const flat_set<public_ke
       required_basic.erase( o );
 
    FC_ASSERT( required_basic.size() == 0
-              || required_active.size() == 0
-                 && required_owner.size() == 0
-                 && required_master_content.size() == 0
-                 && required_comp_content.size() == 0
-                 && other.size() == 0,
+              || ( required_active.size() == 0
+                   && required_owner.size() == 0
+                   && required_master_content.size() == 0
+                   && required_comp_content.size() == 0
+                   && other.size() == 0 ),
               "Cannot combine operations with basic approval and others!" );
 
    sign_state s(sigs,get_active);

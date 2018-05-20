@@ -1312,6 +1312,7 @@ BOOST_AUTO_TEST_CASE( withdraw_vesting_apply )
       tx.sign( alice_private_key, db.get_chain_id() );
       MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
 
+      BOOST_REQUIRE_EQUAL( alice.to_withdraw.value, old_withdraw_amount.value );
       BOOST_REQUIRE_EQUAL( alice.vesting_shares.amount.value, old_vesting_shares.amount.value );
       BOOST_REQUIRE_EQUAL( alice.vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 3 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
       BOOST_REQUIRE( alice.next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
@@ -1814,8 +1815,7 @@ BOOST_AUTO_TEST_CASE( account_witness_proxy_apply )
       validate_database();
 
       BOOST_TEST_MESSAGE( "--- Test adding a grandchild proxy" );
-      // alice \
-      // bob->  sam->dave
+      // alice->sam->dave
 
       tx.operations.clear();
       tx.signatures.clear();
@@ -2479,7 +2479,6 @@ BOOST_AUTO_TEST_CASE( limit_order_create_apply )
       BOOST_TEST_MESSAGE( "--- Test filling limit order with better order when partial order is worse." );
 
       auto gpo = db.get_dynamic_global_properties();
-      auto start_mbd = gpo.current_mbd_supply;
 
       op.owner = "alice";
       op.orderid = 5;
@@ -2813,7 +2812,6 @@ BOOST_AUTO_TEST_CASE( limit_order_create2_apply )
       BOOST_TEST_MESSAGE( "--- Test filling limit order with better order when partial order is worse." );
 
       auto gpo = db.get_dynamic_global_properties();
-      auto start_mbd = gpo.current_mbd_supply;
 
       op.owner = "alice";
       op.orderid = 5;

@@ -46,12 +46,12 @@ version::operator fc::string()const
 
 namespace fc
 {
-   void to_variant( const muse::chain::version& v, variant& var )
+   void to_variant( const muse::chain::version& v, variant& var, uint32_t max_depth )
    {
       var = fc::string( v );
    }
 
-   void from_variant( const variant& var, muse::chain::version& v )
+   void from_variant( const variant& var, muse::chain::version& v, uint32_t max_depth )
    {
       uint32_t major = 0, hardfork = 0, revision = 0;
       char dot_a, dot_b;
@@ -69,14 +69,14 @@ namespace fc
       v.v_num = 0 | ( major << 24 ) | ( hardfork << 16 ) | revision;
    }
 
-   void to_variant( const muse::chain::hardfork_version& hv, variant& var )
+   void to_variant( const muse::chain::hardfork_version& hv, variant& var, uint32_t max_depth )
    {
-      to_variant( (const muse::chain::version&) hv, var );
+      to_variant( (const muse::chain::version&) hv, var, max_depth );
    }
 
-   void from_variant( const variant& var, muse::chain::hardfork_version& hv )
+   void from_variant( const variant& var, muse::chain::hardfork_version& hv, uint32_t max_depth )
    {
-      from_variant( var, (muse::chain::version&) hv );
+      from_variant( var, (muse::chain::version&) hv, max_depth );
       FC_ASSERT( !(hv.v_num & 0xFFFF), "Hardfork revision must be 0!" );
    }
 }

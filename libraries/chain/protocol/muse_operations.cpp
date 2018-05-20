@@ -48,6 +48,11 @@ void content_metadata_album_master::validate_meta() const{
 void content_metadata_track_master::validate_meta() const{
    FC_ASSERT(track_title.size() > 0 && track_title.size() < 256, "Title larger than size limit");
    FC_ASSERT(fc::is_utf8(track_title), "Title not formatted in UTF8");
+   if( json_metadata )
+   {
+      FC_ASSERT( fc::is_utf8(*json_metadata), "JSON metadata is not UTF8-encoded" );
+      FC_ASSERT( fc::json::is_valid(*json_metadata), "JSON metadata is not valid JSON" );
+   }
 }
 
 void content_operation::validate() const {

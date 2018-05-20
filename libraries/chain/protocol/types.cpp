@@ -229,7 +229,7 @@ namespace fc
          amount = fc::to_int64(intpart)*asset::static_precision();
          std::string fractpart = s.substr( dot_pos+1, std::max<size_t>(s.length()-dot_pos-1, MUSE_ASSET_PRECISION));
          uint64_t fract_amount = fc::to_int64(fractpart);
-         for(int i=MUSE_ASSET_PRECISION; i< fractpart.length(); i--)
+         for(size_t i=MUSE_ASSET_PRECISION; i< fractpart.length(); i--)
             fract_amount*=10;
          amount = amount +  fract_amount;
        }else{
