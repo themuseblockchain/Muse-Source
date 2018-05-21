@@ -39,7 +39,6 @@ namespace muse { namespace chain {
 
    using                                    fc::uint128_t;
    typedef boost::multiprecision::uint256_t u256;
-   typedef boost::multiprecision::uint512_t u512;
 
    using                               std::map;
    using                               std::vector;
@@ -152,7 +151,6 @@ namespace muse { namespace chain {
    class block_summary_object;
    class chain_property_object;
    class witness_schedule_object;
-   class account_object;
    class witness_object;
    class liquidity_reward_balance_object;
    class hardfork_property_object;

@@ -46,8 +46,6 @@
 
 namespace muse { namespace custom_tags {
 
-using namespace graphene::db;
-
 namespace detail {
    class custom_tags_impl;
 }
@@ -72,7 +70,7 @@ class custom_tags_plugin : public muse::app::plugin {
       std::unique_ptr<detail::custom_tags_impl> my;
 };
 
-struct tag_object : public graphene::db::abstract_object< tag_object > {
+struct tag_object : graphene::db::abstract_object< tag_object > {
    static const uint8_t space_id = CUSTOM_TAGS_SPACE_ID;
    static const uint8_t type_id = 1;
 
@@ -85,21 +83,22 @@ struct by_tagger;
 struct by_taggee;
 typedef boost::multi_index_container<
    tag_object,
-   indexed_by<
-      ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >,
-      ordered_unique< tag< by_tagger >,
-         composite_key< tag_object,
-                        member< tag_object, std::string, &tag_object::tagger >,
-                        member< tag_object, std::string, &tag_object::tag >,
-                        member< tag_object, std::string, &tag_object::taggee > > >,
-      ordered_unique< tag< by_taggee >,
-         composite_key< tag_object,
-                        member< tag_object, std::string, &tag_object::taggee >,
-                        member< tag_object, std::string, &tag_object::tag >,
-                        member< tag_object, std::string, &tag_object::tagger > > >
+   boost::multi_index::indexed_by<
+      boost::multi_index::ordered_unique< boost::multi_index::tag< graphene::db::by_id >,
+         boost::multi_index::member< graphene::db::object, graphene::db::object_id_type, &graphene::db::object::id > >,
+      boost::multi_index::ordered_unique< boost::multi_index::tag< by_tagger >,
+         boost::multi_index::composite_key< tag_object,
+            boost::multi_index::member< tag_object, std::string, &tag_object::tagger >,
+            boost::multi_index::member< tag_object, std::string, &tag_object::tag >,
+            boost::multi_index::member< tag_object, std::string, &tag_object::taggee > > >,
+      boost::multi_index::ordered_unique< boost::multi_index::tag< by_taggee >,
+         boost::multi_index::composite_key< tag_object,
+            boost::multi_index::member< tag_object, std::string, &tag_object::taggee >,
+            boost::multi_index::member< tag_object, std::string, &tag_object::tag >,
+            boost::multi_index::member< tag_object, std::string, &tag_object::tagger > > >
    >
 > custom_tags_multi_index_container;
-typedef generic_index<tag_object, custom_tags_multi_index_container> custom_tags_index;
+typedef graphene::db::generic_index<tag_object, custom_tags_multi_index_container> custom_tags_index;
 
 } } // muse::custom_tags
 

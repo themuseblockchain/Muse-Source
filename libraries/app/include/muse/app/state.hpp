@@ -8,10 +8,11 @@ namespace muse { namespace app {
    using std::vector;
    using namespace muse::chain;
 
-   struct extended_limit_order : public limit_order_object
+   class extended_limit_order : public limit_order_object
    {
+   public:
       extended_limit_order(){}
-      extended_limit_order( const limit_order_object& o ):limit_order_object(o){}
+      explicit extended_limit_order( const limit_order_object& o ) : limit_order_object(o) {}
 
       double real_price  = 0;
       bool   rewarded    = false;
@@ -36,9 +37,10 @@ namespace muse { namespace app {
    /**
     *  Convert's vesting shares
     */
-   struct extended_account : public account_object {
+   class extended_account : public account_object {
+   public:
       extended_account(){}
-      extended_account( const account_object& a ):account_object(a){}
+      explicit extended_account( const account_object& a ) : account_object(a) {}
 
       asset                              muse_power; /// convert vesting_shares to vesting muse
       map<uint64_t,operation_object>     transfer_history; /// transfer to/from vesting
