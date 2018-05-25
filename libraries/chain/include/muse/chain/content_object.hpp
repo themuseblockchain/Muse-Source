@@ -162,10 +162,7 @@ namespace muse { namespace chain {
                member< content_object, string, &content_object::url>
             >
          >,
-         ordered_non_unique< tag< by_popularity >, member< content_object, uint32_t, &content_object::times_played_24 > >,
-         ordered_non_unique< tag< by_created >,
-                             member< content_object, time_point_sec, &content_object::created >,
-                             std::greater<time_point_sec> >
+         ordered_non_unique< tag< by_popularity >, member< content_object, uint32_t, &content_object::times_played_24 > >
       >
    > content_multi_index_type;
 
