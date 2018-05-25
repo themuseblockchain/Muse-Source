@@ -838,13 +838,15 @@ vector<content_object> database_api_impl::list_content_by_latest( const content_
 {
    FC_ASSERT( limit <= 100 );
 
-   vector <content_object> result;
+   vector<content_object> result;
    result.reserve( limit );
    const auto& idx = _db.get_index_type<content_index>().indices().get<by_id>();
    auto itr = (start.instance.value > 0 ? idx.upper_bound( start ) : idx.end());
-   if( itr-- == idx.begin() ) return result;
-   while( itr != idx.begin() && result.size() < limit )
-      result.push_back( *itr-- );
+   if( itr == idx.begin() ) return result;
+   if( (--itr)->id != start ) itr++;
+   do
+      result.push_back( *--itr );
+   while( itr != idx.begin() && result.size() < limit );
 
    return result;
 }
