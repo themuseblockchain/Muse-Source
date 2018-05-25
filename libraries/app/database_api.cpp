@@ -70,10 +70,12 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       set<string> lookup_streaming_platform_accounts(const string& lower_bound_name, uint32_t limit)const;
       bool is_streaming_platform(string straming_platform)const;
       //content
-      vector<report_object> get_reports_for_account(string consumer)const; 
+      vector<report_object> get_reports_for_account(string consumer)const;
       vector<content_object> get_content_by_uploader(string author)const;
       optional<content_object>    get_content_by_url(string url)const;
-      vector<content_object>  lookup_content(const string& start, uint32_t limit )const;
+      vector<content_object> lookup_content(const string& start, uint32_t limit )const;
+      vector<content_object> list_content_by_created( const time_point_sec& start, uint16_t limit )const;
+
       //scoring
       uint64_t get_account_scoring( string account );
       uint64_t get_content_scoring( string content );
@@ -825,6 +827,24 @@ vector<content_object>  database_api_impl::lookup_content(const string& start, u
    return result;
 }
 
+vector<content_object> database_api::list_content_by_created( const string& start, uint16_t limit )const
+{
+   return my->list_content_by_created( fc::time_point_sec::from_iso_string(start), limit );
+}
+
+vector<content_object> database_api_impl::list_content_by_created( const time_point_sec& start, uint16_t limit )const
+{
+   FC_ASSERT( limit <= 100 );
+
+   vector <content_object> result;
+   result.reserve( limit );
+   const auto& idx = _db.get_index_type<content_index>().indices().get<by_created>();
+   auto itr = idx.lower_bound( start );
+   while( itr != idx.end() && result.size() < limit )
+      result.push_back( *itr++ );
+
+   return result;
+}
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //

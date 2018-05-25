@@ -125,6 +125,15 @@ class database_api
       vector<content_object>  lookup_content(const string& start, uint32_t limit )const;
 
       /****************
+       * Lookup songs by descending publication (in MUSE!) time
+       * @param start ISO-timestring of the youngest result to return
+       * @param limit Lenght of the list to retrieve (max 100)
+       * @return List of content, sorted by descending publication time
+       * @ingroup db_api
+       */
+      vector<content_object> list_content_by_created( const string& start, uint16_t limit )const;
+
+      /****************
        * Lookup User Issued Assets
        * @param start_id the ID to start with
        * @return List of UIA asset objects

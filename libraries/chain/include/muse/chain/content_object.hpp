@@ -146,7 +146,7 @@ namespace muse { namespace chain {
    struct by_title;
    struct by_uploader_url;
    struct by_popularity;
-
+   struct by_created;
    /**
     * @ingroup object_index
     */
@@ -162,7 +162,10 @@ namespace muse { namespace chain {
                member< content_object, string, &content_object::url>
             >
          >,
-         ordered_non_unique< tag< by_popularity >, member< content_object, uint32_t, &content_object::times_played_24 > >
+         ordered_non_unique< tag< by_popularity >, member< content_object, uint32_t, &content_object::times_played_24 > >,
+         ordered_non_unique< tag< by_created >,
+                             member< content_object, time_point_sec, &content_object::created >,
+                             std::greater<time_point_sec> >
       >
    > content_multi_index_type;
 
