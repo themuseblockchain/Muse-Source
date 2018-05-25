@@ -448,4 +448,78 @@ BOOST_AUTO_TEST_CASE( get_accounts_test )
    }
 } FC_LOG_AND_RETHROW() }
 
+BOOST_AUTO_TEST_CASE( list_content )
+{ try {
+   muse::app::database_api db_api( db );
+
+   ACTORS( (martha)(paula)(uhura) );
+
+   signed_transaction tx;
+   tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+   BOOST_CHECK_THROW( db_api.list_content_by_latest( "", 1000 ), fc::assert_exception );
+   vector<content_object> songs = db_api.list_content_by_latest( "", 100 );
+   BOOST_CHECK( songs.empty() );
+   BOOST_CHECK_THROW( db_api.list_content_by_latest( "1.9.0", 100 ), fc::assert_exception );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_latest( "2.9.0", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_latest( "2.9.1000", 100 );
+   BOOST_CHECK( songs.empty() );
+
+   content_operation cop;
+   cop.uploader = "uhura";
+   cop.url = "ipfs://abcdef1";
+   cop.album_meta.album_title = "First test album";
+   cop.track_meta.track_title = "First test song";
+   cop.comp_meta.third_party_publishers = false;
+   distribution dist;
+   dist.payee = "paula";
+   dist.bp = MUSE_100_PERCENT;
+   cop.distributions.push_back( dist );
+   management_vote mgmt;
+   mgmt.voter = "martha";
+   mgmt.percentage = 100;
+   cop.management.push_back( mgmt );
+   cop.management_threshold = 100;
+   cop.playing_reward = 10;
+   cop.publishers_share = 0;
+   cop.publishers_share = 0;
+   tx.operations.push_back( cop );
+   cop.url = "ipfs://abcdef2";
+   cop.track_meta.track_title = "Second test song";
+   tx.operations.push_back( cop );
+   cop.url = "ipfs://abcdef3";
+   cop.track_meta.track_title = "Third test song";
+   tx.operations.push_back( cop );
+   db.push_transaction( tx, database::skip_transaction_signatures );
+   tx.operations.clear();
+
+   BOOST_CHECK_THROW( db_api.list_content_by_latest( "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_latest( "", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   BOOST_CHECK_THROW( db_api.list_content_by_latest( "1.9.0", 100 ), fc::assert_exception );
+   songs = db_api.list_content_by_latest( "2.9.0", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_latest( "2.9.1000", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_latest( "2.9.2", 100 );
+   BOOST_CHECK_EQUAL( 2, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[1].id.instance() );
+   songs = db_api.list_content_by_latest( "2.9.1", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+
+} FC_LOG_AND_RETHROW() }
+
 BOOST_AUTO_TEST_SUITE_END()
