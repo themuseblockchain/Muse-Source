@@ -457,6 +457,7 @@ BOOST_AUTO_TEST_CASE( list_content )
    signed_transaction tx;
    tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
 
+   // _by_latest
    BOOST_CHECK_THROW( db_api.list_content_by_latest( "", 1000 ), fc::assert_exception );
    vector<content_object> songs = db_api.list_content_by_latest( "", 100 );
    BOOST_CHECK( songs.empty() );
@@ -467,11 +468,24 @@ BOOST_AUTO_TEST_CASE( list_content )
    songs = db_api.list_content_by_latest( "2.9.1000", 100 );
    BOOST_CHECK( songs.empty() );
 
+   // _by_genre
+   BOOST_CHECK_THROW( db_api.list_content_by_genre( 1, "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_genre( 1, "", 100 );
+   BOOST_CHECK( songs.empty() );
+   BOOST_CHECK_THROW( db_api.list_content_by_genre( 1, "1.9.0", 100 ), fc::assert_exception );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_genre( 1, "2.9.0", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_genre( 1, "2.9.1000", 100 );
+   BOOST_CHECK( songs.empty() );
+
    content_operation cop;
    cop.uploader = "uhura";
    cop.url = "ipfs://abcdef1";
    cop.album_meta.album_title = "First test album";
+   cop.album_meta.genre_1 = 1;
    cop.track_meta.track_title = "First test song";
+   cop.track_meta.genre_1 = 2;
    cop.comp_meta.third_party_publishers = false;
    distribution dist;
    dist.payee = "paula";
@@ -488,13 +502,17 @@ BOOST_AUTO_TEST_CASE( list_content )
    tx.operations.push_back( cop );
    cop.url = "ipfs://abcdef2";
    cop.track_meta.track_title = "Second test song";
+   cop.track_meta.genre_1 = 1;
    tx.operations.push_back( cop );
    cop.url = "ipfs://abcdef3";
    cop.track_meta.track_title = "Third test song";
+   cop.album_meta.genre_2 = 3;
+   cop.track_meta.genre_2 = 4;
    tx.operations.push_back( cop );
    db.push_transaction( tx, database::skip_transaction_signatures );
    tx.operations.clear();
 
+   // _by_latest
    BOOST_CHECK_THROW( db_api.list_content_by_latest( "", 1000 ), fc::assert_exception );
    songs = db_api.list_content_by_latest( "", 100 );
    BOOST_CHECK_EQUAL( 3, songs.size() );
@@ -520,6 +538,100 @@ BOOST_AUTO_TEST_CASE( list_content )
    BOOST_CHECK_EQUAL( 1, songs.size() );
    BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
 
+   // _by_genre
+   BOOST_CHECK_THROW( db_api.list_content_by_genre( 1, "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_genre( 0, "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_genre( 1, "", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_genre( 2, "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+   songs = db_api.list_content_by_genre( 3, "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_genre( 4, "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_genre( 5, "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_genre( 1, "2.9.3", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_genre( 1, "2.9.2", 100 );
+   BOOST_CHECK_EQUAL( 2, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[1].id.instance() );
+   songs = db_api.list_content_by_genre( 1, "2.9.1", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+
+   content_update_operation cup;
+   cup.side = content_update_operation::side_t::master;
+   cup.url = cop.url;
+   cup.album_meta = cop.album_meta;
+   cup.album_meta->genre_1 = 3;
+   cup.album_meta->genre_2.reset();
+   cup.track_meta = cop.track_meta;
+   cup.track_meta->genre_1 = 2;
+   cup.new_threshold = 0;
+   cup.new_playing_reward = 0;
+   cup.new_publishers_share = 0;
+   tx.operations.push_back( cup );
+   db.push_transaction( tx, database::skip_transaction_signatures );
+   tx.operations.clear();
+
+   // _by_latest
+   BOOST_CHECK_THROW( db_api.list_content_by_latest( "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_latest( "", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   BOOST_CHECK_THROW( db_api.list_content_by_latest( "1.9.0", 100 ), fc::assert_exception );
+   songs = db_api.list_content_by_latest( "2.9.0", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_latest( "2.9.1000", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_latest( "2.9.2", 100 );
+   BOOST_CHECK_EQUAL( 2, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[1].id.instance() );
+   songs = db_api.list_content_by_latest( "2.9.1", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+
+   // _by_genre
+   BOOST_CHECK_THROW( db_api.list_content_by_genre( 1, "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_genre( 0, "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_genre( 1, "", 100 );
+   BOOST_CHECK_EQUAL( 2, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[1].id.instance() );
+   songs = db_api.list_content_by_genre( 2, "", 100 );
+   BOOST_CHECK_EQUAL( 2, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[1].id.instance() );
+   songs = db_api.list_content_by_genre( 3, "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_genre( 4, "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_genre( 5, "", 100 );
+   BOOST_CHECK( songs.empty() );
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()
