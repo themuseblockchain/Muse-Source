@@ -75,6 +75,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       optional<content_object>    get_content_by_url(string url)const;
       vector<content_object> lookup_content(const string& start, uint32_t limit )const;
       vector<content_object> list_content_by_latest( const content_id_type start, uint16_t limit )const;
+      vector<content_object> list_content_by_genre( uint32_t genre, const content_id_type start, uint16_t limit )const;
 
       //scoring
       uint64_t get_account_scoring( string account );
@@ -847,6 +848,32 @@ vector<content_object> database_api_impl::list_content_by_latest( const content_
    do
       result.push_back( *--itr );
    while( itr != idx.begin() && result.size() < limit );
+
+   return result;
+}
+
+vector<content_object> database_api::list_content_by_genre( uint32_t genre, const string& bound, uint16_t limit )const
+{
+   if( bound.empty() )
+      return my->list_content_by_genre( genre, content_id_type(), limit );
+   return my->list_content_by_genre( genre, fc::variant(bound, 1).as<content_id_type>(1), limit );
+}
+
+vector<content_object> database_api_impl::list_content_by_genre( uint32_t genre, const content_id_type bound, uint16_t limit )const
+{
+   FC_ASSERT( limit <= 100 );
+
+   vector<content_object> result;
+   result.reserve( limit );
+   const auto& idx = _db.get_index_type< primary_index< content_index > >();
+   const content_by_genre_index& by_genre = idx.get_secondary_index<muse::chain::content_by_genre_index>();
+   const set< content_id_type > ids = by_genre.find_by_genre( genre );
+   auto itr = (bound.instance.value > 0 ? ids.upper_bound( bound ) : ids.end());
+   if( itr == ids.begin() ) return result;
+   if( *(--itr) != bound ) itr++;
+   do
+      result.push_back( (*--itr)(_db) );
+   while( itr != ids.begin() && result.size() < limit );
 
    return result;
 }
