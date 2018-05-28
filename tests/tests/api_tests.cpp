@@ -479,10 +479,22 @@ BOOST_AUTO_TEST_CASE( list_content )
    songs = db_api.list_content_by_genre( 1, "2.9.1000", 100 );
    BOOST_CHECK( songs.empty() );
 
+   // _by_category
+   BOOST_CHECK_THROW( db_api.list_content_by_category( "a", "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_category( "a", "", 100 );
+   BOOST_CHECK( songs.empty() );
+   BOOST_CHECK_THROW( db_api.list_content_by_category( "a", "1.9.0", 100 ), fc::assert_exception );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_category( "CD", "2.9.0", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_category( "CD", "2.9.1000", 100 );
+   BOOST_CHECK( songs.empty() );
+
    content_operation cop;
    cop.uploader = "uhura";
    cop.url = "ipfs://abcdef1";
    cop.album_meta.album_title = "First test album";
+   cop.album_meta.album_type = "CD";
    cop.album_meta.genre_1 = 1;
    cop.track_meta.track_title = "First test song";
    cop.track_meta.genre_1 = 2;
@@ -501,10 +513,12 @@ BOOST_AUTO_TEST_CASE( list_content )
    cop.publishers_share = 0;
    tx.operations.push_back( cop );
    cop.url = "ipfs://abcdef2";
+   cop.album_meta.album_type = "Podcast";
    cop.track_meta.track_title = "Second test song";
    cop.track_meta.genre_1 = 1;
    tx.operations.push_back( cop );
    cop.url = "ipfs://abcdef3";
+   cop.album_meta.album_type.reset();
    cop.track_meta.track_title = "Third test song";
    cop.album_meta.genre_2 = 3;
    cop.track_meta.genre_2 = 4;
@@ -571,10 +585,29 @@ BOOST_AUTO_TEST_CASE( list_content )
    BOOST_CHECK_EQUAL( 1, songs.size() );
    BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
 
+   // _by_category
+   BOOST_CHECK_THROW( db_api.list_content_by_category( "CD", "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_category( "", "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_category( "CD", "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+   songs = db_api.list_content_by_category( "Podcast", "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   songs = db_api.list_content_by_category( "Podcast", "2.9.1", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_category( "Podcast", "2.9.100", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   songs = db_api.list_content_by_category( "CDs", "", 100 );
+   BOOST_CHECK( songs.empty() );
+
    content_update_operation cup;
    cup.side = content_update_operation::side_t::master;
    cup.url = cop.url;
    cup.album_meta = cop.album_meta;
+   cup.album_meta->album_type = "CD";
    cup.album_meta->genre_1 = 3;
    cup.album_meta->genre_2.reset();
    cup.track_meta = cop.track_meta;
@@ -632,6 +665,23 @@ BOOST_AUTO_TEST_CASE( list_content )
    BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
    songs = db_api.list_content_by_genre( 5, "", 100 );
    BOOST_CHECK( songs.empty() );
+
+   // _by_category
+   BOOST_CHECK_THROW( db_api.list_content_by_category( "CD", "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_category( "", "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_category( "CD", "", 100 );
+   BOOST_CHECK_EQUAL( 2, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[1].id.instance() );
+   songs = db_api.list_content_by_category( "Podcast", "", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+   songs = db_api.list_content_by_category( "Podcast", "2.9.1", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_category( "CD", "2.9.2", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()
