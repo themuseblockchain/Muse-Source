@@ -1481,20 +1481,18 @@ void database::clear_streaming_platform_votes( const account_object& a )
 
 void database::update_owner_authority( const account_object& account, const authority& owner_authority )
 {
-   if( head_block_num() >= 3186477 ) // FIXME: needs to be removed, but usage must be HF-protected
+   const auto now = head_block_time();
+   create< owner_authority_history_object >( [&account,now]( owner_authority_history_object& hist )
    {
-      create< owner_authority_history_object >( [&]( owner_authority_history_object& hist )
-      {
-         hist.account = account.name;
-         hist.previous_owner_authority = account.owner;
-         hist.last_valid_time = head_block_time();
-      });
-   }
+      hist.account = account.name;
+      hist.previous_owner_authority = account.owner;
+      hist.last_valid_time = now;
+   });
 
-   modify( account, [&]( account_object& a )
+   modify( account, [&owner_authority,now]( account_object& a )
    {
       a.owner = owner_authority;
-      a.last_owner_update = head_block_time();
+      a.last_owner_update = now;
    });
 }
 

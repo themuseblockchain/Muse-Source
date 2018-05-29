@@ -3060,7 +3060,7 @@ BOOST_AUTO_TEST_CASE( account_recovery )
 
       tx.operations.push_back( request );
       tx.sign( alice_private_key, db.get_chain_id() );
-/*      db.push_transaction( tx, 0 );
+      db.push_transaction( tx, 0 );
 
       BOOST_REQUIRE( bob.owner == acc_update.owner );
 
@@ -3092,11 +3092,11 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.operations.push_back( request );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
-*/      }
+      }
 
       generate_blocks( db.head_block_time() + MUSE_OWNER_UPDATE_LIMIT + fc::seconds(MUSE_BLOCK_INTERVAL) );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-/*
+
       {
       const auto& bob = db.get_account( "bob" );
       BOOST_TEST_MESSAGE( "Testing failure when bob does not have new authority" );
@@ -3239,7 +3239,7 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.sign( generate_private_key( "last key" ), db.get_chain_id() );
       db.push_transaction( tx, 0 );
       BOOST_REQUIRE( db.get_account( "bob" ).owner == authority( 1, generate_private_key( "last key" ).get_public_key(), 1 ) );
-*/   }
+   }
    FC_LOG_AND_RETHROW()
 }
 
@@ -3317,12 +3317,20 @@ BOOST_AUTO_TEST_CASE( change_recovery_account )
       MUSE_REQUIRE_THROW( change_recovery_account("alice", "nobody"), fc::assert_exception );
       MUSE_REQUIRE_THROW( change_recovery_account("haxer", "sam"   ), fc::assert_exception );
       MUSE_REQUIRE_THROW( change_recovery_account("haxer", "nobody"), fc::assert_exception );
-/*      change_recovery_account("alice", "sam");
+      change_recovery_account("alice", "sam");
 
       fc::ecc::private_key alice_priv1 = fc::ecc::private_key::regenerate( fc::sha256::hash( "alice_k1" ) );
       fc::ecc::private_key alice_priv2 = fc::ecc::private_key::regenerate( fc::sha256::hash( "alice_k2" ) );
+      /*
+      fc::ecc::private_key alice_priv3 = fc::ecc::private_key::regenerate( "alice_k3" );
+      fc::ecc::private_key alice_priv4 = fc::ecc::private_key::regenerate( "alice_k4" );
+      */
       public_key_type alice_pub1 = public_key_type( alice_priv1.get_public_key() );
       public_key_type alice_pub2 = public_key_type( alice_priv2.get_public_key() );
+      /*
+      public_key_type alice_pub3 = public_key_type( alice_priv3 );
+      public_key_type alice_pub4 = public_key_type( alice_priv4 );
+      */
 
       generate_blocks( db.head_block_time() + MUSE_OWNER_AUTH_RECOVERY_PERIOD - fc::seconds( MUSE_BLOCK_INTERVAL ), true );
       // cannot request account recovery until recovery account is approved
@@ -3337,7 +3345,7 @@ BOOST_AUTO_TEST_CASE( change_recovery_account )
       // unless we change it!
       change_owner( "alice", alice_private_key, public_key_type( alice_priv2.get_public_key() ) );
       recover_account( "alice", alice_priv1, alice_private_key );
-*/   }
+   }
    FC_LOG_AND_RETHROW()
 }
 
