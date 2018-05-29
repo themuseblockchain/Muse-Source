@@ -70,10 +70,14 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       set<string> lookup_streaming_platform_accounts(const string& lower_bound_name, uint32_t limit)const;
       bool is_streaming_platform(string straming_platform)const;
       //content
-      vector<report_object> get_reports_for_account(string consumer)const; 
+      vector<report_object> get_reports_for_account(string consumer)const;
       vector<content_object> get_content_by_uploader(string author)const;
       optional<content_object>    get_content_by_url(string url)const;
-      vector<content_object>  lookup_content(const string& start, uint32_t limit )const;
+      vector<content_object> lookup_content(const string& start, uint32_t limit )const;
+      vector<content_object> list_content_by_latest( const content_id_type start, uint16_t limit )const;
+      vector<content_object> list_content_by_genre( uint32_t genre, const content_id_type start, uint16_t limit )const;
+      vector<content_object> list_content_by_category( const string& category, const content_id_type bound, uint16_t limit )const;
+
       //scoring
       uint64_t get_account_scoring( string account );
       uint64_t get_content_scoring( string content );
@@ -825,6 +829,78 @@ vector<content_object>  database_api_impl::lookup_content(const string& start, u
    return result;
 }
 
+vector<content_object> database_api::list_content_by_latest( const string& start, uint16_t limit )const
+{
+   if( start.empty() )
+      return my->list_content_by_latest( content_id_type(), limit );
+   return my->list_content_by_latest( fc::variant(start, 1).as<content_id_type>(1), limit );
+}
+
+vector<content_object> database_api_impl::list_content_by_latest( const content_id_type start, uint16_t limit )const
+{
+   FC_ASSERT( limit <= 100 );
+
+   vector<content_object> result;
+   result.reserve( limit );
+   const auto& idx = _db.get_index_type<content_index>().indices().get<by_id>();
+   auto itr = (start.instance.value > 0 ? idx.upper_bound( start ) : idx.end());
+   if( itr == idx.begin() ) return result;
+   if( start.instance.value > 0 && (--itr)->id != start ) itr++;
+   while( itr != idx.begin() && result.size() < limit )
+      result.push_back( *--itr );
+
+   return result;
+}
+
+vector<content_object> database_api::list_content_by_genre( uint32_t genre, const string& bound, uint16_t limit )const
+{
+   if( bound.empty() )
+      return my->list_content_by_genre( genre, content_id_type(), limit );
+   return my->list_content_by_genre( genre, fc::variant(bound, 1).as<content_id_type>(1), limit );
+}
+
+vector<content_object> database_api_impl::list_content_by_genre( uint32_t genre, const content_id_type bound, uint16_t limit )const
+{
+   FC_ASSERT( limit <= 100 );
+
+   vector<content_object> result;
+   result.reserve( limit );
+   const auto& idx = _db.get_index_type< primary_index< content_index > >();
+   const content_by_genre_index& by_genre = idx.get_secondary_index<muse::chain::content_by_genre_index>();
+   const set< content_id_type > ids = by_genre.find_by_genre( genre );
+   auto itr = (bound.instance.value > 0 ? ids.upper_bound( bound ) : ids.end());
+   if( itr == ids.begin() ) return result;
+   if( bound.instance.value > 0 && *(--itr) != bound ) itr++;
+   while( itr != ids.begin() && result.size() < limit )
+      result.push_back( (*--itr)(_db) );
+
+   return result;
+}
+
+vector<content_object> database_api::list_content_by_category( const string& category, const string& bound, uint16_t limit )const
+{
+   if( bound.empty() )
+      return my->list_content_by_category( category, content_id_type(), limit );
+   return my->list_content_by_category( category, fc::variant(bound, 1).as<content_id_type>(1), limit );
+}
+
+vector<content_object> database_api_impl::list_content_by_category( const string& category, const content_id_type bound, uint16_t limit )const
+{
+   FC_ASSERT( limit <= 100 );
+
+   vector<content_object> result;
+   result.reserve( limit );
+   const auto& idx = _db.get_index_type< primary_index< content_index > >();
+   const content_by_category_index& by_category = idx.get_secondary_index<muse::chain::content_by_category_index>();
+   const set< content_id_type > ids = by_category.find_by_category( category );
+   auto itr = (bound.instance.value > 0 ? ids.upper_bound( bound ) : ids.end());
+   if( itr == ids.begin() ) return result;
+   if( bound.instance.value > 0 && *(--itr) != bound ) itr++;
+   while( itr != ids.begin() && result.size() < limit )
+      result.push_back( (*--itr)(_db) );
+
+   return result;
+}
 
 //////////////////////////////////////////////////////////////////////
 //                                                                  //

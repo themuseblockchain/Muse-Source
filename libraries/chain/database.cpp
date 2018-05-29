@@ -2110,7 +2110,10 @@ void database::initialize_indexes()
    add_index< primary_index< liquidity_reward_index > >();
    add_index< primary_index< limit_order_index > >();
    add_index< primary_index< escrow_index > >();
-   add_index< primary_index< content_index > >();
+   auto cti = add_index< primary_index< content_index > >();
+   cti->add_secondary_index<content_by_genre_index>();
+   cti->add_secondary_index<content_by_category_index>();
+
    add_index< primary_index< content_approve_index> >();
 
    //Implementation object indexes

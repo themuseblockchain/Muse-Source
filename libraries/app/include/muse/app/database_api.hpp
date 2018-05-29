@@ -125,6 +125,36 @@ class database_api
       vector<content_object>  lookup_content(const string& start, uint32_t limit )const;
 
       /****************
+       * Lookup songs by descending publication (in MUSE!) time
+       * @param bound if not empty and not 2.9.0, list only content_objects *smaller than* that content_id
+       * @param limit Length of the list to retrieve (max 100)
+       * @return List of content, sorted by descending publication time
+       * @ingroup db_api
+       */
+      vector<content_object> list_content_by_latest( const string& bound, uint16_t limit )const;
+
+      /****************
+       * Lookup songs matching the given genre by descending publication (in MUSE!) time
+       * @param genre the genre id
+       * @param bound if not empty and not 2.9.0, list only content_objects *smaller than* that content_id
+       * @param limit Length of the list to retrieve (max 100)
+       * @return List of content, sorted by descending publication time
+       * @ingroup db_api
+       */
+      vector<content_object> list_content_by_genre( uint32_t genre, const string& bound, uint16_t limit )const;
+
+      /****************
+       * Lookup songs matching the given category (aka album_meta.album_type) by
+       * descending publication (in MUSE!) time
+       * @param category the category name
+       * @param bound if not empty and not 2.9.0, list only content_objects *smaller than* that content_id
+       * @param limit Length of the list to retrieve (max 100)
+       * @return List of content, sorted by descending publication time
+       * @ingroup db_api
+       */
+      vector<content_object> list_content_by_category( const string& category, const string& bound, uint16_t limit )const;
+
+      /****************
        * Lookup User Issued Assets
        * @param start_id the ID to start with
        * @return List of UIA asset objects
