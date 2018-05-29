@@ -37,7 +37,6 @@
 #define MUSE_OWNER_AUTH_RECOVERY_PERIOD                  fc::seconds(60)
 #define MUSE_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD  fc::seconds(12)
 #define MUSE_OWNER_UPDATE_LIMIT                          fc::seconds(0)
-#define MUSE_OWNER_AUTH_HISTORY_TRACKING_START_BLOCK_NUM 1
 
 #elif defined(IS_MUSE_TEST) // This is MUSE's test mode. It's the same behavior as prod, but with different symbols, chain ID, prefixes to make a clear distinction from the prod network. Some minor settings may be adjusted to ease timeouts, limits, etc
 
@@ -65,7 +64,6 @@
 #define MUSE_OWNER_AUTH_RECOVERY_PERIOD                  fc::days(30)
 #define MUSE_ACCOUNT_RECOVERY_REQUEST_EXPIRATION_PERIOD  fc::days(1)
 #define MUSE_OWNER_UPDATE_LIMIT                          fc::minutes(60)
-#define MUSE_OWNER_AUTH_HISTORY_TRACKING_START_BLOCK_NUM 3186477
 
 #else // This is MUSE's PROD mode.
 
