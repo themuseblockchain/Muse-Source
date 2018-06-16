@@ -429,9 +429,12 @@ namespace detail {
 
             if( !sync_mode )
             {
-               ilog( "Got ${t} transactions from network on block ${b}",
+               fc::microseconds latency = fc::time_point::now() - blk_msg.block.timestamp;
+               ilog( "Got ${t} transactions from network on block ${b} by ${w} -- latency ${l} ms",
                   ("t", blk_msg.block.transactions.size())
-                  ("b", blk_msg.block.block_num()) );
+                  ("b", blk_msg.block.block_num())
+                  ("w", blk_msg.block.witness)
+                  ("l", latency.count() / 1000) );
             }
 
             return result;
