@@ -395,7 +395,6 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
            con.last_update = db().head_block_time();
       });
       if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
-         if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) wlog("HF point 5 triggered");
          if( o.side == o.master )
             db().pay_to_content_master( *itr, asset( 0, MUSE_SYMBOL ) );
          else
