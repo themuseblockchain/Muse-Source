@@ -845,7 +845,11 @@ vector<content_object> database_api_impl::list_content_by_latest( const content_
    const auto& idx = _db.get_index_type<content_index>().indices().get<by_id>();
    auto itr = (start.instance.value > 0 ? idx.upper_bound( start ) : idx.end());
    if( itr == idx.begin() ) return result;
-   if( start.instance.value > 0 && (--itr)->id != start ) itr++;
+   if( start.instance.value > 0 )
+   {
+      --itr;
+      if( itr->id != start ) itr++;
+   }
    while( itr != idx.begin() && result.size() < limit )
       result.push_back( *--itr );
 
@@ -870,7 +874,11 @@ vector<content_object> database_api_impl::list_content_by_genre( uint32_t genre,
    const set< content_id_type > ids = by_genre.find_by_genre( genre );
    auto itr = (bound.instance.value > 0 ? ids.upper_bound( bound ) : ids.end());
    if( itr == ids.begin() ) return result;
-   if( bound.instance.value > 0 && *(--itr) != bound ) itr++;
+   if( bound.instance.value > 0 )
+   {
+      --itr;
+      if( *itr != bound ) itr++;
+   }
    while( itr != ids.begin() && result.size() < limit )
       result.push_back( (*--itr)(_db) );
 
@@ -895,7 +903,11 @@ vector<content_object> database_api_impl::list_content_by_category( const string
    const set< content_id_type > ids = by_category.find_by_category( category );
    auto itr = (bound.instance.value > 0 ? ids.upper_bound( bound ) : ids.end());
    if( itr == ids.begin() ) return result;
-   if( bound.instance.value > 0 && *(--itr) != bound ) itr++;
+   if( bound.instance.value > 0 )
+   {
+      --itr;
+      if( *itr != bound ) itr++;
+   }
    while( itr != ids.begin() && result.size() < limit )
       result.push_back( (*--itr)(_db) );
 
