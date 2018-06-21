@@ -103,7 +103,6 @@ int main( int argc, char** argv )
       }
       if( options.count("rpc-http-allowip") && options.count("rpc-http-endpoint") ) {
          allowed_ips = options["rpc-http-allowip"].as<vector<string>>();
-         wdump((allowed_ips));
       }
 
       fc::path data_dir;
@@ -156,12 +155,10 @@ int main( int argc, char** argv )
          wdata.ws_password = options.at("server-rpc-password").as<std::string>();
 
       fc::http::websocket_client client( options["cert-authority"].as<std::string>() );
-      idump((wdata.ws_server));
       auto con  = client.connect( wdata.ws_server );
       auto apic = std::make_shared<fc::rpc::websocket_api_connection>(*con, GRAPHENE_MAX_NESTED_OBJECTS);
 
       auto remote_api = apic->get_remote_api< login_api >(1);
-      edump((wdata.ws_user)(wdata.ws_password) );
       FC_ASSERT( remote_api->login( wdata.ws_user, wdata.ws_password ), "Failed to log in to API server" );
 
       auto wapiptr = std::make_shared<wallet_api>( wdata, remote_api );

@@ -238,7 +238,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       try {
          d.push_proposal(*_proposal);
       } catch(fc::exception& e) {
-         wlog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
+         ilog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
               ("id", o.proposal)("reason", e.to_detail_string()));
       }
 } FC_CAPTURE_AND_RETHROW( (o) ) }

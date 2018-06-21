@@ -89,7 +89,6 @@ void witness_plugin::plugin_initialize(const boost::program_options::variables_m
    
    _options = &options;
    LOAD_VALUE_SET(options, "witness", _witnesses, string)
-   edump((_witnesses));
 
    if( options.count("private-key") )
    {

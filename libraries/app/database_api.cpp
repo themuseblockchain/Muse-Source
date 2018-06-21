@@ -198,12 +198,12 @@ database_api::~database_api() {}
 
 database_api_impl::database_api_impl( muse::chain::database& db ):_db(db)
 {
-   wlog("creating database api ${x}", ("x",int64_t(this)) );
+   ilog("creating database api ${x}", ("x",int64_t(this)) );
 }
 
 database_api_impl::~database_api_impl()
 {
-   elog("freeing database api ${x}", ("x",int64_t(this)) );
+   ilog("freeing database api ${x}", ("x",int64_t(this)) );
 }
 
 void database_api::on_api_startup() {}
@@ -644,7 +644,6 @@ fc::optional<witness_object> database_api::get_witness_by_account( string accoun
 
 vector< witness_object > database_api::get_witnesses_by_vote( string from, uint32_t limit )const
 {
-   //idump((from)(limit));
    FC_ASSERT( limit <= 100 );
 
    vector<witness_object> result;
@@ -865,9 +864,6 @@ order_book database_api_impl::get_order_book( uint32_t limit )const
    auto sell_itr = limit_price_idx.lower_bound(max_sell);
    auto buy_itr  = limit_price_idx.lower_bound(max_buy);
    auto end = limit_price_idx.end();
-   idump((max_sell)(max_buy));
-   if( sell_itr != end ) idump((*sell_itr));
-   if( buy_itr != end ) idump((*buy_itr));
 
    while(  sell_itr != end && sell_itr->sell_price.base.asset_id == MBD_SYMBOL && result.bids.size() < limit )
    {
@@ -914,9 +910,6 @@ order_book database_api_impl::get_order_book_for_asset( asset_id_type asset_id, 
    auto buy_itr = limit_price_idx.lower_bound( price::max( asset_id, MUSE_SYMBOL ) );
    auto buy_end  = limit_price_idx.upper_bound(  price::min( asset_id, MUSE_SYMBOL ) );
    
-   if( sell_itr != sell_end ) idump((*sell_itr));
-   if( buy_itr != buy_end ) idump((*buy_itr));
-
    uint32_t count = 0;
    while(  sell_itr != sell_end && count < limit )
    {
@@ -1064,7 +1057,6 @@ set<public_key_type> database_api::get_required_signatures( const signed_transac
 
 set<public_key_type> database_api_impl::get_required_signatures( const signed_transaction& trx, const flat_set<public_key_type>& available_keys )const
 {
-   wdump((trx)(available_keys));
    auto result = trx.get_required_signatures( MUSE_CHAIN_ID,
                                               available_keys,
                                               [&]( string account_name ){ return &_db.get_account( account_name ).active; },
@@ -1073,7 +1065,6 @@ set<public_key_type> database_api_impl::get_required_signatures( const signed_tr
                                               [&]( string content_url ){ return &_db.get_content( content_url ).manage_master; },
                                               [&]( string content_url ){ return &_db.get_content( content_url ).manage_comp; },
                                               MUSE_MAX_SIG_CHECK_DEPTH );
-   wdump((result));
    return result;
 }
 
@@ -1084,7 +1075,6 @@ set<public_key_type> database_api::get_potential_signatures( const signed_transa
 
 set<public_key_type> database_api_impl::get_potential_signatures( const signed_transaction& trx )const
 {
-   wdump((trx));
    set<public_key_type> result;
    trx.get_required_signatures(
       MUSE_CHAIN_ID,
@@ -1127,7 +1117,6 @@ set<public_key_type> database_api_impl::get_potential_signatures( const signed_t
       MUSE_MAX_SIG_CHECK_DEPTH
    );
 
-   wdump((result));
    return result;
 }
 
@@ -1203,12 +1192,9 @@ u256 to256( const fc::uint128& t ) {
 map<uint32_t,operation_object> database_api::get_account_history( string account, uint64_t from, uint32_t limit )const {
    FC_ASSERT( limit <= 2000, "Limit of ${l} is greater than maxmimum allowed", ("l",limit) );
    FC_ASSERT( from >= limit, "From must be greater than limit" );
-   idump((account)(from)(limit));
    const auto& idx = my->_db.get_index_type<account_history_index>().indices().get<by_account>();
    auto itr = idx.lower_bound( boost::make_tuple( account, from ) );
-   if( itr != idx.end() ) idump((*itr));
    auto end = idx.upper_bound( boost::make_tuple( account, std::max( int64_t(0), int64_t(itr->sequence)-limit ) ) );
-   if( end != idx.end() ) idump((*end));
 
    map<uint32_t,operation_object> result;
    while( itr != end ) {
@@ -1251,7 +1237,6 @@ vector<string> database_api::get_voted_streaming_platforms()const {
    part.resize(std::max( part.size(), size_t(4) ) ); // at least 4
 
    auto tag = fc::to_lower( part[1] );
-   idump((part[1])(part[1]==string()));
 
    if( part[0].size() && part[0][0] == '@' ) {
       auto acnt = part[0].substr(1);

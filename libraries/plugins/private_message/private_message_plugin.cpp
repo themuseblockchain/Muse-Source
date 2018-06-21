@@ -122,7 +122,6 @@ void private_message_plugin_impl::on_operation( const operation_object& op_obj )
 private_message_plugin::private_message_plugin() :
    my( new detail::private_message_plugin_impl(*this) )
 {
-   //ilog("Loading account history plugin" );
 }
 
 private_message_plugin::~private_message_plugin()
