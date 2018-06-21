@@ -1645,7 +1645,7 @@ asset database::process_content_cashout( const asset& content_reward )
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
       const account_object & consumer = get<account_object>( itr->consumer );
-      ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
+      dlog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       edump((consumer));
       FC_ASSERT( consumer.total_listening_time > 0 );
       asset pay_reserve = total_payout * itr->play_time;
@@ -2804,7 +2804,7 @@ void database::update_virtual_supply()
 
 void database::push_proposal(const proposal_object& proposal)
 { try {
-   ilog( "Proposal: executing ${p}", ("p",proposal) );
+   dlog( "Proposal: executing ${p}", ("p",proposal) );
 
    auto session = _undo_db.start_undo_session(true);
    _current_op_in_trx = 0;
