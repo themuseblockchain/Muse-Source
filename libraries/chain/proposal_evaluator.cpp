@@ -44,23 +44,6 @@ namespace impl {
          template<typename T>
          void operator()( const T& v )const { /* do nothing by default */ }
 
-         void operator()( const muse::chain::account_create_operation& v )const {
-            // TODO: move into account_create_operation::validate after HF 3 has passed
-            if( _db.has_hardfork( MUSE_HARDFORK_0_3 ) )
-               v.basic.validate();
-         }
-
-         void operator()( const muse::chain::account_update_operation& v )const {
-            // TODO: move into account_update_operation::validate after HF 3 has passed
-            if( _db.has_hardfork( MUSE_HARDFORK_0_3 ) && v.basic)
-               v.basic->validate();
-         }
-
-         void operator()( const muse::chain::proposal_delete_operation& v )const {
-            // TODO: remove after HF 3 has passed
-            FC_ASSERT( _db.has_hardfork( MUSE_HARDFORK_0_3 ), "Not allowed until hardfork 3" );
-         }
-
          void operator()( const muse::chain::proposal_create_operation& v )const {
             for( const op_wrapper& op : v.proposed_ops )
                 op.op.visit( *this );
@@ -245,8 +228,6 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
 
 void proposal_delete_evaluator::do_apply(const proposal_delete_operation& o)
 { try {
-   FC_ASSERT( db().has_hardfork(MUSE_HARDFORK_0_3) ); // TODO: remove after HF
-
    const proposal_object& proposal = o.proposal( db() );
 
    FC_ASSERT( proposal.can_veto.find( o.vetoer ) != proposal.can_veto.end(),

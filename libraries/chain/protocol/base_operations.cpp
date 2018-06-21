@@ -24,6 +24,7 @@ namespace muse { namespace chain {
       FC_ASSERT( is_asset_type( fee, MUSE_SYMBOL ), "Account creation fee must be MUSE" );
       owner.validate();
       active.validate();
+      basic.validate();
 
       if ( json_metadata.size() > 0 )
       {
@@ -40,6 +41,8 @@ namespace muse { namespace chain {
          owner->validate();
       if (active)
          active->validate();
+      if( basic )
+         basic->validate();
 
       if ( json_metadata.size() > 0 )
       {
