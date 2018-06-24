@@ -3174,6 +3174,9 @@ void database::init_hardforks()
    FC_ASSERT( MUSE_HARDFORK_0_3 == 3, "Invalid hardfork configuration" );
    _hardfork_times[ MUSE_HARDFORK_0_3 ] = fc::time_point_sec( MUSE_HARDFORK_0_3_TIME );
    _hardfork_versions[ MUSE_HARDFORK_0_3 ] = MUSE_HARDFORK_0_3_VERSION;
+   FC_ASSERT( MUSE_HARDFORK_0_4 == 4, "Invalid hardfork configuration" );
+   _hardfork_times[ MUSE_HARDFORK_0_4 ] = fc::time_point_sec( MUSE_HARDFORK_0_4_TIME );
+   _hardfork_versions[ MUSE_HARDFORK_0_4 ] = MUSE_HARDFORK_0_4_VERSION;
 
    const auto& hardforks = hardfork_property_id_type()( *this );
    FC_ASSERT( hardforks.last_hardfork <= MUSE_NUM_HARDFORKS, "Chain knows of more hardforks than configuration", ("hardforks.last_hardfork",hardforks.last_hardfork)("MUSE_NUM_HARDFORKS",MUSE_NUM_HARDFORKS) );
