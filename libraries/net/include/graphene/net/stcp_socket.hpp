@@ -32,7 +32,7 @@ namespace graphene { namespace net {
  *  Uses ECDH to negotiate a aes key for communicating
  *  with other nodes on the network.
  */
-class stcp_socket : public virtual fc::iostream
+class stcp_socket : public fc::iostream
 {
   public:
     stcp_socket();

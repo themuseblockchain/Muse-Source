@@ -265,15 +265,6 @@ void content_evaluator::do_apply( const content_operation& o )
 
       FC_ASSERT( !(auth.owner_challenged || auth.active_challenged ) );
 
-      if( o.track_meta.json_metadata )
-      {
-         FC_ASSERT( fc::is_utf8(*o.track_meta.json_metadata), "JSON Metadata must be UTF-8-encoded!" );
-         if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
-            FC_ASSERT( fc::json::is_valid( *o.track_meta.json_metadata ), "JSON Metadata not valid JSON" );
-         else
-            FC_ASSERT( fc::json::is_valid( *o.track_meta.json_metadata, fc::json::broken_nul_parser ), "JSON Metadata not valid JSON" );
-      }
-
       for( const distribution& d : o.distributions )
          db().get_account( d.payee ); // ensure it exists
 
@@ -346,15 +337,6 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
       else
          FC_ASSERT( !two_sides || o.side == o.master, "Cannot edit composition side data when only one side has been defined" );
 
-      if( o.track_meta && o.track_meta->json_metadata )
-      {
-         FC_ASSERT( fc::is_utf8(*o.track_meta->json_metadata), "JSON Metadata must be UTF-8-encoded!" );
-         if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
-            FC_ASSERT( fc::json::is_valid( *o.track_meta->json_metadata ), "JSON Metadata not valid JSON" );
-         else
-            FC_ASSERT( fc::json::is_valid( *o.track_meta->json_metadata, fc::json::broken_nul_parser ), "JSON Metadata not valid JSON" );
-      }
-
       for( const distribution& d : o.new_distributions )
          db().get_account( d.payee ); // just to ensure that d.payee account exists
 
@@ -413,7 +395,6 @@ void content_update_evaluator::do_apply( const content_update_operation& o )
            con.last_update = db().head_block_time();
       });
       if( o.new_distributions.size() > 0 && accumulated_balances.amount > 0 ) {
-         if( !db().has_hardfork( MUSE_HARDFORK_0_2 ) ) wlog("HF point 5 triggered");
          if( o.side == o.master )
             db().pay_to_content_master( *itr, asset( 0, MUSE_SYMBOL ) );
          else

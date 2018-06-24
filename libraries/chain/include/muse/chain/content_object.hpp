@@ -146,7 +146,6 @@ namespace muse { namespace chain {
    struct by_title;
    struct by_uploader_url;
    struct by_popularity;
-   struct by_created;
    /**
     * @ingroup object_index
     */
