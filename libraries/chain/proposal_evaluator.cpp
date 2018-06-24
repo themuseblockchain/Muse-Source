@@ -95,7 +95,7 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
    }
    _proposed_trx.validate();
 
-   ilog( "Proposal: ${op}", ("op",o) );
+   dlog( "Proposal: ${op}", ("op",o) );
 
    d.create<proposal_object>([&o, &_proposed_trx, &d](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
@@ -144,7 +144,7 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
                           proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end(),
                           std::inserter(proposal.required_active_approvals, proposal.required_active_approvals.begin()));
 
-      ilog( "Proposal: ${p}", ("p",proposal) );
+      dlog( "Proposal: ${p}", ("p",proposal) );
    });
 
 } FC_CAPTURE_AND_RETHROW( (o) ) }
@@ -190,7 +190,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       }
    }
 
-   ilog( "Proposal: ${op}", ("op",o) );
+   dlog( "Proposal: ${op}", ("op",o) );
 
    // Potential optimization: if _executed_proposal is true, we can skip the modify step and make push_proposal skip
    // signature checks. This isn't done now because I just wrote all the proposals code, and I'm not yet 100% sure the
@@ -207,7 +207,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       for( const auto& id : o.key_approvals_to_remove )
          p.available_key_approvals.erase(id);
 
-      ilog( "Proposal: ${p}", ("p",p) );
+      dlog( "Proposal: ${p}", ("p",p) );
    });
 
    // If the proposal has a review period, don't bother attempting to authorize/execute it.
@@ -218,7 +218,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       try {
          d.push_proposal(*_proposal);
       } catch(fc::exception& e) {
-         wlog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
+         ilog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
               ("id", o.proposal)("reason", e.to_detail_string()));
       }
 } FC_CAPTURE_AND_RETHROW( (o) ) }

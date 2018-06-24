@@ -135,7 +135,6 @@ namespace graphene { namespace db {
                 _index[ObjectType::space_id].resize( 255 );
             assert(!_index[ObjectType::space_id][ObjectType::type_id]);
             FC_ASSERT(!_index[ObjectType::space_id][ObjectType::type_id], "duplicate index id detected");
-            //idump((fc::get_typename<ObjectType>::name())(ObjectType::space_id)(ObjectType::type_id));
             unique_ptr<index> indexptr( new IndexType(*this) );
             _index[ObjectType::space_id][ObjectType::type_id] = std::move(indexptr);
             return static_cast<IndexType*>(_index[ObjectType::space_id][ObjectType::type_id].get());

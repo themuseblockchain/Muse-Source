@@ -534,15 +534,13 @@ namespace detail {
        */
       virtual message get_item(const item_id& id) override
       { try {
-        // ilog("Request for item ${id}", ("id", id));
          if( id.item_type == graphene::net::block_message_type )
          {
             auto opt_block = _chain_db->fetch_block_by_id(id.item_hash);
             if( !opt_block )
-               elog("Couldn't find block ${id} -- corresponding ID in our chain is ${id2}",
+               wlog("Couldn't find block ${id} -- corresponding ID in our chain is ${id2}",
                     ("id", id.item_hash)("id2", _chain_db->get_block_id_for_num(block_header::num_from_id(id.item_hash))));
             FC_ASSERT( opt_block.valid() );
-            // ilog("Serving up block #${num}", ("num", opt_block->block_num()));
             return block_message(std::move(*opt_block));
          }
          return trx_message( _chain_db->get_recent_transaction( id.item_hash ) );
@@ -721,7 +719,6 @@ namespace detail {
           }
           while (low_block_num <= high_block_num);
 
-          //idump((synopsis));
           return synopsis;
       } FC_CAPTURE_AND_RETHROW() }
 

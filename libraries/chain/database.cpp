@@ -617,7 +617,7 @@ bool database::_push_block(const signed_block& new_block)
          //Only switch forks if new_head is actually higher than head
          if( new_head->data.block_num() > head_block_num() )
          {
-            // wlog( "Switching to fork: ${id}", ("id",new_head->data.id()) );
+            ilog( "Switching to fork: ${id}", ("id",new_head->data.id()) );
             auto branches = _fork_db.fetch_branch_from(new_head->data.id(), head_block_id());
 
             // pop blocks until we hit the forked block
@@ -627,7 +627,7 @@ bool database::_push_block(const signed_block& new_block)
             // push all blocks on the new fork
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
             {
-                // ilog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
+                dlog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
                 optional<fc::exception> except;
                 try
                 {
@@ -639,7 +639,7 @@ bool database::_push_block(const signed_block& new_block)
                 catch ( const fc::exception& e ) { except = e; }
                 if( except )
                 {
-                   // wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
+                   wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
                    // remove the rest of branches.first from the fork_db, those blocks are invalid
                    while( ritr != branches.first.rend() )
                    {
@@ -1645,8 +1645,7 @@ asset database::process_content_cashout( const asset& content_reward )
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
       const account_object & consumer = get<account_object>( itr->consumer );
-      ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
-      edump((consumer));
+      dlog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       FC_ASSERT( consumer.total_listening_time > 0 );
       asset pay_reserve = total_payout * itr->play_time;
       if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
@@ -2474,7 +2473,7 @@ void database::_apply_block( const signed_block& next_block )
    applied_block( next_block ); //emit
 
    notify_changed_objects();
-} //FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
+}
 FC_LOG_AND_RETHROW() }
 
 void database::process_header_extensions( const signed_block& next_block )
@@ -2581,7 +2580,6 @@ void database::_apply_transaction(const signed_transaction& trx)
    auto& trx_idx = get_mutable_index_type<transaction_index>();
    const chain_id_type& chain_id = MUSE_CHAIN_ID;
    auto trx_id = trx.id();
-   // idump((trx_id)(skip&skip_transaction_dupe_check));
    FC_ASSERT( (skip & skip_transaction_dupe_check) ||
               trx_idx.indices().get<by_trx_id>().find(trx_id) == trx_idx.indices().get<by_trx_id>().end() );
    transaction_evaluation_state eval_state(this);
@@ -2804,7 +2802,7 @@ void database::update_virtual_supply()
 
 void database::push_proposal(const proposal_object& proposal)
 { try {
-   ilog( "Proposal: executing ${p}", ("p",proposal) );
+   dlog( "Proposal: executing ${p}", ("p",proposal) );
 
    auto session = _undo_db.start_undo_session(true);
    _current_op_in_trx = 0;
@@ -3038,7 +3036,7 @@ void database::clear_expired_proposals()
             continue;
          }
       } catch( const fc::exception& e ) {
-         elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
+         ilog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
               ("proposal", proposal)("error", e.to_detail_string()));
       }
       remove(proposal);
