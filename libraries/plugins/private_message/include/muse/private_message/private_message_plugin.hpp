@@ -170,7 +170,7 @@ class private_message_api : public std::enable_shared_from_this<private_message_
          ilog( "creating private message api" );
       }
       void on_api_startup(){
-         wlog( "on private_message api startup" );
+         ilog( "on private_message api startup" );
       }
       
       /**

@@ -98,7 +98,6 @@ namespace muse { namespace app {
          template< typename Api >
          void register_api_factory( const string& name )
          {
-            idump((name));
             register_api_factory( name, []( const api_context& ctx ) -> fc::api_ptr
             {
                // apparently the compiler is smart enough to downcast shared_ptr< api<Api> > to shared_ptr< api_base > automatically

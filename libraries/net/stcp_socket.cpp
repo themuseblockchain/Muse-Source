@@ -28,7 +28,6 @@
 #include <fc/crypto/hex.hpp>
 #include <fc/crypto/aes.hpp>
 #include <fc/crypto/city.hpp>
-#include <fc/log/logger.hpp>
 #include <fc/network/ip.hpp>
 #include <fc/exception/exception.hpp>
 
@@ -61,7 +60,6 @@ void stcp_socket::do_key_exchange()
   memcpy((char*)&rpub, serialized_key_buffer.get(), sizeof(fc::ecc::public_key_data));
 
   _shared_secret = _priv_key.get_shared_secret( rpub );
-//    ilog("shared secret ${s}", ("s", shared_secret) );
   _send_aes.init( fc::sha256::hash( (char*)&_shared_secret, sizeof(_shared_secret) ), 
                   fc::city_hash_crc_128((char*)&_shared_secret,sizeof(_shared_secret) ) );
   _recv_aes.init( fc::sha256::hash( (char*)&_shared_secret, sizeof(_shared_secret) ), 
