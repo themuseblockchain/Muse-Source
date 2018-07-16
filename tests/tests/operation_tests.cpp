@@ -1265,17 +1265,26 @@ BOOST_AUTO_TEST_CASE( withdraw_vesting_apply )
       fund( "alice", 10000000 );
       vest( "alice", 10000000 );
 
-      BOOST_TEST_MESSAGE( "--- Test withdraw of existing VESTS" );
+      BOOST_TEST_MESSAGE( "--- Test failure withdrawing negative VESTS" );
 
       withdraw_vesting_operation op;
       op.account = "alice";
-      op.vesting_shares = asset( alice.vesting_shares.amount / 2, VESTS_SYMBOL );
-
-      auto old_vesting_shares = alice.vesting_shares;
+      op.vesting_shares = asset( -1, VESTS_SYMBOL );
 
       signed_transaction tx;
       tx.operations.push_back( op );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+      tx.sign( alice_private_key, db.get_chain_id() );
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
+
+
+      BOOST_TEST_MESSAGE( "--- Test withdraw of existing VESTS" );
+      op.vesting_shares = asset( alice.vesting_shares.amount / 2, VESTS_SYMBOL );
+
+      auto old_vesting_shares = alice.vesting_shares;
+
+      tx.clear();
+      tx.operations.push_back( op );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
 
