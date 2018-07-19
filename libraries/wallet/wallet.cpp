@@ -793,7 +793,7 @@ public:
          }
       }
 
-      tx.minimize_required_signatures(
+      const auto keys_to_use = tx.minimize_required_signatures(
          MUSE_CHAIN_ID,
          available_keys,
          [&]( const string& account_name ) -> const authority*
@@ -816,7 +816,7 @@ public:
          MUSE_MAX_SIG_CHECK_DEPTH
          );
 
-      for( const public_key_type& k : available_keys )
+      for( const public_key_type& k : keys_to_use )
       {
          auto it = available_private_keys.find(k);
          FC_ASSERT( it != available_private_keys.end() );
