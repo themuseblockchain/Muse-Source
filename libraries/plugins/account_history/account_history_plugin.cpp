@@ -132,7 +132,6 @@ void account_history_plugin_impl::on_operation( const operation_object& op_obj )
 account_history_plugin::account_history_plugin() :
    my( new detail::account_history_plugin_impl(*this) )
 {
-   //ilog("Loading account history plugin" );
 }
 
 account_history_plugin::~account_history_plugin()
@@ -157,7 +156,6 @@ void account_history_plugin::plugin_set_program_options(
 
 void account_history_plugin::plugin_initialize(const boost::program_options::variables_map& options)
 {
-   //ilog("Intializing account history plugin" );
    database().pre_apply_operation.connect( [&]( const operation_object& b){ my->on_operation(b); } );
    database().add_index< primary_index< operation_index  > >();
    database().add_index< primary_index< account_history_index  > >();

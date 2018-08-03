@@ -67,7 +67,6 @@ namespace muse { namespace chain {
          time_point_sec created;
          uint32_t play_time;
          optional<account_id_type> playlist_creator;
-         //TODO_MUSE - content_id_type content
    };
 
   /**
@@ -158,6 +157,7 @@ FC_REFLECT_DERIVED( muse::chain::streaming_platform_vote_object, (graphene::db::
 FC_REFLECT_DERIVED( muse::chain::report_object, (graphene::db::object), 
                     (streaming_platform)
                     (consumer)
+                    (content)
                     (created)
                     (play_time)
                     (playlist_creator)

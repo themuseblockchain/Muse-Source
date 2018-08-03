@@ -1265,57 +1265,78 @@ BOOST_AUTO_TEST_CASE( withdraw_vesting_apply )
       fund( "alice", 10000000 );
       vest( "alice", 10000000 );
 
-      BOOST_TEST_MESSAGE( "--- Test withdraw of existing VESTS" );
+      BOOST_TEST_MESSAGE( "--- Test failure withdrawing negative VESTS" );
 
       withdraw_vesting_operation op;
       op.account = "alice";
-      op.vesting_shares = asset( alice.vesting_shares.amount / 2, VESTS_SYMBOL );
+      op.vesting_shares = asset( -1, VESTS_SYMBOL );
 
-      auto old_vesting_shares = alice.vesting_shares;
+      generate_blocks( fc::time_point::now() - fc::seconds(30) );
 
       signed_transaction tx;
       tx.operations.push_back( op );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
+      // works, but sets withdraw_rate to 0
+      BOOST_CHECK_EQUAL( 0, db.get_account("alice").vesting_withdraw_rate.amount.value );
 
-      BOOST_REQUIRE_EQUAL( alice.vesting_shares.amount.value, old_vesting_shares.amount.value );
-      BOOST_REQUIRE_EQUAL( alice.vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 2 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
-      BOOST_REQUIRE_EQUAL( alice.to_withdraw.value, op.vesting_shares.amount.value );
-      BOOST_REQUIRE( alice.next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
+      generate_blocks( fc::time_point::now() - fc::seconds(10) );
+
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+      tx.signatures.clear();
+      tx.sign( alice_private_key, db.get_chain_id() );
+      // fails
+      MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
+
+
+      BOOST_TEST_MESSAGE( "--- Test withdraw of existing VESTS" );
+      op.vesting_shares = asset( db.get_account("alice").vesting_shares.amount / 2, VESTS_SYMBOL );
+
+      auto old_vesting_shares = db.get_account("alice").vesting_shares;
+
+      tx.clear();
+      tx.operations.push_back( op );
+      tx.sign( alice_private_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_shares.amount.value, old_vesting_shares.amount.value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 2 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").to_withdraw.value, op.vesting_shares.amount.value );
+      BOOST_REQUIRE( db.get_account("alice").next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
       validate_database();
 
       BOOST_TEST_MESSAGE( "--- Test changing vesting withdrawal" );
       tx.operations.clear();
       tx.signatures.clear();
 
-      op.vesting_shares = asset( alice.vesting_shares.amount / 3, VESTS_SYMBOL );
+      op.vesting_shares = asset( db.get_account("alice").vesting_shares.amount / 3, VESTS_SYMBOL );
       tx.operations.push_back( op );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
 
-      BOOST_REQUIRE_EQUAL( alice.vesting_shares.amount.value, old_vesting_shares.amount.value );
-      BOOST_REQUIRE_EQUAL( alice.vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 3 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
-      BOOST_REQUIRE_EQUAL( alice.to_withdraw.value, op.vesting_shares.amount.value );
-      BOOST_REQUIRE( alice.next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_shares.amount.value, old_vesting_shares.amount.value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 3 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").to_withdraw.value, op.vesting_shares.amount.value );
+      BOOST_REQUIRE( db.get_account("alice").next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
       validate_database();
 
       BOOST_TEST_MESSAGE( "--- Test withdrawing more VESTS than available" );
-      auto old_withdraw_amount = alice.to_withdraw;
+      auto old_withdraw_amount = db.get_account("alice").to_withdraw;
       tx.operations.clear();
       tx.signatures.clear();
 
-      op.vesting_shares = asset( alice.vesting_shares.amount * 2, VESTS_SYMBOL );
+      op.vesting_shares = asset( db.get_account("alice").vesting_shares.amount * 2, VESTS_SYMBOL );
       tx.operations.push_back( op );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
       tx.sign( alice_private_key, db.get_chain_id() );
       MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
 
-      BOOST_REQUIRE_EQUAL( alice.to_withdraw.value, old_withdraw_amount.value );
-      BOOST_REQUIRE_EQUAL( alice.vesting_shares.amount.value, old_vesting_shares.amount.value );
-      BOOST_REQUIRE_EQUAL( alice.vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 3 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
-      BOOST_REQUIRE( alice.next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").to_withdraw.value, old_withdraw_amount.value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_shares.amount.value, old_vesting_shares.amount.value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 3 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
+      BOOST_REQUIRE( db.get_account("alice").next_vesting_withdrawal == db.head_block_time() + MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS );
       validate_database();
 
       BOOST_TEST_MESSAGE( "--- Test withdrawing 0 to resent vesting withdraw" );
@@ -1328,10 +1349,10 @@ BOOST_AUTO_TEST_CASE( withdraw_vesting_apply )
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
 
-      BOOST_REQUIRE_EQUAL( alice.vesting_shares.amount.value, old_vesting_shares.amount.value );
-      BOOST_REQUIRE_EQUAL( alice.vesting_withdraw_rate.amount.value, 0 );
-      BOOST_REQUIRE_EQUAL( alice.to_withdraw.value, 0 );
-      BOOST_REQUIRE( alice.next_vesting_withdrawal == fc::time_point_sec::maximum() );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_shares.amount.value, old_vesting_shares.amount.value );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_withdraw_rate.amount.value, 0 );
+      BOOST_REQUIRE_EQUAL( db.get_account("alice").to_withdraw.value, 0 );
+      BOOST_REQUIRE( db.get_account("alice").next_vesting_withdrawal == fc::time_point_sec::maximum() );
    }
    FC_LOG_AND_RETHROW()
 }
@@ -3060,7 +3081,7 @@ BOOST_AUTO_TEST_CASE( account_recovery )
 
       tx.operations.push_back( request );
       tx.sign( alice_private_key, db.get_chain_id() );
-/*      db.push_transaction( tx, 0 );
+      db.push_transaction( tx, 0 );
 
       BOOST_REQUIRE( bob.owner == acc_update.owner );
 
@@ -3092,11 +3113,11 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.operations.push_back( request );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
-*/      }
+      }
 
       generate_blocks( db.head_block_time() + MUSE_OWNER_UPDATE_LIMIT + fc::seconds(MUSE_BLOCK_INTERVAL) );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-/*
+
       {
       const auto& bob = db.get_account( "bob" );
       BOOST_TEST_MESSAGE( "Testing failure when bob does not have new authority" );
@@ -3239,7 +3260,7 @@ BOOST_AUTO_TEST_CASE( account_recovery )
       tx.sign( generate_private_key( "last key" ), db.get_chain_id() );
       db.push_transaction( tx, 0 );
       BOOST_REQUIRE( db.get_account( "bob" ).owner == authority( 1, generate_private_key( "last key" ).get_public_key(), 1 ) );
-*/   }
+   }
    FC_LOG_AND_RETHROW()
 }
 
@@ -3317,12 +3338,20 @@ BOOST_AUTO_TEST_CASE( change_recovery_account )
       MUSE_REQUIRE_THROW( change_recovery_account("alice", "nobody"), fc::assert_exception );
       MUSE_REQUIRE_THROW( change_recovery_account("haxer", "sam"   ), fc::assert_exception );
       MUSE_REQUIRE_THROW( change_recovery_account("haxer", "nobody"), fc::assert_exception );
-/*      change_recovery_account("alice", "sam");
+      change_recovery_account("alice", "sam");
 
       fc::ecc::private_key alice_priv1 = fc::ecc::private_key::regenerate( fc::sha256::hash( "alice_k1" ) );
       fc::ecc::private_key alice_priv2 = fc::ecc::private_key::regenerate( fc::sha256::hash( "alice_k2" ) );
+      /*
+      fc::ecc::private_key alice_priv3 = fc::ecc::private_key::regenerate( "alice_k3" );
+      fc::ecc::private_key alice_priv4 = fc::ecc::private_key::regenerate( "alice_k4" );
+      */
       public_key_type alice_pub1 = public_key_type( alice_priv1.get_public_key() );
       public_key_type alice_pub2 = public_key_type( alice_priv2.get_public_key() );
+      /*
+      public_key_type alice_pub3 = public_key_type( alice_priv3 );
+      public_key_type alice_pub4 = public_key_type( alice_priv4 );
+      */
 
       generate_blocks( db.head_block_time() + MUSE_OWNER_AUTH_RECOVERY_PERIOD - fc::seconds( MUSE_BLOCK_INTERVAL ), true );
       // cannot request account recovery until recovery account is approved
@@ -3337,7 +3366,7 @@ BOOST_AUTO_TEST_CASE( change_recovery_account )
       // unless we change it!
       change_owner( "alice", alice_private_key, public_key_type( alice_priv2.get_public_key() ) );
       recover_account( "alice", alice_priv1, alice_private_key );
-*/   }
+   }
    FC_LOG_AND_RETHROW()
 }
 

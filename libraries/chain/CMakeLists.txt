@@ -30,6 +30,7 @@ add_library( muse_chain
              evaluator.cpp
              base_evaluator.cpp
              muse_evaluator.cpp
+             muse_objects.cpp
 
              asset_evaluator.cpp
              asset_object.cpp

@@ -438,7 +438,6 @@ namespace muse { namespace chain {
          asset get_vesting_reward()const;
 
          void pay_to_platform( streaming_platform_id_type platform, const asset& payout, const string& url );
-         void pay_to_curator(const content_object &co, account_id_type cur, const asset& pay);
          ///@}
 
          vector< signed_transaction >  _pending_tx;

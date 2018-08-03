@@ -22,6 +22,10 @@
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 
+#include <graphene/utilities/git_revision.hpp>
+#include <websocketpp/version.hpp>
+#include <boost/algorithm/string/replace.hpp>
+
 #include <iostream>
 #include <fstream>
 
@@ -62,6 +66,7 @@ int main(int argc, char** argv) {
       std::cerr << "------------------------------------------------------\n";
       std::cerr << "initminer public key: " << MUSE_INIT_PUBLIC_KEY_STR << "\n";
       std::cerr << "chain id: " << std::string(MUSE_CHAIN_ID) << "\n";
+      std::cerr << "version: " << graphene::utilities::git_revision_description << "\n";
       std::cerr << "------------------------------------------------------\n";
 #endif
 
@@ -70,6 +75,7 @@ int main(int argc, char** argv) {
       app_options.add_options()
             ("help,h", "Print this help message and exit.")
             ("data-dir,d", bpo::value<boost::filesystem::path>()->default_value("witness_node_data_dir"), "Directory containing databases, configuration file, etc.")
+            ("version,v", "Display version information")
             ;
 
       bpo::variables_map options;
@@ -94,6 +100,17 @@ int main(int argc, char** argv) {
       if( options.count("help") )
       {
          std::cout << app_options << "\n";
+         return 0;
+      }
+
+      if( options.count("version") )
+      {
+         //std::cout << "Version: " << graphene::utilities::git_revision_description << "\n";
+         std::cout << "SHA: " << graphene::utilities::git_revision_sha << "\n";
+         std::cout << "Timestamp: " << fc::get_approximate_relative_time_string(fc::time_point_sec(graphene::utilities::git_revision_unix_timestamp)) << "\n";
+         std::cout << "SSL: " << OPENSSL_VERSION_TEXT << "\n";
+         std::cout << "Boost: " << boost::replace_all_copy(std::string(BOOST_LIB_VERSION), "_", ".") << "\n";
+         std::cout << "Websocket++: " << websocketpp::major_version << "." << websocketpp::minor_version << "." << websocketpp::patch_version << "\n";
          return 0;
       }
 

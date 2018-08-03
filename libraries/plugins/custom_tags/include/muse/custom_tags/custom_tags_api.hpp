@@ -29,10 +29,6 @@
 
 #include <fc/api.hpp>
 
-namespace muse { namespace app {
-   struct api_context;
-} }
-
 namespace muse { namespace custom_tags {
 
 namespace detail {
@@ -50,7 +46,7 @@ public:
 class custom_tags_api
 {
    public:
-      custom_tags_api( const muse::app::api_context& ctx );
+      explicit custom_tags_api( const muse::app::api_context& ctx );
 
       void on_api_startup();
 

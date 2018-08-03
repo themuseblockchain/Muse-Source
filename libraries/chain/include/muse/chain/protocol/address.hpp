@@ -30,7 +30,6 @@
 #include <fc/crypto/ripemd160.hpp>
 
 namespace fc { namespace ecc {
-class public_key;
 typedef fc::array<char,33>  public_key_data;
 } } // fc::ecc
 

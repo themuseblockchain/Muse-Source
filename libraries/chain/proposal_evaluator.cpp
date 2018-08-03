@@ -44,23 +44,6 @@ namespace impl {
          template<typename T>
          void operator()( const T& v )const { /* do nothing by default */ }
 
-         void operator()( const muse::chain::account_create_operation& v )const {
-            // TODO: move into account_create_operation::validate after HF 3 has passed
-            if( _db.has_hardfork( MUSE_HARDFORK_0_3 ) )
-               v.basic.validate();
-         }
-
-         void operator()( const muse::chain::account_update_operation& v )const {
-            // TODO: move into account_update_operation::validate after HF 3 has passed
-            if( _db.has_hardfork( MUSE_HARDFORK_0_3 ) && v.basic)
-               v.basic->validate();
-         }
-
-         void operator()( const muse::chain::proposal_delete_operation& v )const {
-            // TODO: remove after HF 3 has passed
-            FC_ASSERT( _db.has_hardfork( MUSE_HARDFORK_0_3 ), "Not allowed until hardfork 3" );
-         }
-
          void operator()( const muse::chain::proposal_create_operation& v )const {
             for( const op_wrapper& op : v.proposed_ops )
                 op.op.visit( *this );
@@ -112,7 +95,7 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
    }
    _proposed_trx.validate();
 
-   ilog( "Proposal: ${op}", ("op",o) );
+   dlog( "Proposal: ${op}", ("op",o) );
 
    d.create<proposal_object>([&o, &_proposed_trx, &d](proposal_object& proposal) {
       _proposed_trx.expiration = o.expiration_time;
@@ -135,28 +118,25 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
       proposal.can_veto.insert( proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end() );
       proposal.can_veto.insert( proposal.required_basic_approvals.begin(), proposal.required_basic_approvals.end() );
 
-      if( d.has_hardfork( MUSE_HARDFORK_0_3 ) ) // TODO: attempt to remove after HF 3
-      {
-         // Active or owner authorities also cover basic authority
-         for( const string& a : required_active )
-            proposal.required_basic_approvals.erase( a );
-         for( const string& o : proposal.required_owner_approvals )
-            proposal.required_basic_approvals.erase( o );
+      // Active or owner authorities also cover basic authority
+      for( const string& a : required_active )
+         proposal.required_basic_approvals.erase( a );
+      for( const string& o : proposal.required_owner_approvals )
+         proposal.required_basic_approvals.erase( o );
 
-         FC_ASSERT( proposal.required_basic_approvals.size() == 0
-                    || ( required_active.size() == 0
-                         && proposal.required_owner_approvals.size() == 0
-                         && proposal.required_master_content_approvals.size() == 0
-                         && proposal.required_comp_content_approvals.size() == 0
-                         && other.size() == 0 ),
-                    "Cannot combine operations with basic approval and others!" );
+      FC_ASSERT( proposal.required_basic_approvals.size() == 0
+                 || ( required_active.size() == 0
+                      && proposal.required_owner_approvals.size() == 0
+                      && proposal.required_master_content_approvals.size() == 0
+                      && proposal.required_comp_content_approvals.size() == 0
+                      && other.size() == 0 ),
+                 "Cannot combine operations with basic approval and others!" );
 
-         authority_collector collector( d, required_active );
-         for( const string& url : proposal.required_master_content_approvals )
-            collector.collect( d.get_content(url).manage_master );
-         for( const string& url : proposal.required_comp_content_approvals )
-            collector.collect( d.get_content(url).manage_comp );
-      }
+      authority_collector collector( d, required_active );
+      for( const string& url : proposal.required_master_content_approvals )
+         collector.collect( d.get_content(url).manage_master );
+      for( const string& url : proposal.required_comp_content_approvals )
+         collector.collect( d.get_content(url).manage_comp );
 
       //All accounts which must provide both owner and active authority should be omitted from the active authority set
       //owner authority approval implies active authority approval.
@@ -164,7 +144,7 @@ void proposal_create_evaluator::do_apply(const proposal_create_operation& o)
                           proposal.required_owner_approvals.begin(), proposal.required_owner_approvals.end(),
                           std::inserter(proposal.required_active_approvals, proposal.required_active_approvals.begin()));
 
-      ilog( "Proposal: ${p}", ("p",proposal) );
+      dlog( "Proposal: ${p}", ("p",proposal) );
    });
 
 } FC_CAPTURE_AND_RETHROW( (o) ) }
@@ -210,7 +190,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       }
    }
 
-   ilog( "Proposal: ${op}", ("op",o) );
+   dlog( "Proposal: ${op}", ("op",o) );
 
    // Potential optimization: if _executed_proposal is true, we can skip the modify step and make push_proposal skip
    // signature checks. This isn't done now because I just wrote all the proposals code, and I'm not yet 100% sure the
@@ -227,7 +207,7 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       for( const auto& id : o.key_approvals_to_remove )
          p.available_key_approvals.erase(id);
 
-      ilog( "Proposal: ${p}", ("p",p) );
+      dlog( "Proposal: ${p}", ("p",p) );
    });
 
    // If the proposal has a review period, don't bother attempting to authorize/execute it.
@@ -238,15 +218,13 @@ void proposal_update_evaluator::do_apply(const proposal_update_operation& o)
       try {
          d.push_proposal(*_proposal);
       } catch(fc::exception& e) {
-         wlog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
+         ilog("Proposed transaction ${id} failed to apply once approved with exception:\n----\n${reason}\n----\nWill try again when it expires.",
               ("id", o.proposal)("reason", e.to_detail_string()));
       }
 } FC_CAPTURE_AND_RETHROW( (o) ) }
 
 void proposal_delete_evaluator::do_apply(const proposal_delete_operation& o)
 { try {
-   FC_ASSERT( db().has_hardfork(MUSE_HARDFORK_0_3) ); // TODO: remove after HF
-
    const proposal_object& proposal = o.proposal( db() );
 
    FC_ASSERT( proposal.can_veto.find( o.vetoer ) != proposal.can_veto.end(),

@@ -53,7 +53,6 @@ namespace muse { namespace app {
 
     bool login_api::login(const string& user, const string& password)
     {
-       idump((user)(password));
        optional< api_access_info > acc = _ctx.app.get_api_access_info( user );
        if( !acc.valid() )
           return false;
@@ -69,7 +68,6 @@ namespace muse { namespace app {
              return false;
        }
 
-       idump((acc->allowed_apis));
        std::shared_ptr< api_session_data > session = _ctx.session.lock();
        FC_ASSERT( session );
 
@@ -79,10 +77,8 @@ namespace muse { namespace app {
        {
           auto it = _api_map.find( api_name );
           if( it != _api_map.end() ) {
-             wlog( "known api: ${api}", ("api",api_name) );
              continue;
           }
-          idump((api_name));
           api_context new_ctx( _ctx.app, api_name, _ctx.session );
           _api_map[ api_name ] = _ctx.app.create_api_by_name( new_ctx );
        }

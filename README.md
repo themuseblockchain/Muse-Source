@@ -33,7 +33,7 @@ each individual to inspect the code to understand the consensus rules.
 Build Instructions
 ------------------
 These instructions apply on Fedora 24. For other distributions, make sure you have 
-installed Boost 1.58-1.60 first. You also have instructions to build test net here.
+installed Boost 1.58-1.63 first. You also have instructions to build test net here.
 For building, you need at least 4 GB of memory available.
 
 We are testing using Fedora 25, x64

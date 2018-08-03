@@ -1048,4 +1048,73 @@ BOOST_FIXTURE_TEST_CASE( clear_witness_key, clean_database_fixture )
 
 } FC_LOG_AND_RETHROW() }
 
+BOOST_FIXTURE_TEST_CASE( generate_block_size, clean_database_fixture )
+{
+   try
+   {
+      generate_block();
+
+      db.modify( db.get_dynamic_global_properties(), []( dynamic_global_property_object& gpo )
+      {
+         gpo.maximum_block_size = MUSE_MIN_BLOCK_SIZE_LIMIT;
+      });
+
+      signed_transaction tx;
+      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
+
+      transfer_operation op;
+      op.from = MUSE_INIT_MINER_NAME;
+      op.to = MUSE_TEMP_ACCOUNT;
+      op.amount = asset( 1000, MUSE_SYMBOL );
+
+      // tx without ops is 78 bytes (77 + 1 for length of ops vector))
+      // op is 26 bytes (25 for op + 1 byte static variant tag)
+      // total is 65182
+      std::vector<char> raw_op = fc::raw::pack_to_vector( op, 255 );
+      BOOST_CHECK_EQUAL( 25, raw_op.size() );
+      BOOST_CHECK_EQUAL( raw_op.size(), fc::raw::pack_size( op ) );
+
+      for( size_t i = 0; i < 2507; i++ )
+      {
+         tx.operations.push_back( op );
+      }
+
+      tx.sign( init_account_priv_key, db.get_chain_id() );
+      db.push_transaction( tx, 0 );
+
+      std::vector<char> raw_tx = fc::raw::pack_to_vector( tx, 255 );
+      BOOST_CHECK_EQUAL( 65182+77+2, raw_tx.size() ); // 2 bytes for encoding # of ops
+      BOOST_CHECK_EQUAL( raw_tx.size(), fc::raw::pack_size( tx ) );
+
+      // Original generation logic only allowed 115 bytes for the header
+      BOOST_CHECK_EQUAL( 115, fc::raw::pack_size( signed_block_header() ) + 4 );
+      // We are targetting a size (minus header) of 65420 which creates a block of "size" 65535
+      // This block will actually be larger because the header estimates is too small
+
+      // Second transaction
+      // We need a 80 (65420 - (65182+77+2) - (77+1) - 1) byte op. We need a 55 character memo (1 byte for length); 54 = 80 - 25 (old op) - 1 (tag)
+      op.memo = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123";
+      raw_op = fc::raw::pack_to_vector( op, 255 );
+      BOOST_CHECK_EQUAL( 80, raw_op.size() );
+      BOOST_CHECK_EQUAL( raw_op.size(), fc::raw::pack_size( op ) );
+
+      tx.clear();
+      tx.operations.push_back( op );
+      sign( tx, init_account_priv_key );
+      db.push_transaction( tx, 0 );
+
+      raw_tx = fc::raw::pack_to_vector( tx, 255 );
+      BOOST_CHECK_EQUAL( 78+80+1, raw_tx.size() );
+      BOOST_CHECK_EQUAL( raw_tx.size(), fc::raw::pack_size( tx ) );
+
+      generate_block();
+      auto head_block = db.fetch_block_by_number( db.head_block_num() );
+      BOOST_CHECK_GE( 65535, fc::raw::pack_size( head_block ) );
+
+      // The last transfer should have been delayed due to size
+      BOOST_CHECK_EQUAL( 1, head_block->transactions.size() );
+   }
+   FC_LOG_AND_RETHROW()
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -2640,11 +2640,6 @@ namespace graphene { namespace net { namespace detail {
           if (!item_hashes_received.empty() && !originating_peer->ids_of_items_to_get.empty())
             assert(item_hashes_received.front() != originating_peer->ids_of_items_to_get.back());
 
-          // append the remaining items to the peer's list
-          boost::push_back(originating_peer->ids_of_items_to_get, item_hashes_received);
-
-          originating_peer->number_of_unfetched_item_ids = blockchain_item_ids_inventory_message_received.total_remaining_item_count;
-
           // at any given time, there's a maximum number of blocks that can possibly be out there
           // [(now - genesis time) / block interval].  If they offer us more blocks than that,
           // they must be an attacker or have a buggy client.
@@ -2665,6 +2660,9 @@ namespace graphene { namespace net { namespace detail {
                                  true, error_for_peer);
             return;
           }
+
+          // append the remaining items to the peer's list
+          boost::push_back(originating_peer->ids_of_items_to_get, item_hashes_received);
 
           uint32_t new_number_of_unfetched_items = calculate_unsynced_block_count_from_all_peers();
           if (new_number_of_unfetched_items != _total_number_of_unfetched_items)

@@ -3,7 +3,6 @@
 #include <muse/chain/base_objects.hpp>
 
 #ifndef IS_LOW_MEM
-#include <diff_match_patch.h>
 #include <boost/locale/encoding_utf.hpp>
 
 using boost::locale::conv::utf_to_utf;
@@ -62,14 +61,8 @@ void account_create_evaluator::do_apply( const account_create_operation& o )
 {
    if ( o.json_metadata.size() > 0 )
    {
-      if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
-         FC_ASSERT( fc::json::is_valid(o.json_metadata), "JSON Metadata not valid JSON" );
-      else
-         FC_ASSERT( fc::json::is_valid(o.json_metadata, fc::json::broken_nul_parser), "JSON Metadata not valid JSON" );
+      FC_ASSERT( fc::json::is_valid(o.json_metadata), "JSON Metadata not valid JSON" );
    }
-
-   if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
-      o.basic.validate();
 
    const auto& creator = db().get_account( o.creator );
 
@@ -116,16 +109,10 @@ void account_update_evaluator::do_apply( const account_update_operation& o )
 {
    if ( o.json_metadata.size() > 0 )
    {
-      if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
-         FC_ASSERT( fc::json::is_valid(o.json_metadata), "JSON Metadata not valid JSON" );
-      else
-         FC_ASSERT( fc::json::is_valid(o.json_metadata, fc::json::broken_nul_parser), "JSON Metadata not valid JSON" );
+      FC_ASSERT( fc::json::is_valid(o.json_metadata), "JSON Metadata not valid JSON" );
    }
 
    FC_ASSERT( o.account != MUSE_TEMP_ACCOUNT );
-
-   if( db().has_hardfork( MUSE_HARDFORK_0_3 ) && o.basic )
-      o.basic->validate();
 
    const auto& account = db().get_account( o.account );
 
@@ -253,7 +240,6 @@ void transfer_evaluator::do_apply( const transfer_operation& o )
       db().adjust_balance( to_account, o.amount );
 
    } else {
-      /// TODO: this line can be removed after hard fork
       FC_ASSERT( false , "transferring of Vestings (VEST) is not allowed." );
 #if 0
       /** allow transfer of vesting balance if the full balance is transferred to a new account
@@ -308,6 +294,9 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
 {
     const auto& account = db().get_account( o.account );
 
+    if( db().head_block_time() > fc::time_point::now() - fc::seconds(15) ) // SOFT FORK
+       FC_ASSERT( o.vesting_shares.amount >= 0, "Cannot withdraw a negative amount of VESTS!" );
+
     FC_ASSERT( account.vesting_shares >= asset( 0, VESTS_SYMBOL ) );
     FC_ASSERT( account.vesting_shares >= o.vesting_shares );
 
@@ -324,7 +313,8 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
 
 
 
-    if( o.vesting_shares.amount == 0 ) {
+    if( o.vesting_shares.amount <= 0 ) {
+       if( o.vesting_shares.amount == 0 ) // SOFT FORK
        FC_ASSERT( account.vesting_withdraw_rate.amount  != 0, "this operation would not change the vesting withdraw rate" );
 
        db().modify( account, [&]( account_object& a ) {
@@ -473,7 +463,7 @@ void account_witness_vote_evaluator::do_apply( const account_witness_vote_operat
    if( itr == by_account_witness_idx.end() ) {
       FC_ASSERT( o.approve, "vote doesn't exist, user must be indicate a desire to approve witness" );
 
-      FC_ASSERT( voter.witnesses_voted_for < MUSE_MAX_ACCOUNT_WITNESS_VOTES, "account has voted for too many witnesses" ); // TODO: Remove after hardfork 2
+      FC_ASSERT( voter.witnesses_voted_for < MUSE_MAX_ACCOUNT_WITNESS_VOTES, "account has voted for too many witnesses" );
 
       db().create<witness_vote_object>( [&]( witness_vote_object& v ) {
           v.witness = witness.id;
@@ -506,10 +496,7 @@ void custom_json_evaluator::do_apply( const custom_json_operation& o )
 {
    if ( o.json.size() > 0 )
    {
-      if( db().has_hardfork( MUSE_HARDFORK_0_3 ) )
-         FC_ASSERT( fc::json::is_valid(o.json), "JSON data not valid JSON" );
-      else
-         FC_ASSERT( fc::json::is_valid(o.json, fc::json::broken_nul_parser), "JSON data not valid JSON" );
+      FC_ASSERT( fc::json::is_valid(o.json), "JSON data not valid JSON" );
    }
 
    for( const auto& auth : o.required_basic_auths )

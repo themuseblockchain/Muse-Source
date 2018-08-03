@@ -617,7 +617,7 @@ bool database::_push_block(const signed_block& new_block)
          //Only switch forks if new_head is actually higher than head
          if( new_head->data.block_num() > head_block_num() )
          {
-            // wlog( "Switching to fork: ${id}", ("id",new_head->data.id()) );
+            ilog( "Switching to fork: ${id}", ("id",new_head->data.id()) );
             auto branches = _fork_db.fetch_branch_from(new_head->data.id(), head_block_id());
 
             // pop blocks until we hit the forked block
@@ -627,7 +627,7 @@ bool database::_push_block(const signed_block& new_block)
             // push all blocks on the new fork
             for( auto ritr = branches.first.rbegin(); ritr != branches.first.rend(); ++ritr )
             {
-                // ilog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
+                dlog( "pushing blocks from fork ${n} ${id}", ("n",(*ritr)->data.block_num())("id",(*ritr)->data.id()) );
                 optional<fc::exception> except;
                 try
                 {
@@ -639,7 +639,7 @@ bool database::_push_block(const signed_block& new_block)
                 catch ( const fc::exception& e ) { except = e; }
                 if( except )
                 {
-                   // wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
+                   wlog( "exception thrown while switching forks ${e}", ("e",except->to_detail_string() ) );
                    // remove the rest of branches.first from the fork_db, those blocks are invalid
                    while( ritr != branches.first.rend() )
                    {
@@ -778,11 +778,33 @@ signed_block database::_generate_block(
    if( !(skip & skip_witness_signature) )
       FC_ASSERT( witness_obj.signing_key == block_signing_private_key.get_public_key() );
 
-   static const size_t max_block_header_size = fc::raw::pack_size( signed_block_header() ) + 4;
-   auto maximum_block_size = get_dynamic_global_properties().maximum_block_size; //MUSE_MAX_BLOCK_SIZE;
-   size_t total_block_size = max_block_header_size;
-
    signed_block pending_block;
+
+   pending_block.previous = head_block_id();
+   pending_block.timestamp = when;
+   pending_block.witness = witness_owner;
+   const auto& witness = get_witness( witness_owner );
+
+   if( witness.running_version != MUSE_BLOCKCHAIN_VERSION )
+      pending_block.extensions.insert( block_header_extensions( MUSE_BLOCKCHAIN_VERSION ) );
+
+   const auto& hfp = hardfork_property_id_type()( *this );
+
+   if( hfp.current_hardfork_version < MUSE_BLOCKCHAIN_HARDFORK_VERSION // Binary is newer hardfork than has been applied
+      && ( witness.hardfork_version_vote != _hardfork_versions[ hfp.last_hardfork + 1 ] || witness.hardfork_time_vote != _hardfork_times[ hfp.last_hardfork + 1 ] ) ) // Witness vote does not match binary configuration
+   {
+      // Make vote match binary configuration
+      pending_block.extensions.insert( block_header_extensions( hardfork_version_vote( _hardfork_versions[ hfp.last_hardfork + 1 ], _hardfork_times[ hfp.last_hardfork + 1 ] ) ) );
+   }
+   else if( hfp.current_hardfork_version == MUSE_BLOCKCHAIN_HARDFORK_VERSION // Binary does not know of a new hardfork
+      && witness.hardfork_version_vote > MUSE_BLOCKCHAIN_HARDFORK_VERSION ) // Voting for hardfork in the future, that we do not know of...
+   {
+      // Make vote match binary configuration. This is vote to not apply the new hardfork.
+      pending_block.extensions.insert( block_header_extensions( hardfork_version_vote( _hardfork_versions[ hfp.last_hardfork ], _hardfork_times[ hfp.last_hardfork ] ) ) );
+   }
+   // The 4 is for the max size of the transaction vector length
+   size_t total_block_size = fc::raw::pack_size( pending_block ) + 4;
+   auto maximum_block_size = get_dynamic_global_properties().maximum_block_size;
 
    //
    // The following code throws away existing pending_tx_session and
@@ -846,29 +868,7 @@ signed_block database::_generate_block(
    // However, the push_block() call below will re-create the
    // _pending_tx_session.
 
-   pending_block.previous = head_block_id();
-   pending_block.timestamp = when;
    pending_block.transaction_merkle_root = pending_block.calculate_merkle_root();
-   pending_block.witness = witness_owner;
-   const auto& witness = get_witness( witness_owner );
-
-   if( witness.running_version != MUSE_BLOCKCHAIN_VERSION )
-      pending_block.extensions.insert( block_header_extensions( MUSE_BLOCKCHAIN_VERSION ) );
-
-   const auto& hfp = hardfork_property_id_type()( *this );
-
-   if( hfp.current_hardfork_version < MUSE_BLOCKCHAIN_HARDFORK_VERSION // Binary is newer hardfork than has been applied
-      && ( witness.hardfork_version_vote != _hardfork_versions[ hfp.last_hardfork + 1 ] || witness.hardfork_time_vote != _hardfork_times[ hfp.last_hardfork + 1 ] ) ) // Witness vote does not match binary configuration
-   {
-      // Make vote match binary configuration
-      pending_block.extensions.insert( block_header_extensions( hardfork_version_vote( _hardfork_versions[ hfp.last_hardfork + 1 ], _hardfork_times[ hfp.last_hardfork + 1 ] ) ) );
-   }
-   else if( hfp.current_hardfork_version == MUSE_BLOCKCHAIN_HARDFORK_VERSION // Binary does not know of a new hardfork
-      && witness.hardfork_version_vote > MUSE_BLOCKCHAIN_HARDFORK_VERSION ) // Voting for hardfork in the future, that we do not know of...
-   {
-      // Make vote match binary configuration. This is vote to not apply the new hardfork.
-      pending_block.extensions.insert( block_header_extensions( hardfork_version_vote( _hardfork_versions[ hfp.last_hardfork ], _hardfork_times[ hfp.last_hardfork ] ) ) );
-   }
 
    if( !(skip & skip_witness_signature) )
       pending_block.sign( block_signing_private_key );
@@ -1481,20 +1481,18 @@ void database::clear_streaming_platform_votes( const account_object& a )
 
 void database::update_owner_authority( const account_object& account, const authority& owner_authority )
 {
-   if( head_block_num() >= 3186477 ) // FIXME: needs to be removed, but usage must be HF-protected
+   const auto now = head_block_time();
+   create< owner_authority_history_object >( [&account,now]( owner_authority_history_object& hist )
    {
-      create< owner_authority_history_object >( [&]( owner_authority_history_object& hist )
-      {
-         hist.account = account.name;
-         hist.previous_owner_authority = account.owner;
-         hist.last_valid_time = head_block_time();
-      });
-   }
+      hist.account = account.name;
+      hist.previous_owner_authority = account.owner;
+      hist.last_valid_time = now;
+   });
 
-   modify( account, [&]( account_object& a )
+   modify( account, [&owner_authority,now]( account_object& a )
    {
       a.owner = owner_authority;
-      a.last_owner_update = head_block_time();
+      a.last_owner_update = now;
    });
 }
 
@@ -1647,8 +1645,7 @@ asset database::process_content_cashout( const asset& content_reward )
    while ( itr != ridx.end() && itr->created <= cashing_time )
    {
       const account_object & consumer = get<account_object>( itr->consumer );
-      ilog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
-      edump((consumer));
+      dlog("process content cashout ", ("consumer.total_listening_time", consumer.total_listening_time));
       FC_ASSERT( consumer.total_listening_time > 0 );
       asset pay_reserve = total_payout * itr->play_time;
       if( !has_hardfork( MUSE_HARDFORK_0_2 ) )
@@ -1785,17 +1782,6 @@ void database::pay_to_platform( streaming_platform_id_type platform, const asset
    auto vest_created = create_vesting( owner, vesting_muse );
    auto mbd_created = create_mbd( owner, mbd_muse );
    push_applied_operation(playing_reward_operation(pl.owner, url, mbd_created, vest_created ));
-}FC_LOG_AND_RETHROW() }
-
-
-void database::pay_to_curator(const content_object &co, account_id_type cur, const asset& pay)
-{try{
-   const auto& curator = get<account_object>(cur);
-   auto vesting_muse = asset(0, MUSE_SYMBOL);
-   auto mbd_muse     = pay - vesting_muse;
-   auto vest_created = create_vesting( curator, vesting_muse );
-   auto mbd_created = create_mbd( curator, mbd_muse );
-   push_applied_operation(curate_reward_operation( curator.name, co.url, mbd_created, vest_created ));
 }FC_LOG_AND_RETHROW() }
 
 asset database::pay_to_content(content_id_type content, asset payout, streaming_platform_id_type platform)
@@ -2121,7 +2107,10 @@ void database::initialize_indexes()
    add_index< primary_index< liquidity_reward_index > >();
    add_index< primary_index< limit_order_index > >();
    add_index< primary_index< escrow_index > >();
-   add_index< primary_index< content_index > >();
+   auto cti = add_index< primary_index< content_index > >();
+   cti->add_secondary_index<content_by_genre_index>();
+   cti->add_secondary_index<content_by_category_index>();
+
    add_index< primary_index< content_approve_index> >();
 
    //Implementation object indexes
@@ -2484,7 +2473,7 @@ void database::_apply_block( const signed_block& next_block )
    applied_block( next_block ); //emit
 
    notify_changed_objects();
-} //FC_CAPTURE_AND_RETHROW( (next_block.block_num()) )  }
+}
 FC_LOG_AND_RETHROW() }
 
 void database::process_header_extensions( const signed_block& next_block )
@@ -2591,7 +2580,6 @@ void database::_apply_transaction(const signed_transaction& trx)
    auto& trx_idx = get_mutable_index_type<transaction_index>();
    const chain_id_type& chain_id = MUSE_CHAIN_ID;
    auto trx_id = trx.id();
-   // idump((trx_id)(skip&skip_transaction_dupe_check));
    FC_ASSERT( (skip & skip_transaction_dupe_check) ||
               trx_idx.indices().get<by_trx_id>().find(trx_id) == trx_idx.indices().get<by_trx_id>().end() );
    transaction_evaluation_state eval_state(this);
@@ -2814,7 +2802,7 @@ void database::update_virtual_supply()
 
 void database::push_proposal(const proposal_object& proposal)
 { try {
-   ilog( "Proposal: executing ${p}", ("p",proposal) );
+   dlog( "Proposal: executing ${p}", ("p",proposal) );
 
    auto session = _undo_db.start_undo_session(true);
    _current_op_in_trx = 0;
@@ -3048,7 +3036,7 @@ void database::clear_expired_proposals()
             continue;
          }
       } catch( const fc::exception& e ) {
-         elog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
+         ilog("Failed to apply proposed transaction on its expiration. Deleting it.\n${proposal}\n${error}",
               ("proposal", proposal)("error", e.to_detail_string()));
       }
       remove(proposal);

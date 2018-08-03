@@ -743,12 +743,8 @@ public:
             continue;
          const account_object& acct = it->second;
          vector<public_key_type> v_approving_keys = acct.active.get_keys();
-         wdump((v_approving_keys));
          for( const public_key_type& approving_key : v_approving_keys )
-         {
-            wdump((approving_key));
             approving_key_set.insert( approving_key );
-         }
       }
 
       for( string& acct_name : req_basic_approvals )
@@ -758,12 +754,8 @@ public:
             continue;
          const account_object& acct = it->second;
          vector<public_key_type> v_approving_keys = acct.basic.get_keys();
-         wdump((v_approving_keys));
          for( const public_key_type& approving_key : v_approving_keys )
-         {
-            wdump((approving_key));
             approving_key_set.insert( approving_key );
-         }
       }
 
       for( const string& acct_name : req_owner_approvals )
@@ -774,18 +766,12 @@ public:
          const account_object& acct = it->second;
          vector<public_key_type> v_approving_keys = acct.owner.get_keys();
          for( const public_key_type& approving_key : v_approving_keys )
-         {
-            wdump((approving_key));
             approving_key_set.insert( approving_key );
-         }
       }
       for( const authority& a : other_auths )
       {
          for( const auto& k : a.key_auths )
-         {
-            wdump((k.first));
             approving_key_set.insert( k.first );
-         }
       }
 
       auto dyn_props = _remote_db->get_dynamic_global_properties();
@@ -793,7 +779,6 @@ public:
       tx.set_expiration( dyn_props.time + fc::seconds(_tx_expiration_seconds) );
       tx.signatures.clear();
 
-      //idump((_keys));
       flat_set< public_key_type > available_keys;
       flat_map< public_key_type, fc::ecc::private_key > available_private_keys;
       for( const public_key_type& key : approving_key_set )
@@ -2247,7 +2232,6 @@ annotated_signed_transaction detail::wallet_api_impl::import_balance( string nam
    }
 
    vector< balance_object > balances = _remote_db->get_balance_objects( addrs );
-   wdump((balances));
    addrs.clear();
 
    signed_transaction tx;
