@@ -294,7 +294,8 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
 {
     const auto& account = db().get_account( o.account );
 
-    if( db().head_block_time() > fc::time_point::now() - fc::seconds(15) // SOFT FORK
+    const auto now = db().head_block_time();
+    if( now > fc::time_point::now() - fc::seconds(15) // SOFT FORK
           || db().has_hardfork( MUSE_HARDFORK_0_4 ) ) // TODO: move to withdraw_vesting_operation::validate after hf
        FC_ASSERT( o.vesting_shares.amount >= 0, "Cannot withdraw a negative amount of VESTS!" );
 
@@ -318,7 +319,7 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
        if( o.vesting_shares.amount == 0 ) // SOFT FORK, remove after HF 4
        FC_ASSERT( account.vesting_withdraw_rate.amount  != 0, "this operation would not change the vesting withdraw rate" );
 
-       db().modify( account, [&]( account_object& a ) {
+       db().modify( account, []( account_object& a ) {
          a.vesting_withdraw_rate = asset( 0, VESTS_SYMBOL );
          a.next_vesting_withdrawal = time_point_sec::maximum();
          a.to_withdraw = 0;
@@ -326,17 +327,17 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
        });
     }
     else {
-       db().modify( account, [&]( account_object& a ) {
+       db().modify( account, [&o,&now]( account_object& a ) {
          auto new_vesting_withdraw_rate = asset( o.vesting_shares.amount / MUSE_VESTING_WITHDRAW_INTERVALS, VESTS_SYMBOL );
 
          if( new_vesting_withdraw_rate.amount == 0 )
             new_vesting_withdraw_rate.amount = 1;
 
-         FC_ASSERT( account.vesting_withdraw_rate  != new_vesting_withdraw_rate, "this operation would not change the vesting withdraw rate" );
+         FC_ASSERT( a.vesting_withdraw_rate != new_vesting_withdraw_rate, "this operation would not change the vesting withdraw rate" );
 
          a.vesting_withdraw_rate = new_vesting_withdraw_rate;
 
-         a.next_vesting_withdrawal = db().head_block_time() + fc::seconds(MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS);
+         a.next_vesting_withdrawal = now + fc::seconds(MUSE_VESTING_WITHDRAW_INTERVAL_SECONDS);
          a.to_withdraw = o.vesting_shares.amount;
          a.withdrawn = 0;
        });

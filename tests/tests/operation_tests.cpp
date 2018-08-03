@@ -3198,7 +3198,6 @@ BOOST_AUTO_TEST_CASE( account_recovery )
 
       generate_block();
 
-      const auto& final_request_idx = db.get_index_type< account_recovery_request_index >().indices();
       BOOST_REQUIRE( new_request_idx.begin() == new_request_idx.end() );
 
       recover.new_owner_authority = authority( 1, generate_private_key( "expire" ).get_public_key(), 1 );
@@ -3352,7 +3351,6 @@ BOOST_AUTO_TEST_CASE( change_recovery_account )
       fc::ecc::private_key alice_priv4 = fc::ecc::private_key::regenerate( "alice_k4" );
       */
       public_key_type alice_pub1 = public_key_type( alice_priv1.get_public_key() );
-      public_key_type alice_pub2 = public_key_type( alice_priv2.get_public_key() );
       /*
       public_key_type alice_pub3 = public_key_type( alice_priv3 );
       public_key_type alice_pub4 = public_key_type( alice_priv4 );
