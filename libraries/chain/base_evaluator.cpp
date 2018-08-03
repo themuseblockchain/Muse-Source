@@ -294,7 +294,8 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
 {
     const auto& account = db().get_account( o.account );
 
-    if( db().head_block_time() > fc::time_point::now() - fc::seconds(15) ) // SOFT FORK
+    if( db().head_block_time() > fc::time_point::now() - fc::seconds(15) // SOFT FORK
+          || db().has_hardfork( MUSE_HARDFORK_0_4 ) ) // TODO: move to withdraw_vesting_operation::validate after hf
        FC_ASSERT( o.vesting_shares.amount >= 0, "Cannot withdraw a negative amount of VESTS!" );
 
     FC_ASSERT( account.vesting_shares >= asset( 0, VESTS_SYMBOL ) );
@@ -314,7 +315,7 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
 
 
     if( o.vesting_shares.amount <= 0 ) {
-       if( o.vesting_shares.amount == 0 ) // SOFT FORK
+       if( o.vesting_shares.amount == 0 ) // SOFT FORK, remove after HF 4
        FC_ASSERT( account.vesting_withdraw_rate.amount  != 0, "this operation would not change the vesting withdraw rate" );
 
        db().modify( account, [&]( account_object& a ) {

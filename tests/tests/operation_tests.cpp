@@ -1271,24 +1271,20 @@ BOOST_AUTO_TEST_CASE( withdraw_vesting_apply )
       op.account = "alice";
       op.vesting_shares = asset( -1, VESTS_SYMBOL );
 
-      generate_blocks( fc::time_point::now() - fc::seconds(30) );
-
       signed_transaction tx;
       tx.operations.push_back( op );
       tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
       tx.sign( alice_private_key, db.get_chain_id() );
-      db.push_transaction( tx, 0 );
-      // works, but sets withdraw_rate to 0
-      BOOST_CHECK_EQUAL( 0, db.get_account("alice").vesting_withdraw_rate.amount.value );
-
-      generate_blocks( fc::time_point::now() - fc::seconds(10) );
-
-      tx.set_expiration( db.head_block_time() + MUSE_MAX_TIME_UNTIL_EXPIRATION );
-      tx.signatures.clear();
-      tx.sign( alice_private_key, db.get_chain_id() );
-      // fails
       MUSE_REQUIRE_THROW( db.push_transaction( tx, 0 ), fc::assert_exception );
 
+      {
+         proposal_create_operation pop;
+         pop.proposed_ops.emplace_back( op );
+         pop.expiration_time = db.head_block_time() + fc::minutes(1);
+         tx.clear();
+         tx.operations.push_back( pop );
+         BOOST_CHECK_THROW( PUSH_TX( db, tx ), fc::assert_exception );
+      }
 
       BOOST_TEST_MESSAGE( "--- Test withdraw of existing VESTS" );
       op.vesting_shares = asset( db.get_account("alice").vesting_shares.amount / 2, VESTS_SYMBOL );
@@ -1299,6 +1295,15 @@ BOOST_AUTO_TEST_CASE( withdraw_vesting_apply )
       tx.operations.push_back( op );
       tx.sign( alice_private_key, db.get_chain_id() );
       db.push_transaction( tx, 0 );
+
+      {
+         proposal_create_operation pop;
+         pop.proposed_ops.emplace_back( op );
+         pop.expiration_time = db.head_block_time() + fc::minutes(1);
+         tx.clear();
+         tx.operations.push_back( pop );
+         PUSH_TX( db, tx );
+      }
 
       BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_shares.amount.value, old_vesting_shares.amount.value );
       BOOST_REQUIRE_EQUAL( db.get_account("alice").vesting_withdraw_rate.amount.value, ( old_vesting_shares.amount / 2 / MUSE_VESTING_WITHDRAW_INTERVALS ).value );
