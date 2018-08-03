@@ -1,0 +1,6 @@
+#ifndef MUSE_HARDFORK_0_4
+#define MUSE_HARDFORK_0_4 4
+// TBD
+#define MUSE_HARDFORK_0_4_TIME 1800000000
+#define MUSE_HARDFORK_0_4_VERSION hardfork_version( 0, 4 )
+#endif

@@ -800,6 +800,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
 
       BOOST_TEST_MESSAGE( "Generate blocks up to the hardfork time and check hardfork still not applied" );
       generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_1_TIME - MUSE_BLOCK_INTERVAL ), true );
@@ -808,6 +809,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
 
       BOOST_TEST_MESSAGE( "Generate a block and check hardfork is applied" );
       generate_block();
@@ -839,6 +841,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_2 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
 
       generate_block();
 
@@ -846,6 +849,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
 
       generate_blocks( 2*MUSE_MAX_MINERS );
       generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_3_TIME - MUSE_BLOCK_INTERVAL ), true );
@@ -854,6 +858,7 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
       BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
 
       generate_block();
 
@@ -861,6 +866,24 @@ BOOST_FIXTURE_TEST_CASE( hardfork_test, database_fixture )
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
       BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
+
+      generate_blocks( 2*MUSE_MAX_MINERS );
+      generate_blocks( fc::time_point_sec( MUSE_HARDFORK_0_4_TIME - MUSE_BLOCK_INTERVAL ), true );
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( !db.has_hardfork( MUSE_HARDFORK_0_4 ) );
+
+      generate_block();
+
+      BOOST_REQUIRE( db.has_hardfork( 0 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_1 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_2 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_3 ) );
+      BOOST_REQUIRE( db.has_hardfork( MUSE_HARDFORK_0_4 ) );
    }
    FC_LOG_AND_RETHROW()
 }

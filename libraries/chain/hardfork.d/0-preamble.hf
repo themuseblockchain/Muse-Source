@@ -33,5 +33,5 @@ FC_REFLECT_DERIVED( muse::chain::hardfork_property_object, (graphene::db::object
    (processed_hardforks)(last_hardfork)(current_hardfork_version)
    (next_hardfork)(next_hardfork_time) )
 
-#define MUSE_NUM_HARDFORKS 3
+#define MUSE_NUM_HARDFORKS 4
 
