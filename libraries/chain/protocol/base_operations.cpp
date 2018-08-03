@@ -85,6 +85,7 @@ namespace muse { namespace chain {
    {
       FC_ASSERT( is_valid_account_name( account ), "Account name invalid" );
       FC_ASSERT( is_asset_type( vesting_shares, VESTS_SYMBOL), "Amount must be VESTS"  );
+      //FC_ASSERT( vesting_shares.amount >= 0, "Cannot withdraw a negative amount of VESTS!" );
    }
 
    void set_withdraw_vesting_route_operation::validate() const
