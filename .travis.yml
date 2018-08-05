@@ -22,7 +22,7 @@ script:
  - sed -i '/subdirectory.*tests/d' libraries/fc/CMakeLists.txt
  - cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS=--coverage -DCMAKE_CXX_FLAGS=--coverage -DBoost_USE_STATIC_LIBS=OFF -DCMAKE_CXX_OUTPUT_EXTENSION_REPLACE=ON .
  - 'which build-wrapper-linux-x86-64 && build-wrapper-linux-x86-64 --out-dir bw-output make -j 2 || make -j 2'
- - libraries/fc/tests/run-parallel-tests.sh tests/chain_test
- - libraries/fc/tests/run-parallel-tests.sh tests/plugin_test
+ - tests/chain_test  2>&1 | cat
+ - tests/plugin_test 2>&1 | cat
  - 'find libraries/[acdemnpuw]*/CMakeFiles/*.dir programs/[cjmsu]*/CMakeFiles/*.dir -type d | while read d; do gcov -o "$d" "${d/CMakeFiles*.dir/./}"/*.cpp; done >/dev/null'
  - 'which sonar-scanner && sonar-scanner || true'
