@@ -48,6 +48,12 @@ namespace impl {
             for( const op_wrapper& op : v.proposed_ops )
                 op.op.visit( *this );
          }
+
+         void operator()( const muse::chain::withdraw_vesting_operation& v )const {
+            if( _db.head_block_time() > fc::time_point::now() - fc::seconds(15) // SOFT FORK
+                  || _db.has_hardfork( MUSE_HARDFORK_0_4 ) ) // TODO: move to withdraw_vesting_operation::validate after hf
+               FC_ASSERT( v.vesting_shares.amount >= 0, "Cannot withdraw a negative amount of VESTS!" );
+         }
       private:
          database& _db;
    };
