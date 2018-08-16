@@ -155,6 +155,17 @@ class database_api
       vector<content_object> list_content_by_category( const string& category, const string& bound, uint16_t limit )const;
 
       /****************
+       * Lookup songs that were uploaded by the given account by descending
+       * publication (in MUSE!) time
+       * @param uploader the uploader account name
+       * @param bound if not empty and not 2.9.0, list only content_objects *smaller than* that content_id
+       * @param limit Length of the list to retrieve (max 100)
+       * @return List of content, sorted by descending publication time
+       * @ingroup db_api
+       */
+      vector<content_object> list_content_by_uploader( const string& uploader, const string& bound, uint16_t limit )const;
+
+      /****************
        * Lookup User Issued Assets
        * @param start_id the ID to start with
        * @return List of UIA asset objects
