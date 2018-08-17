@@ -603,6 +603,30 @@ BOOST_AUTO_TEST_CASE( list_content )
    songs = db_api.list_content_by_category( "CDs", "", 100 );
    BOOST_CHECK( songs.empty() );
 
+   // _by_uploader
+   BOOST_CHECK_THROW( db_api.list_content_by_uploader( "uhura", "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_uploader( "", "", 100 );
+   BOOST_CHECK_THROW( db_api.list_content_by_uploader( "uhura", "1.9.0", 100 ), fc::assert_exception );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_uploader( "martha", "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_uploader( "uhura", "", 100 );
+   BOOST_REQUIRE_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_uploader( "uhura", "2.9.3", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_uploader( "uhura", "2.9.1", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+   songs = db_api.list_content_by_uploader( "uhura", "2.9.2", 1 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
+
    content_update_operation cup;
    cup.side = content_update_operation::side_t::master;
    cup.url = cop.url;
@@ -682,6 +706,30 @@ BOOST_AUTO_TEST_CASE( list_content )
    songs = db_api.list_content_by_category( "CD", "2.9.2", 100 );
    BOOST_CHECK_EQUAL( 1, songs.size() );
    BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+
+   // _by_uploader
+   BOOST_CHECK_THROW( db_api.list_content_by_uploader( "uhura", "", 1000 ), fc::assert_exception );
+   songs = db_api.list_content_by_uploader( "", "", 100 );
+   BOOST_CHECK_THROW( db_api.list_content_by_uploader( "uhura", "1.9.0", 100 ), fc::assert_exception );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_uploader( "martha", "", 100 );
+   BOOST_CHECK( songs.empty() );
+   songs = db_api.list_content_by_uploader( "uhura", "", 100 );
+   BOOST_REQUIRE_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_uploader( "uhura", "2.9.3", 100 );
+   BOOST_CHECK_EQUAL( 3, songs.size() );
+   BOOST_CHECK_EQUAL( 2, songs[0].id.instance() );
+   BOOST_CHECK_EQUAL( 1, songs[1].id.instance() );
+   BOOST_CHECK_EQUAL( 0, songs[2].id.instance() );
+   songs = db_api.list_content_by_uploader( "uhura", "2.9.1", 100 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 0, songs[0].id.instance() );
+   songs = db_api.list_content_by_uploader( "uhura", "2.9.2", 1 );
+   BOOST_CHECK_EQUAL( 1, songs.size() );
+   BOOST_CHECK_EQUAL( 1, songs[0].id.instance() );
 } FC_LOG_AND_RETHROW() }
 
 BOOST_AUTO_TEST_SUITE_END()

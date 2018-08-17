@@ -77,6 +77,7 @@ class database_api_impl : public std::enable_shared_from_this<database_api_impl>
       vector<content_object> list_content_by_latest( const content_id_type start, uint16_t limit )const;
       vector<content_object> list_content_by_genre( uint32_t genre, const content_id_type start, uint16_t limit )const;
       vector<content_object> list_content_by_category( const string& category, const content_id_type bound, uint16_t limit )const;
+      vector<content_object> list_content_by_uploader( const string& uploader, const object_id_type bound, uint16_t limit )const;
 
       //scoring
       uint64_t get_account_scoring( string account );
@@ -779,10 +780,10 @@ vector<content_object> database_api::get_content_by_uploader(string author)const
 
 vector<content_object> database_api_impl::get_content_by_uploader(string uploader)const
 {
-   const auto& idx= _db.get_index_type<content_index>().indices().get< by_uploader_url >();
+   const auto& idx= _db.get_index_type<content_index>().indices().get< by_uploader >();
    vector <content_object> result;
     
-   auto itr = idx.lower_bound( std::make_tuple( uploader, "") );
+   auto itr = idx.lower_bound( std::make_tuple( uploader, content_id_type(-1) ) );
    while( itr != idx.end() && itr->uploader == uploader && result.size() < 1000 )
    {
       result.push_back (*itr);
@@ -909,6 +910,32 @@ vector<content_object> database_api_impl::list_content_by_category( const string
    }
    while( itr != ids.begin() && result.size() < limit )
       result.push_back( (*--itr)(_db) );
+
+   return result;
+}
+
+vector<content_object> database_api::list_content_by_uploader( const string& uploader, const string& bound, uint16_t limit )const
+{
+   if( bound.empty() )
+      return my->list_content_by_uploader( uploader, content_id_type(), limit );
+   return my->list_content_by_uploader( uploader, fc::variant(bound, 1).as<content_id_type>(1), limit );
+}
+
+vector<content_object> database_api_impl::list_content_by_uploader( const string& uploader, const object_id_type bound, uint16_t limit )const
+{
+   FC_ASSERT( limit <= 100 );
+
+   vector<content_object> result;
+   result.reserve( limit );
+   const auto& idx = _db.get_index_type<content_index>().indices().get<by_uploader>();
+   auto itr = idx.lower_bound( boost::make_tuple( uploader, bound.instance() > 0 ? bound : object_id_type(content_id_type((1ULL<<48)-1)) ) );
+   if( itr == idx.end() ) return result;
+   if( bound.instance() > 0 )
+   {
+      if( itr->id == bound ) itr++;
+   }
+   while( itr != idx.end() && itr->uploader == uploader && result.size() < limit )
+      result.push_back( *itr++ );
 
    return result;
 }

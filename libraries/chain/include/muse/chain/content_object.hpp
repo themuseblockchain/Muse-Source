@@ -144,7 +144,7 @@ namespace muse { namespace chain {
 
    struct by_url; 
    struct by_title;
-   struct by_uploader_url;
+   struct by_uploader;
    struct by_popularity;
    /**
     * @ingroup object_index
@@ -155,11 +155,12 @@ namespace muse { namespace chain {
          ordered_unique< tag< by_id >, member< object, object_id_type, &object::id > >,
          ordered_unique< tag< by_url >, member< content_object, string, &content_object::url> >,
          ordered_non_unique< tag< by_title >, member< content_object, string, &content_object::track_title > >,
-         ordered_unique< tag< by_uploader_url >,
+         ordered_unique< tag< by_uploader >,
             composite_key< content_object, 
-               member< content_object, string, &content_object::uploader>,
-               member< content_object, string, &content_object::url>
-            >
+               member< content_object, string, &content_object::uploader >,
+               member< object, object_id_type, &object::id >
+            >,
+           composite_key_compare< std::less< string >, std::greater< object_id_type > >
          >,
          ordered_non_unique< tag< by_popularity >, member< content_object, uint32_t, &content_object::times_played_24 > >
       >
